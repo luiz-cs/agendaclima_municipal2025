@@ -38,4 +38,14 @@ ifelse(!dir.exists(file.path(here("Figuras"))),
         "Pasta já existe")
 ```
 
+## Scraping
+
+Pasta utilizada nos casos em que ainda não se tenha o banco de dados das Câmaras Municipais. Na pasta serão armazenados os arquivos e os dados para raspagem.
+
+```{r, 'scraping'}
+ifelse(!dir.exists(file.path(here("Scraping"))),
+        dir.create(file.path(here("Scraping"))),
+        "Pasta já existe")
+```
+
 Caso esteja usando controle de versões (como Github), recomendo que adicione essas duas pastas a lista de "Ignorar", já que nela estarão os arquivos mais pesados da análise.

@@ -1751,41 +1751,75 @@ display: none;
 </div>
 
 
+<!-- rnb-text-begin -->
 <div id="criando-as-pastas" class="section level1">
 <h1>0.Criando as pastas</h1>
 <p>Este código cria as pastas que serão utilizados ao longo do projeto
 se elas ainda não existem.</p>
 <div id="pacotes-utilizados" class="section level2">
 <h2>Pacotes utilizados</h2>
-<p><code>{r} #install.packages(&quot;here&quot;) library(here)</code></p>
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuI2luc3RhbGwucGFja2FnZXMoXCJoZXJlXCIpXG5saWJyYXJ5KGhlcmUpXG5gYGAifQ== -->
+<pre class="r"><code>#install.packages(&quot;here&quot;)
+library(here)</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-output-begin eyJkYXRhIjoiaGVyZSgpIHN0YXJ0cyBhdCAvaG9tZS9sdWl6Y3MvRG9jdW1lbnRvcy9SL2FnZW5kYWNsaW1hX211bmljaXBhbDIwMjVcbiJ9 -->
+<pre><code>here() starts at /home/luizcs/Documentos/R/agendaclima_municipal2025</code></pre>
+<!-- rnb-output-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
 </div>
 <div id="dados" class="section level2">
 <h2>Dados</h2>
 <p>Esta pasta é utilizada para guardar todos os bancos de dados
 originais e os produzidos ao longo do processo de análise</p>
-<p>```{r, ‘dados’} #Criando as pastas ##Dados
-ifelse(!dir.exists(file.path(here(“Dados”))),
-dir.create(file.path(here(“Dados”))), “Pasta já existe”)</p>
-<pre><code>
-## Figuras
-
-Esta pasta é utilizada para guardar gráficos, mapas e figuras em geral produzidas ao longo do processo de análise.
-
-```{r, &#39;figuras&#39;}
-##Figuras
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuI0NyaWFuZG8gYXMgcGFzdGFzXG4jI0RhZG9zXG5pZmVsc2UoIWRpci5leGlzdHMoZmlsZS5wYXRoKGhlcmUoXCJEYWRvc1wiKSkpLFxuICAgICAgICBkaXIuY3JlYXRlKGZpbGUucGF0aChoZXJlKFwiRGFkb3NcIikpKSxcbiAgICAgICAgXCJQYXN0YSBqw6EgZXhpc3RlXCIpXG4gICAgICBcbmBgYCJ9 -->
+<pre class="r"><code>#Criando as pastas
+##Dados
+ifelse(!dir.exists(file.path(here(&quot;Dados&quot;))),
+        dir.create(file.path(here(&quot;Dados&quot;))),
+        &quot;Pasta já existe&quot;)
+      </code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+</div>
+<div id="figuras" class="section level2">
+<h2>Figuras</h2>
+<p>Esta pasta é utilizada para guardar gráficos, mapas e figuras em
+geral produzidas ao longo do processo de análise.</p>
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuIyNGaWd1cmFzXG5pZmVsc2UoIWRpci5leGlzdHMoZmlsZS5wYXRoKGhlcmUoXCJGaWd1cmFzXCIpKSksXG4gICAgICAgIGRpci5jcmVhdGUoZmlsZS5wYXRoKGhlcmUoXCJGaWd1cmFzXCIpKSksXG4gICAgICAgIFwiUGFzdGEgasOhIGV4aXN0ZVwiKVxuYGBgIn0= -->
+<pre class="r"><code>##Figuras
 ifelse(!dir.exists(file.path(here(&quot;Figuras&quot;))),
         dir.create(file.path(here(&quot;Figuras&quot;))),
         &quot;Pasta já existe&quot;)</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
 </div>
 <div id="scraping" class="section level2">
 <h2>Scraping</h2>
 <p>Pasta utilizada nos casos em que ainda não se tenha o banco de dados
 das Câmaras Municipais. Na pasta serão armazenados os arquivos e os
 dados para raspagem.</p>
-<p><code>{r, &#39;scraping&#39;} ifelse(!dir.exists(file.path(here(&quot;Scraping&quot;))),         dir.create(file.path(here(&quot;Scraping&quot;))),         &quot;Pasta já existe&quot;)</code></p>
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuaWZlbHNlKCFkaXIuZXhpc3RzKGZpbGUucGF0aChoZXJlKFwiU2NyYXBpbmdcIikpKSxcbiAgICAgICAgZGlyLmNyZWF0ZShmaWxlLnBhdGgoaGVyZShcIlNjcmFwaW5nXCIpKSksXG4gICAgICAgIFwiUGFzdGEgasOhIGV4aXN0ZVwiKVxuYGBgIn0= -->
+<pre class="r"><code>ifelse(!dir.exists(file.path(here(&quot;Scraping&quot;))),
+        dir.create(file.path(here(&quot;Scraping&quot;))),
+        &quot;Pasta já existe&quot;)</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
 <p>Caso esteja usando controle de versões (como Github), recomendo que
 adicione essas duas pastas a lista de “Ignorar”, já que nela estarão os
 arquivos mais pesados da análise.</p>
+<!-- rnb-text-end -->
 </div>
 </div>
 
@@ -1836,7 +1870,7 @@ $(document).ready(function () {
 <!-- code folding -->
 <script>
 $(document).ready(function () {
-  window.initializeSourceEmbed("0.Preparando o Diretório");
+  window.initializeSourceEmbed("0.Preparando o Diretório.rmd");
   window.initializeCodeFolding("show" === "show");
 });
 </script>
