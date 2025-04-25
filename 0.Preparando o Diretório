@@ -1,0 +1,41 @@
+---
+title: "0. Criando as pastas"
+output: html_notebook
+---
+
+# 0.Criando as pastas
+
+Este código cria as pastas que serão utilizados ao longo do projeto se elas ainda não existem.
+
+## Pacotes utilizados
+
+```{r}
+#install.packages("here")
+library(here)
+```
+
+## Dados
+
+Esta pasta é utilizada para guardar todos os bancos de dados originais e os produzidos ao longo do processo de análise
+
+```{r, 'dados'}
+#Criando as pastas
+##Dados
+ifelse(!dir.exists(file.path(here("Dados"))),
+        dir.create(file.path(here("Dados"))),
+        "Pasta já existe")
+      
+```
+
+## Figuras
+
+Esta pasta é utilizada para guardar gráficos, mapas e figuras em geral produzidas ao longo do processo de análise.
+
+```{r, 'figuras'}
+##Figuras
+ifelse(!dir.exists(file.path(here("Figuras"))),
+        dir.create(file.path(here("Figuras"))),
+        "Pasta já existe")
+```
+
+Caso esteja usando controle de versões (como Github), recomendo que adicione essas duas pastas a lista de "Ignorar", já que nela estarão os arquivos mais pesados da análise.
