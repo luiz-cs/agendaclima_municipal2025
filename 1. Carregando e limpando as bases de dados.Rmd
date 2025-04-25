@@ -1,0 +1,16 @@
+---
+title: "1. Carregando e limpando as bases de dados"
+output: html_notebook
+---
+
+**Atenção**: Não esqueça de rodar antes o arquivo "0"
+
+# 1. Carregando e limpando as bases de dados
+
+## Importando pacotes
+
+Antes de começar, estes são os pacotes que serão necessários para manipulação destes dados. Caso ainda não os tenha instalados, é só retirar o "\#" da frente e rodar as células
+
+```{r}
+plot(cars)
+```

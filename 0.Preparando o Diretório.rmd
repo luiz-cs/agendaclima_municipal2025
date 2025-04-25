@@ -9,7 +9,7 @@ Este código cria as pastas que serão utilizados ao longo do projeto se elas ai
 
 ## Pacotes utilizados
 
-```{r}
+```{r, 'libraries', echo=FALSE}
 #install.packages("here")
 library(here)
 ```
