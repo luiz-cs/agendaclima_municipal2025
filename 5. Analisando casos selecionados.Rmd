@@ -1,0 +1,12 @@
+---
+title: "5. Analisando casos selecionados"
+output: html_notebook
+---
+
+
+
+```{r}
+plot(cars)
+```
+
+

@@ -1,0 +1,10 @@
+---
+title: "4. Análise do efeito dos ECEs sobre a agenda"
+output: html_notebook
+---
+
+
+```{r}
+plot(cars)
+```
+

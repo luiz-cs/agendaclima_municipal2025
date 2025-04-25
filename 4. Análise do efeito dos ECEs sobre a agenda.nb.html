@@ -11,7 +11,7 @@
 
 
 
-<title>1. Carregando e limpando as bases de dados</title>
+<title>4. Análise do efeito dos ECEs sobre a agenda</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -1746,330 +1746,23 @@ display: none;
 
 
 
-<h1 class="title toc-ignore">1. Carregando e limpando as bases de
-dados</h1>
+<h1 class="title toc-ignore">4. Análise do efeito dos ECEs sobre a
+agenda</h1>
 
 </div>
 
 
 <!-- rnb-text-begin -->
-<p><strong>Atenção</strong>: Não esqueça de rodar antes o arquivo
-“0”</p>
-<div id="carregando-e-limpando-as-bases-de-dados" class="section level1">
-<h1>1. Carregando e limpando as bases de dados</h1>
-<div id="importando-pacotes" class="section level2">
-<h2>1.1 Importando pacotes</h2>
-<p>Antes de começar, estes são os pacotes que serão necessários para
-manipulação destes dados. Caso ainda não os tenha instalados, é só
-retirar o “#” da frente e rodar as células</p>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuI2luc3RhbGwucGFja2FnZXMoXCIpXG5gYGAifQ== -->
-<pre class="r"><code>#install.packages(&quot;)</code></pre>
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxucGxvdChjYXJzKVxuYGBgIn0= -->
+<pre class="r"><code>plot(cars)</code></pre>
 <!-- rnb-source-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 <!-- rnb-text-end -->
-<!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeShkcGx5cilcbmBgYCJ9 -->
-<pre class="r"><code>library(dplyr)</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-chunk-end -->
-<!-- rnb-text-begin -->
-<!-- rnb-text-end -->
-<!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuI0Z1bsOnw6NvIHBhcmEgcGFkcm9uaXphciBtYWnDunNjdWxhc1xuZmlyc3R1cCA9IGZ1bmN0aW9uKHgpe1xuICAgIHN0cmlfdHJhbnNfZ2VuZXJhbChwYXN0ZSh0b3VwcGVyKHN1YnN0cmluZyh4LCAxLCAxKSksXG4gICAgICAgICAgdG9sb3dlcihzdWJzdHJpbmcoeCwgMiwgbmNoYXIoeCkpKSxcbiAgICAgICAgICBzZXAgPSBcIlwiKSwgXCJsYXRpbi1hc2NpaVwiKSB9XG5cbmBgYCJ9 -->
-<pre class="r"><code>#Função para padronizar maiúsculas
-firstup = function(x){
-    stri_trans_general(paste(toupper(substring(x, 1, 1)),
-          tolower(substring(x, 2, nchar(x))),
-          sep = &quot;&quot;), &quot;latin-ascii&quot;) }
-</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-chunk-end -->
-<!-- rnb-text-begin -->
-</div>
-<div id="criando-pacotes" class="section level2">
-<h2>1.2 Criando Pacotes</h2>
-</div>
-</div>
-<div id="recolhendo-os-dados" class="section level1">
-<h1>1. Recolhendo os dados</h1>
-<div id="dados-sobre-desastres" class="section level2">
-<h2>1.1 Dados sobre desastres:</h2>
-<!-- rnb-text-end -->
-<!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuIyBGb250ZSBEYWRvcyBCRCBBdGxhczogaHR0cDovL2F0bGFzZGlnaXRhbC5tZHIuZ292LmJyL3BhZ2luYXMvZG93bmxvYWRzLnhodG1sXG5cbkRlc2FzdHJlcyA8LSByZWFkX2NzdjIoZmlsZSA9IGhlcmUoXCJEYWRvcy9CRF9BdGxhc18xOTkxXzIwMjNfdjEuMF8yMDI0LjA0LjI5LmNzdlwiKSwgbG9jYWxlID0gbG9jYWxlKGVuY29kaW5nID0gXCJMYXRpbjFcIikpXG5gYGAifQ== -->
-<pre class="r"><code># Fonte Dados BD Atlas: http://atlasdigital.mdr.gov.br/paginas/downloads.xhtml
 
-Desastres &lt;- read_csv2(file = here(&quot;Dados/BD_Atlas_1991_2023_v1.0_2024.04.29.csv&quot;), locale = locale(encoding = &quot;Latin1&quot;))</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-chunk-end -->
-<!-- rnb-text-begin -->
-<!-- rnb-text-end -->
-<!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuXG5EZXNhc3RyZXMgPC0gRGVzYXN0cmVzICAlPiUgXG4gIHNlbGVjdChDb2RfSUJHRV9NdW4sTm9tZV9NdW5pY2lwaW8sU2lnbGFfVUYscmVnaWFvLERhdGFfRXZlbnRvLHRpcG9sb2dpYSwgZGVzY3JpY2FvX3RpcG9sb2dpYSwgZ3J1cG9fZGVfZGVzYXN0cmUsIFN0YXR1cywgREhfRGVzY3JpY2FvLCBESF90b3RhbF9kYW5vc19odW1hbm9zLCBETV9EZXNjcmljYW8sIERNX3RvdGFsX2Rhbm9zX21hdGVyaWFpcykgJT4lIFxuICByZW5hbWUoXCJVRlwiID0gXCJTaWdsYV9VRlwiLFxuICAgICAgICAgXCJEZXNhc3RyZVwiID0gXCJkZXNjcmljYW9fdGlwb2xvZ2lhXCIsXG4gICAgICAgICBcIkdydXBvX0Rlc2FzdHJlXCIgPSBcImdydXBvX2RlX2Rlc2FzdHJlXCIpICU+JSBcbiAgbXV0YXRlKERhdGEgPSBhcy5EYXRlKERhdGFfRXZlbnRvLCBmb3JtYXQgPSBcIiVkLyVtLyVZXCIpKSAlPiUgXG4gICAgbXV0YXRlKFwiTcOqc1wiID0gbW9udGgoYERhdGFgKSwgXG4gICAgICAgICAgIFwiQW5vXCIgPSB5ZWFyKGBEYXRhYCksIFxuICAgICAgICAgICBNdW5pY2lwaW8gPSBmaXJzdHVwKHN0cmlfdHJhbnNfZ2VuZXJhbChOb21lX011bmljaXBpbywgXCJsYXRpbi1hc2NpaVwiKSkpICU+JSBcbiAgIGZpbHRlcighKERlc2FzdHJlICVpbiUgYygnRG9lbsOnYXMgaW5mZWNjaW9zYXMnLCdSb21waW1lbnRvL0NvbGFwc28gZGUgYmFycmFnZW5zJywgJ091dHJvcycpKSkgJT4lIFxuICAgIG11dGF0ZShNdW5pY2lwaW8gPSBnc3ViKFwiIFwiLCBcIlwiLCBNdW5pY2lwaW8pLFxuICAgICAgICAgICBNdW5pY2lwaW9fVUYgPSBwYXN0ZShNdW5pY2lwaW8sIFVGLCBzZXAgPSBcIl9cIikpXG5cbnNhdmVSRFMoRGVzYXN0cmVzLCBmaWxlID0gaGVyZShcIkRhZG9zIFNEL0Rlc2FzdHJlcy5SRFNcIikpXG5gYGAifQ== -->
-<pre class="r"><code>
-Desastres &lt;- Desastres  %&gt;% 
-  select(Cod_IBGE_Mun,Nome_Municipio,Sigla_UF,regiao,Data_Evento,tipologia, descricao_tipologia, grupo_de_desastre, Status, DH_Descricao, DH_total_danos_humanos, DM_Descricao, DM_total_danos_materiais) %&gt;% 
-  rename(&quot;UF&quot; = &quot;Sigla_UF&quot;,
-         &quot;Desastre&quot; = &quot;descricao_tipologia&quot;,
-         &quot;Grupo_Desastre&quot; = &quot;grupo_de_desastre&quot;) %&gt;% 
-  mutate(Data = as.Date(Data_Evento, format = &quot;%d/%m/%Y&quot;)) %&gt;% 
-    mutate(&quot;Mês&quot; = month(`Data`), 
-           &quot;Ano&quot; = year(`Data`), 
-           Municipio = firstup(stri_trans_general(Nome_Municipio, &quot;latin-ascii&quot;))) %&gt;% 
-   filter(!(Desastre %in% c(&#39;Doenças infecciosas&#39;,&#39;Rompimento/Colapso de barragens&#39;, &#39;Outros&#39;))) %&gt;% 
-    mutate(Municipio = gsub(&quot; &quot;, &quot;&quot;, Municipio),
-           Municipio_UF = paste(Municipio, UF, sep = &quot;_&quot;))
-
-saveRDS(Desastres, file = here(&quot;Dados SD/Desastres.RDS&quot;))</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-chunk-end -->
-<!-- rnb-text-begin -->
-</div>
-<div id="dados-de-atividade-legislativa" class="section level2">
-<h2>1.2 Dados de atividade legislativa</h2>
-<!-- rnb-text-end -->
-<!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuI0RhZG9zIHJldGlyYWRvcyBkYSBhcGkgZG9zIG11bmljw61waW9zLiBMaW5rIFwiaHR0cHM6Ly9zYXBsLm5vbWVkYWNpZGFkZS51Zi5sZWcuYnIvYXBpL21hdGVyaWEvbWF0ZXJpYWxlZ2lzbGF0aXZhXG4jQ8OzZGlnbyBwYXJhIGxldmFudGFyIGUgY29tcGlsYXIgdG9kb3MgZW0gYW5leG8gKGVtIFB5dGhvbilcbkNpZGFkZXNBTCA8LSByZWFkX2NzdihmaWxlPSBoZXJlKFwiRGFkb3MvUHJvakNpZGFkZXMuY3N2XCIpKVxuYGBgIn0= -->
-<pre class="r"><code>#Dados retirados da api dos municípios. Link &quot;https://sapl.nomedacidade.uf.leg.br/api/materia/materialegislativa
-#Código para levantar e compilar todos em anexo (em Python)
-CidadesAL &lt;- read_csv(file= here(&quot;Dados/ProjCidades.csv&quot;))</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-chunk-end -->
-<!-- rnb-text-begin -->
-<!-- rnb-text-end -->
-<!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuQ2lkYWRlc0FMIDwtIENpZGFkZXNBTCU+JSBcbiAgc2VsZWN0KCEoYyhtZXRhZGF0YSwgdGlwb19hcHJlc2VudGFjYW8sIGlwLCB1c2VyLCBhbmV4YWRhcywgKSkpJT4lIFxuICBtdXRhdGUoRGF0YSA9IGFzLkRhdGUoZGF0YV9hcHJlc2VudGFjYW8pKSAlPiUgXG4gIG11dGF0ZShNw6pzID0gbW9udGgoRGF0YSksXG4gICAgICAgICBBbm8gPSB5ZWFyKERhdGEpKSAlPiUgXG4gIGZpbHRlcihBbm8gPj0gMTk5MSxcbiAgICAgICAgIEFubyA8PSAyMDIzKVxuXG5cbmBgYCJ9 -->
-<pre class="r"><code>CidadesAL &lt;- CidadesAL%&gt;% 
-  select(!(c(metadata, tipo_apresentacao, ip, user, anexadas, )))%&gt;% 
-  mutate(Data = as.Date(data_apresentacao)) %&gt;% 
-  mutate(Mês = month(Data),
-         Ano = year(Data)) %&gt;% 
-  filter(Ano &gt;= 1991,
-         Ano &lt;= 2023)
-</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-chunk-end -->
-<!-- rnb-text-begin -->
-<!-- rnb-text-end -->
-<!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuQ2lkYWRlc0FMIDwtIENpZGFkZXNBTCAlPiUgXG4gIG11dGF0ZShUaXBvX1Byb2pldG8gPSBmaXJzdHVwKHN1YihcIiBuwrouKlwiLCBcIlwiLCBgX19zdHJfX2ApKSxcbiAgICAgICAgIFRpcG8gPSBzdHJpX3RyYW5zX2dlbmVyYWwoc3ViKFwiIC4qXCIsIFwiXCIsIGBUaXBvX1Byb2pldG9gKSwgXCJsYXRpbi1hc2NpaVwiKSxcbiAgICAgICAgIGVtZW50YSA9IHRvbG93ZXIoc3ViKFwiXFxcXCouKj9cXFxcKlwiLCBcIlwiLCBlbWVudGEpKSxcbiAgICAgICAgIFVGID0gc3Vic3RyaW5nKGdzdWIoXCIuKlxcXFwuKFteLl0rKVxcXFwuW14uXStcXFxcLi4qXCIsIFwiXFxcXDFcIiwgQVBJX1VSTCksIDEsIDIpKSAlPiVcbiAgZ3JvdXBfYnkoQ2l0eSkgJT4lXG4gIG11dGF0ZShwcmltLmFubyA9IG1pbihhbm8pLFxuICAgICAgICAgTXVuaWNpcGlvID0gZmlyc3R1cChzdHJpX3RyYW5zX2dlbmVyYWwoQ2l0eSwgXCJsYXRpbi1hc2NpaVwiKSksXG4gICAgICAgICBVRiA9IHRvdXBwZXIoVUYpKSAlPiUgXG4gIHJlbmFtZShcIk5vbWVfUHJvcG9zaXR1cmFcIiA9IFwiX19zdHJfX1wiKSAlPiUgXG4gIHVuZ3JvdXAoKVxuXG4jUmVtb3ZlbmRvIGNvbHVuYXMgZGVzbmVjZXJzc8OhcmlhczpcblxuQ2lkYWRlc0FMIDwtIENpZGFkZXNBTCAlPiUgXG4gIHNlbGVjdChpZCwgRGF0YSwgTXVuaWNpcGlvLCBVRiwgbnVtZXJvLCBBbm8sIE3DqnMsIE5vbWVfUHJvcG9zaXR1cmEsIFRpcG9fUHJvamV0bywgVGlwbywgZW1lbnRhLCBwcmltLmFubylcbmBgYCJ9 -->
-<pre class="r"><code>CidadesAL &lt;- CidadesAL %&gt;% 
-  mutate(Tipo_Projeto = firstup(sub(&quot; nº.*&quot;, &quot;&quot;, `__str__`)),
-         Tipo = stri_trans_general(sub(&quot; .*&quot;, &quot;&quot;, `Tipo_Projeto`), &quot;latin-ascii&quot;),
-         ementa = tolower(sub(&quot;\\*.*?\\*&quot;, &quot;&quot;, ementa)),
-         UF = substring(gsub(&quot;.*\\.([^.]+)\\.[^.]+\\..*&quot;, &quot;\\1&quot;, API_URL), 1, 2)) %&gt;%
-  group_by(City) %&gt;%
-  mutate(prim.ano = min(ano),
-         Municipio = firstup(stri_trans_general(City, &quot;latin-ascii&quot;)),
-         UF = toupper(UF)) %&gt;% 
-  rename(&quot;Nome_Propositura&quot; = &quot;__str__&quot;) %&gt;% 
-  ungroup()
-
-#Removendo colunas desnecerssárias:
-
-CidadesAL &lt;- CidadesAL %&gt;% 
-  select(id, Data, Municipio, UF, numero, Ano, Mês, Nome_Propositura, Tipo_Projeto, Tipo, ementa, prim.ano)</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-chunk-end -->
-<!-- rnb-text-begin -->
-<!-- rnb-text-end -->
-<!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuXG50ZXJtb3NfY2xpbWEgPC0gYyhcIiBjbGltYVwiLCBcIiBhZGFwdGHDp8OjbyBjbGltw6F0aWNhXCIsIFwiIGRlZmVzYSBjaXZpbFwiLCBcIiBhbGFnYW1lbnRvXCIsICBcIiBpbnVuZGHDp8Ojb1wiLCBcIiBpbnVuZGHDp8O1ZXNcIiwgXCIgZGVzbGl6YW1lbnRvXCIsIFwiIGFxdWVjaW1lbnRvIGdsb2JhbFwiLCBcIiBtaXRpZ2HDp8Ojb1wiLCBcIiBjaHV2YVwiLCBcIiBmb3J0ZXMgY2h1dmFzXCIsIFwiIHZlbnRvXCIsIFwiIGRlc2xpemFtZW50b1wiLCBcIiBzb3RlcnJhbWVudG9cIiwgXCIgZGVzYWJhbWVudG9cIiwgXCIgaW5jw6puZGlvXCIsIFwiIGVueHVycmFkYVwiLCBcIiBldmVudG9zIGNsaW3DoXRpY29zIGV4dHJlbW9zXCIsXCIgc2VjYVwiLCBcIiBlc3RpYWdlbVwiLCBcIiBlc3RpYWdlbnNcIiAsIFwicGx1dmlhbFwiLCBcIiBwbHV2aWFpc1wiLCBcIiBlbmNoZW50ZVwiLCBcIiBjaHV2b3NvXCIsIFwiIGVyb3PDo29cIilcbiAgXG4jIENyaWFuZG8gY29sdW5hIGNvbSB0ZXJtb3Mgc29icmUgY2xpbWFcbkNpZGFkZXNBTCRjbGltYV90ZXJtb3MgPC0gTkFfY2hhcmFjdGVyX1xuXG4jIENyaWFuZG8gZHVtbXkgc29icmUgc2UgbyBwcm9qZXRvIMOpIGRvIENsaW1hIG91IG7Do29cbkNpZGFkZXNBTCRwcm9qZXRvY2xpbWEgPC0gRkFMU0VcblxuIyBMb29wIGNoZWNhbmRvIHNlIMOpIHVtIHRlcm1vIHJlbGFjaW9uYWRvIGFvIENsaW1hLlxuZm9yICh0ZXJtbyBpbiB0ZXJtb3NfY2xpbWEpIHtcbiAgIyBDaGVjYW5kbyBzZSBvIHRlcm1vIGFwYXJlY2UgbmEgRW1lbnRhXG4gIHRlcm1vX2ZvdW5kIDwtIGdyZXBsKHRlcm1vLCBDaWRhZGVzQUwkZW1lbnRhLCBpZ25vcmUuY2FzZSA9IFRSVUUpXG4gIFxuICAjIEFkaWNpb25hbmRvIGFzIHJlc3BlY3RpdmFzIGNvbHVuYXMgZW0gXCJjbGltYV90ZXJtb3NcIlxuICBDaWRhZGVzQUwkY2xpbWFfdGVybW9zW3Rlcm1vX2ZvdW5kXSA8LSBpZmVsc2UoaXMubmEoQ2lkYWRlc0FMJGNsaW1hX3Rlcm1vc1t0ZXJtb19mb3VuZF0pLCB0ZXJtbywgcGFzdGUoQ2lkYWRlc0FMJGNsaW1hX3Rlcm1vc1t0ZXJtb19mb3VuZF0sIHRlcm1vLCBzZXAgPSBcIiwgXCIpKVxuICBcbiAgIyBBdHVhbGl6YW5kbyBjb2x1bmEgXCJwcm9qZXRvY2xpbWFcbiAgQ2lkYWRlc0FMJHByb2pldG9jbGltYSA8LSBDaWRhZGVzQUwkcHJvamV0b2NsaW1hIHwgdGVybW9fZm91bmRcbn1cblxuQ2lkYWRlc0FMIDwtIENpZGFkZXNBTCAlPiUgXG4gIHVuZ3JvdXAoKVxuXG5ybSh0ZXJtbywgdGVybW9fZm91bmQsIHRlcm1vc19jbGltYSlcbmBgYCJ9 -->
-<pre class="r"><code>
-termos_clima &lt;- c(&quot; clima&quot;, &quot; adaptação climática&quot;, &quot; defesa civil&quot;, &quot; alagamento&quot;,  &quot; inundação&quot;, &quot; inundações&quot;, &quot; deslizamento&quot;, &quot; aquecimento global&quot;, &quot; mitigação&quot;, &quot; chuva&quot;, &quot; fortes chuvas&quot;, &quot; vento&quot;, &quot; deslizamento&quot;, &quot; soterramento&quot;, &quot; desabamento&quot;, &quot; incêndio&quot;, &quot; enxurrada&quot;, &quot; eventos climáticos extremos&quot;,&quot; seca&quot;, &quot; estiagem&quot;, &quot; estiagens&quot; , &quot;pluvial&quot;, &quot; pluviais&quot;, &quot; enchente&quot;, &quot; chuvoso&quot;, &quot; erosão&quot;)
-  
-# Criando coluna com termos sobre clima
-CidadesAL$clima_termos &lt;- NA_character_
-
-# Criando dummy sobre se o projeto é do Clima ou não
-CidadesAL$projetoclima &lt;- FALSE
-
-# Loop checando se é um termo relacionado ao Clima.
-for (termo in termos_clima) {
-  # Checando se o termo aparece na Ementa
-  termo_found &lt;- grepl(termo, CidadesAL$ementa, ignore.case = TRUE)
-  
-  # Adicionando as respectivas colunas em &quot;clima_termos&quot;
-  CidadesAL$clima_termos[termo_found] &lt;- ifelse(is.na(CidadesAL$clima_termos[termo_found]), termo, paste(CidadesAL$clima_termos[termo_found], termo, sep = &quot;, &quot;))
-  
-  # Atualizando coluna &quot;projetoclima
-  CidadesAL$projetoclima &lt;- CidadesAL$projetoclima | termo_found
-}
-
-CidadesAL &lt;- CidadesAL %&gt;% 
-  ungroup()
-
-rm(termo, termo_found, termos_clima)</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-chunk-end -->
-<!-- rnb-text-begin -->
-<!-- rnb-text-end -->
-<!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuI0FkaWNpb25hbmRvIHRvdGFsIGRlIGRhZG9zXG5cbmFkZF9wcm9qX2RhdGEgPC0gQ2lkYWRlc0FMICU+JSBcbiAgZ3JvdXBfYnkoRGF0YSwgTXVuaWNpcGlvKSAlPiUgXG4gIHN1bW1hcmlzZSh0b3RhbF9wcm9qX2RhdGEgPSBuKCkpICU+JSBcbiAgZGF0YS5mcmFtZSgpXG5cbkNpZGFkZXNBTCA8LSBtZXJnZShDaWRhZGVzQUwsIGFkZF9wcm9qX2RhdGEsIGJ5ID0gYyhcIkRhdGFcIiwgXCJNdW5pY2lwaW9cIiksIGFsbCA9IFQpXG5cblxuYWRkX3Byb2pfY2xpbWEgPC0gQ2lkYWRlc0FMICU+JVxuICBmaWx0ZXIocHJvamV0b2NsaW1hID09IFQpICU+JSBcbiAgZ3JvdXBfYnkoRGF0YSwgTXVuaWNpcGlvKSAlPiUgXG4gIHN1bW1hcmlzZSh0b3RhbF9wcm9qX2NsaW1hID0gbigpKSAlPiUgXG4gIGRhdGEuZnJhbWUoKVxuXG5DaWRhZGVzQUwgPC0gbWVyZ2UoQ2lkYWRlc0FMLCBhZGRfcHJval9jbGltYSwgYnkgPSBjKFwiRGF0YVwiLCBcIk11bmljaXBpb1wiKSwgYWxsID0gVCkgJT4lIFxuICBtdXRhdGUodG90YWxfcHJval9jbGltYSA9IGlmZWxzZShpcy5uYSh0b3RhbF9wcm9qX2NsaW1hKSwgMCwgdG90YWxfcHJval9jbGltYSksXG4gICAgICAgICBNdW5pY2lwaW9fVUYgPSBwYXN0ZShNdW5pY2lwaW8sIFVGLCBzZXAgPSBcIl9cIikpXG5cbkFMQ2xpbWEgPC0gQ2lkYWRlc0FMICU+JSBcbiAgZmlsdGVyKHByb2pldG9jbGltYSA9PSBUKVxuXG5BTENsaW1hIDwtIEFMQ2xpbWFbIWR1cGxpY2F0ZWQoQUxDbGltYVtjKCdEYXRhJywgJ011bmljaXBpbycsICdlbWVudGEnKV0pLF1cblxuc2F2ZVJEUyhDaWRhZGVzQUwsIGZpbGUgPSBoZXJlKFwiRGFkb3MgU0QvQ2lkYWRlc0FMLlJEU1wiKSlcblxucm0oYWRkX3Byb2pfY2xpbWEsIGFkZF9wcm9qX2RhdGEsIENpZGFkZXNBTClcblxuYGBgIn0= -->
-<pre class="r"><code>#Adicionando total de dados
-
-add_proj_data &lt;- CidadesAL %&gt;% 
-  group_by(Data, Municipio) %&gt;% 
-  summarise(total_proj_data = n()) %&gt;% 
-  data.frame()
-
-CidadesAL &lt;- merge(CidadesAL, add_proj_data, by = c(&quot;Data&quot;, &quot;Municipio&quot;), all = T)
-
-
-add_proj_clima &lt;- CidadesAL %&gt;%
-  filter(projetoclima == T) %&gt;% 
-  group_by(Data, Municipio) %&gt;% 
-  summarise(total_proj_clima = n()) %&gt;% 
-  data.frame()
-
-CidadesAL &lt;- merge(CidadesAL, add_proj_clima, by = c(&quot;Data&quot;, &quot;Municipio&quot;), all = T) %&gt;% 
-  mutate(total_proj_clima = ifelse(is.na(total_proj_clima), 0, total_proj_clima),
-         Municipio_UF = paste(Municipio, UF, sep = &quot;_&quot;))
-
-ALClima &lt;- CidadesAL %&gt;% 
-  filter(projetoclima == T)
-
-ALClima &lt;- ALClima[!duplicated(ALClima[c(&#39;Data&#39;, &#39;Municipio&#39;, &#39;ementa&#39;)]),]
-
-saveRDS(CidadesAL, file = here(&quot;Dados SD/CidadesAL.RDS&quot;))
-
-rm(add_proj_clima, add_proj_data, CidadesAL)
-</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-chunk-end -->
-<!-- rnb-text-begin -->
-</div>
-</div>
-<div id="adicionando-dias-desde-o-último-desastre." class="section level1">
-<h1>2. Adicionando dias desde o último desastre.</h1>
-<!-- rnb-text-end -->
-<!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuIyBGdW7Dp8OjbyBwYXJhIGRhdGEgbWFpcyBwcsOzeGltYSBjb20gZGVzYXN0cmVcbmRpc3RhbmNpYV9kZXNhc3RyZSA8LSBmdW5jdGlvbihkYXRlLCBkYXRlX3ZlY3Rvciwgc2VudGlkbyA9IFwiYW50ZXNcIikge1xuICBpZiAoc2VudGlkbyA9PSBcImFudGVzXCIpIHtcbiAgICAjIEZpbHRyYSBuYSBzw6lyaWUgZGF0ZV92ZWN0b3IgYXMgZGF0YXMgYW50ZXJpb3JlcyDDoCBkYXRhIGVzdGlwdWxhZGFcbiAgICBkYXRhc19maWx0cmFkYXMgPC0gZGF0ZV92ZWN0b3JbZGF0ZV92ZWN0b3IgPCBkYXRlXVxuICAgIFxuICAgICMgU2UgbsOjbyBob3V2ZXJlbSBkYXRhcyBhbnRlcmlvcmVzLCByZXRvcm5hciBOQTpcbiAgICBpZihsZW5ndGgoZGF0YXNfZmlsdHJhZGFzKSA9PSAwKSB7XG4gICAgICByZXR1cm4oTkEpXG4gICAgfVxuICAgIFxuICAgICMgU2VsZWNpb25hIGEgZGF0YSBtYWlzIHByw7N4aW1hXG4gICAgZGF0YV9wcm94aW1hIDwtIG1heChkYXRhc19maWx0cmFkYXMpXG4gICAgXG4gIH0gZWxzZSBpZiAoc2VudGlkbyA9PSBcImRlcG9pc1wiKSB7XG4gICAgIyBGaWx0cmEgbmEgc8OpcmllIGRhdGVfdmVjdG9yIGFzIGRhdGFzIHBvc3RlcmlvcmVzIG91IGlndWFpcyDDoCBkYXRhIGVzdGlwdWxhZGFcbiAgICBkYXRhc19maWx0cmFkYXMgPC0gZGF0ZV92ZWN0b3JbZGF0ZV92ZWN0b3IgPj0gZGF0ZV1cbiAgICBcbiAgICAjIFNlIG7Do28gaG91dmVyIGRhdGFzIGZ1dHVyYXMsIHJldG9ybmEgTkFcbiAgICBpZihsZW5ndGgoZGF0YXNfZmlsdHJhZGFzKSA9PSAwKSB7XG4gICAgICByZXR1cm4oTkEpXG4gICAgfVxuICAgIFxuICAgICMgU2VsZWNpb25hIGEgZGF0YSBtYWlzIHByw7N4aW1hXG4gICAgZGF0YV9wcm94aW1hIDwtIG1pbihkYXRhc19maWx0cmFkYXMpXG4gIH0gZWxzZSB7XG4gICAgc3RvcChcIlNlbnRpZG8gSW52w6FsaWRvLiBVc2UgJ2FudGVzJyBvdSAnZGVwb2lzJy5cIilcbiAgfVxuICBcbiAgcmV0dXJuKGRhdGFfcHJveGltYSlcbn1cbmBgYCJ9 -->
-<pre class="r"><code># Função para data mais próxima com desastre
-distancia_desastre &lt;- function(date, date_vector, sentido = &quot;antes&quot;) {
-  if (sentido == &quot;antes&quot;) {
-    # Filtra na série date_vector as datas anteriores à data estipulada
-    datas_filtradas &lt;- date_vector[date_vector &lt; date]
-    
-    # Se não houverem datas anteriores, retornar NA:
-    if(length(datas_filtradas) == 0) {
-      return(NA)
-    }
-    
-    # Seleciona a data mais próxima
-    data_proxima &lt;- max(datas_filtradas)
-    
-  } else if (sentido == &quot;depois&quot;) {
-    # Filtra na série date_vector as datas posteriores ou iguais à data estipulada
-    datas_filtradas &lt;- date_vector[date_vector &gt;= date]
-    
-    # Se não houver datas futuras, retorna NA
-    if(length(datas_filtradas) == 0) {
-      return(NA)
-    }
-    
-    # Seleciona a data mais próxima
-    data_proxima &lt;- min(datas_filtradas)
-  } else {
-    stop(&quot;Sentido Inválido. Use &#39;antes&#39; ou &#39;depois&#39;.&quot;)
-  }
-  
-  return(data_proxima)
-}</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-chunk-end -->
-<!-- rnb-text-begin -->
-<!-- rnb-text-end -->
-<!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuQ2lkYWRlc0FMIDwtIHJlYWRSRFMoZmlsZSA9IGhlcmUoXCJEYWRvcyBTRC9DaWRhZGVzQUwuUkRTXCIpKVxuXG5BTENsaW1hIDwtIENpZGFkZXNBTCAlPiUgXG4gIGZpbHRlcihwcm9qZXRvY2xpbWEgPT0gVCkgJT4lIFxuICBtdXRhdGUoTXVuaWNpcGlvX1VGID0gcGFzdGUoTXVuaWNpcGlvLCBVRiwgc2VwID0gXCJfXCIpKVxuXG5ybShDaWRhZGVzQUwpXG5cbkRlc2FzdHJlcyA8LSByZWFkUkRTKGZpbGUgPSBoZXJlKFwiRGFkb3MgU0QvRGVzYXN0cmVzLlJEU1wiKSklPiUgXG4gIG11dGF0ZShNdW5pY2lwaW9fVUYgPSBwYXN0ZShNdW5pY2lwaW8sIFVGLCBzZXAgPSBcIl9cIikpXG5cbmxpc3RhX211bmljaXBpb3MgPC0gQUxDbGltYSAlPiUgXG4gIHNlbGVjdChNdW5pY2lwaW9fVUYsIE11bmljaXBpbywgVUYpICU+JSBcbiAgdW5pcXVlKCkgJT4lIFxuICBkYXRhLmZyYW1lKClcblxuRGVzYXN0cmVzIDwtIERlc2FzdHJlcyAlPiUgXG4gIGZpbHRlcihNdW5pY2lwaW9fVUYgJWluJSBsaXN0YV9tdW5pY2lwaW9zJE11bmljaXBpb19VRilcblxubGlzdGFfbXVuaWNpcGlvcyA8LSBEZXNhc3RyZXMgJT4lIFxuICBzZWxlY3QoQ29kX0lCR0VfTXVuLCBOb21lX011bmljaXBpbywgVUYsIE11bmljaXBpb19VRikgJT4lIFxuICB1bmlxdWUoKSAlPiUgXG4gIGRhdGEuZnJhbWUoKVxuYGBgIn0= -->
-<pre class="r"><code>CidadesAL &lt;- readRDS(file = here(&quot;Dados SD/CidadesAL.RDS&quot;))
-
-ALClima &lt;- CidadesAL %&gt;% 
-  filter(projetoclima == T) %&gt;% 
-  mutate(Municipio_UF = paste(Municipio, UF, sep = &quot;_&quot;))
-
-rm(CidadesAL)
-
-Desastres &lt;- readRDS(file = here(&quot;Dados SD/Desastres.RDS&quot;))%&gt;% 
-  mutate(Municipio_UF = paste(Municipio, UF, sep = &quot;_&quot;))
-
-lista_municipios &lt;- ALClima %&gt;% 
-  select(Municipio_UF, Municipio, UF) %&gt;% 
-  unique() %&gt;% 
-  data.frame()
-
-Desastres &lt;- Desastres %&gt;% 
-  filter(Municipio_UF %in% lista_municipios$Municipio_UF)
-
-lista_municipios &lt;- Desastres %&gt;% 
-  select(Cod_IBGE_Mun, Nome_Municipio, UF, Municipio_UF) %&gt;% 
-  unique() %&gt;% 
-  data.frame()</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-chunk-end -->
-<!-- rnb-text-begin -->
-<!-- rnb-text-end -->
-<!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuI0NyaWFuY28gZGFzIGNvbHVuYXMgZGUgZGF0YXMgZW0gcmVsYcOnw6NvIGFvcyBkZXNhc3RyZXM6XG5BTENsaW1hIDwtIEFMQ2xpbWEgJT4lIFxuICBtdXRhdGUoZGF0YV9kZXNhc3RyZV9hbnRlcmlvciA9IGFzLkRhdGUoTkEpLFxuICAgICAgICAgZGVzYXN0cmVfYW50ZXJpb3IgPSBhcy5jaGFyYWN0ZXIoTkEpLFxuICAgICAgICAgZGF0YV9kZXNhc3RyZV9wcm94aW1vID0gYXMuRGF0ZShOQSksXG4gICAgICAgICBkZXNhc3RyZV9wcm94aW1vID0gYXMuY2hhcmFjdGVyKE5BKSlcblxuQUxDIDwtIEFMQ2xpbWFbMCxdXG5cbiNMb29wIG11bmljw61waW8tcG9yLW11bmljw61waW8gZG9zIGRlc2FzdHJlczpcbmZvciAoaSBpbiBsaXN0YV9tdW5pY2lwaW9zJE11bmljaXBpb19VRil7XG4gIEFMQ211biA8LSBBTENsaW1hICU+JSBcbiAgICBmaWx0ZXIoTXVuaWNpcGlvX1VGID09IGkpXG4gIFxuICBkZl9tdW4gPC0gRGVzYXN0cmVzICU+JSBcbiAgICBmaWx0ZXIoTXVuaWNpcGlvX1VGID09IGkpXG5cbiAgI0xvb3AgaW50ZXJubzogdXNhbmRvIGEgZnVuw6fDo28gcGFyYSBjYWxjdWxhciBjw6lsdWxhIHBvciBjw6lsdWxhIGFzIGRhdGFzOlxuICBmb3IgKGogaW4gMTpucm93KEFMQ211bikpe1xuICAgIGRhdGFfcHJvaiA8LSBBTENtdW5baiwgJ0RhdGEnXVxuICAgIFxuICAgIEFMQ211biRkYXRhX2Rlc2FzdHJlX2FudGVyaW9yW2pdIDwtIGRpc3RhbmNpYV9kZXNhc3RyZShkYXRhX3Byb2osIGRmX211biREYXRhLCBzZW50aWRvID0gJ2FudGVzJyApXG4gICAgXG4gICAgQUxDbXVuJGRhdGFfZGVzYXN0cmVfcHJveGltb1tqXSA8LSBkaXN0YW5jaWFfZGVzYXN0cmUoZGF0YV9wcm9qLCBkZl9tdW4kRGF0YSwgc2VudGlkbyA9ICdkZXBvaXMnIClcbiAgICBcbiAgICBBTENtdW4kZGVzYXN0cmVfYW50ZXJpb3Jbal0gPC0gZGZfbXVuICU+JVxuICBmaWx0ZXIoRGF0YSA9PSBBTENtdW4kZGF0YV9kZXNhc3RyZV9hbnRlcmlvcltqXSkgJT4lXG4gIHB1bGwoRGVzYXN0cmUpICU+JVxuICAgICAgeyBpZmVsc2UobGVuZ3RoKC4pID4gMCwgLiwgYXMuY2hhcmFjdGVyKE5BKSkgfVxuICAgIFxuICAgIEFMQ211biRkZXNhc3RyZV9wcm94aW1vW2pdIDwtIGRmX211biAlPiVcbiAgZmlsdGVyKERhdGEgPT0gQUxDbXVuJGRhdGFfZGVzYXN0cmVfcHJveGltb1tqXSkgJT4lXG4gIHB1bGwoRGVzYXN0cmUpICU+JVxuICAgICAgeyBpZmVsc2UobGVuZ3RoKC4pID4gMCwgLiwgYXMuY2hhcmFjdGVyKE5BKSkgfVxuICAgIFxuICB9XG5cbiAgQUxDIDwtIGJpbmRfcm93cyhBTEMsIEFMQ211bilcbn0gXG5cblxuQUxDbGltYSA8LSBBTEMgJT4lIFxuICBtdXRhdGUoZGlhc19kZXNhc3RyZV9hbnRlcmlvciAgPSBhcy5pbnRlZ2VyKERhdGEgLSBkYXRhX2Rlc2FzdHJlX2FudGVyaW9yKSxcbiAgICAgICAgIGRpYXNfZGVzYXN0cmVfcHJveGltbyAgPSBhcy5pbnRlZ2VyKERhdGEgLSBkYXRhX2Rlc2FzdHJlX3Byb3hpbW8pKVxuXG5BTENsaW1hIDwtIG1lcmdlKEFMQ2xpbWEsIGxpc3RhX211bmljaXBpb3MsIGJ5ID0gYygnVUYnLCAnTXVuaWNpcGlvX1VGJykpXG5cbnNhdmVSRFMoQUxDbGltYSwgZmlsZSA9IGhlcmUoXCJEYWRvcyBTRC9BTENsaW1hLlJEU1wiKSlcblxuXG5ybShpLCBqLCBBTENtdW4sIGRhdGFfcHJvaiwgZGlzdGFuY2lhX2Rlc2FzdHJlLCBkZl9tdW4sIEFMQywgRGVzYXN0cmVzLCBsaXN0YV9tdW5pY2lwaW9zKVxuYGBgIn0= -->
-<pre class="r"><code>#Crianco das colunas de datas em relação aos desastres:
-ALClima &lt;- ALClima %&gt;% 
-  mutate(data_desastre_anterior = as.Date(NA),
-         desastre_anterior = as.character(NA),
-         data_desastre_proximo = as.Date(NA),
-         desastre_proximo = as.character(NA))
-
-ALC &lt;- ALClima[0,]
-
-#Loop município-por-município dos desastres:
-for (i in lista_municipios$Municipio_UF){
-  ALCmun &lt;- ALClima %&gt;% 
-    filter(Municipio_UF == i)
-  
-  df_mun &lt;- Desastres %&gt;% 
-    filter(Municipio_UF == i)
-
-  #Loop interno: usando a função para calcular célula por célula as datas:
-  for (j in 1:nrow(ALCmun)){
-    data_proj &lt;- ALCmun[j, &#39;Data&#39;]
-    
-    ALCmun$data_desastre_anterior[j] &lt;- distancia_desastre(data_proj, df_mun$Data, sentido = &#39;antes&#39; )
-    
-    ALCmun$data_desastre_proximo[j] &lt;- distancia_desastre(data_proj, df_mun$Data, sentido = &#39;depois&#39; )
-    
-    ALCmun$desastre_anterior[j] &lt;- df_mun %&gt;%
-  filter(Data == ALCmun$data_desastre_anterior[j]) %&gt;%
-  pull(Desastre) %&gt;%
-      { ifelse(length(.) &gt; 0, ., as.character(NA)) }
-    
-    ALCmun$desastre_proximo[j] &lt;- df_mun %&gt;%
-  filter(Data == ALCmun$data_desastre_proximo[j]) %&gt;%
-  pull(Desastre) %&gt;%
-      { ifelse(length(.) &gt; 0, ., as.character(NA)) }
-    
-  }
-
-  ALC &lt;- bind_rows(ALC, ALCmun)
-} 
-
-
-ALClima &lt;- ALC %&gt;% 
-  mutate(dias_desastre_anterior  = as.integer(Data - data_desastre_anterior),
-         dias_desastre_proximo  = as.integer(Data - data_desastre_proximo))
-
-ALClima &lt;- merge(ALClima, lista_municipios, by = c(&#39;UF&#39;, &#39;Municipio_UF&#39;))
-
-saveRDS(ALClima, file = here(&quot;Dados SD/ALClima.RDS&quot;))
-
-
-rm(i, j, ALCmun, data_proj, distancia_desastre, df_mun, ALC, Desastres, lista_municipios)</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-chunk-end -->
-</div>
-
-<div id="rmd-source-code">LS0tDQp0aXRsZTogIjEuIENhcnJlZ2FuZG8gZSBsaW1wYW5kbyBhcyBiYXNlcyBkZSBkYWRvcyINCm91dHB1dDogaHRtbF9ub3RlYm9vaw0KLS0tDQoNCioqQXRlbsOnw6NvKio6IE7Do28gZXNxdWXDp2EgZGUgcm9kYXIgYW50ZXMgbyBhcnF1aXZvICIwIg0KDQojIDEuIENhcnJlZ2FuZG8gZSBsaW1wYW5kbyBhcyBiYXNlcyBkZSBkYWRvcw0KDQojIyAxLjEgSW1wb3J0YW5kbyBwYWNvdGVzDQoNCkFudGVzIGRlIGNvbWXDp2FyLCBlc3RlcyBzw6NvIG9zIHBhY290ZXMgcXVlIHNlcsOjbyBuZWNlc3PDoXJpb3MgcGFyYSBtYW5pcHVsYcOnw6NvIGRlc3RlcyBkYWRvcy4gQ2FzbyBhaW5kYSBuw6NvIG9zIHRlbmhhIGluc3RhbGFkb3MsIMOpIHPDsyByZXRpcmFyIG8gIlwjIiBkYSBmcmVudGUgZSByb2RhciBhcyBjw6lsdWxhcw0KDQpgYGB7cn0NCiNpbnN0YWxsLnBhY2thZ2VzKCIpDQpgYGANCg0KYGBge3J9DQpsaWJyYXJ5KGRwbHlyKQ0KYGBgDQoNCmBgYHtyLCAnY2FycmVnYW5kb19mdW7Dp8O1ZXMnfQ0KI0Z1bsOnw6NvIHBhcmEgcGFkcm9uaXphciBtYWnDunNjdWxhcw0KZmlyc3R1cCA9IGZ1bmN0aW9uKHgpew0KICAgIHN0cmlfdHJhbnNfZ2VuZXJhbChwYXN0ZSh0b3VwcGVyKHN1YnN0cmluZyh4LCAxLCAxKSksDQogICAgICAgICAgdG9sb3dlcihzdWJzdHJpbmcoeCwgMiwgbmNoYXIoeCkpKSwNCiAgICAgICAgICBzZXAgPSAiIiksICJsYXRpbi1hc2NpaSIpIH0NCg0KYGBgDQoNCiMjIDEuMiBDcmlhbmRvIFBhY290ZXMgDQoNCiMgMS4gUmVjb2xoZW5kbyBvcyBkYWRvcw0KDQojIyAxLjEgRGFkb3Mgc29icmUgZGVzYXN0cmVzOg0KDQpgYGB7ciwgJ0JhaXhhbmRvX2Rlc2FzdHJlcycsIHdhcm5pbmcgPSBGQUxTRX0NCiMgRm9udGUgRGFkb3MgQkQgQXRsYXM6IGh0dHA6Ly9hdGxhc2RpZ2l0YWwubWRyLmdvdi5ici9wYWdpbmFzL2Rvd25sb2Fkcy54aHRtbA0KDQpEZXNhc3RyZXMgPC0gcmVhZF9jc3YyKGZpbGUgPSBoZXJlKCJEYWRvcy9CRF9BdGxhc18xOTkxXzIwMjNfdjEuMF8yMDI0LjA0LjI5LmNzdiIpLCBsb2NhbGUgPSBsb2NhbGUoZW5jb2RpbmcgPSAiTGF0aW4xIikpDQpgYGANCg0KYGBge3IsICdMaW1wYW5kb19kZXNhc3RyZXMnfQ0KDQpEZXNhc3RyZXMgPC0gRGVzYXN0cmVzICAlPiUgDQogIHNlbGVjdChDb2RfSUJHRV9NdW4sTm9tZV9NdW5pY2lwaW8sU2lnbGFfVUYscmVnaWFvLERhdGFfRXZlbnRvLHRpcG9sb2dpYSwgZGVzY3JpY2FvX3RpcG9sb2dpYSwgZ3J1cG9fZGVfZGVzYXN0cmUsIFN0YXR1cywgREhfRGVzY3JpY2FvLCBESF90b3RhbF9kYW5vc19odW1hbm9zLCBETV9EZXNjcmljYW8sIERNX3RvdGFsX2Rhbm9zX21hdGVyaWFpcykgJT4lIA0KICByZW5hbWUoIlVGIiA9ICJTaWdsYV9VRiIsDQogICAgICAgICAiRGVzYXN0cmUiID0gImRlc2NyaWNhb190aXBvbG9naWEiLA0KICAgICAgICAgIkdydXBvX0Rlc2FzdHJlIiA9ICJncnVwb19kZV9kZXNhc3RyZSIpICU+JSANCiAgbXV0YXRlKERhdGEgPSBhcy5EYXRlKERhdGFfRXZlbnRvLCBmb3JtYXQgPSAiJWQvJW0vJVkiKSkgJT4lIA0KICAgIG11dGF0ZSgiTcOqcyIgPSBtb250aChgRGF0YWApLCANCiAgICAgICAgICAgIkFubyIgPSB5ZWFyKGBEYXRhYCksIA0KICAgICAgICAgICBNdW5pY2lwaW8gPSBmaXJzdHVwKHN0cmlfdHJhbnNfZ2VuZXJhbChOb21lX011bmljaXBpbywgImxhdGluLWFzY2lpIikpKSAlPiUgDQogICBmaWx0ZXIoIShEZXNhc3RyZSAlaW4lIGMoJ0RvZW7Dp2FzIGluZmVjY2lvc2FzJywnUm9tcGltZW50by9Db2xhcHNvIGRlIGJhcnJhZ2VucycsICdPdXRyb3MnKSkpICU+JSANCiAgICBtdXRhdGUoTXVuaWNpcGlvID0gZ3N1YigiICIsICIiLCBNdW5pY2lwaW8pLA0KICAgICAgICAgICBNdW5pY2lwaW9fVUYgPSBwYXN0ZShNdW5pY2lwaW8sIFVGLCBzZXAgPSAiXyIpKQ0KDQpzYXZlUkRTKERlc2FzdHJlcywgZmlsZSA9IGhlcmUoIkRhZG9zIFNEL0Rlc2FzdHJlcy5SRFMiKSkNCmBgYA0KDQojIyAxLjIgRGFkb3MgZGUgYXRpdmlkYWRlIGxlZ2lzbGF0aXZhDQoNCmBgYHtyLCAnQmFpeGFuZG8gb3MgZGFkb3MgYXRpdmlkYWRlIGxlZ2lzbGF0aXZhJ30NCiNEYWRvcyByZXRpcmFkb3MgZGEgYXBpIGRvcyBtdW5pY8OtcGlvcy4gTGluayAiaHR0cHM6Ly9zYXBsLm5vbWVkYWNpZGFkZS51Zi5sZWcuYnIvYXBpL21hdGVyaWEvbWF0ZXJpYWxlZ2lzbGF0aXZhDQojQ8OzZGlnbyBwYXJhIGxldmFudGFyIGUgY29tcGlsYXIgdG9kb3MgZW0gYW5leG8gKGVtIFB5dGhvbikNCkNpZGFkZXNBTCA8LSByZWFkX2NzdihmaWxlPSBoZXJlKCJEYWRvcy9Qcm9qQ2lkYWRlcy5jc3YiKSkNCmBgYA0KDQpgYGB7ciwgJ1Rvcm5hbmRvIGJhc2UgbWVub3InfQ0KQ2lkYWRlc0FMIDwtIENpZGFkZXNBTCU+JSANCiAgc2VsZWN0KCEoYyhtZXRhZGF0YSwgdGlwb19hcHJlc2VudGFjYW8sIGlwLCB1c2VyLCBhbmV4YWRhcywgKSkpJT4lIA0KICBtdXRhdGUoRGF0YSA9IGFzLkRhdGUoZGF0YV9hcHJlc2VudGFjYW8pKSAlPiUgDQogIG11dGF0ZShNw6pzID0gbW9udGgoRGF0YSksDQogICAgICAgICBBbm8gPSB5ZWFyKERhdGEpKSAlPiUgDQogIGZpbHRlcihBbm8gPj0gMTk5MSwNCiAgICAgICAgIEFubyA8PSAyMDIzKQ0KDQoNCmBgYA0KDQpgYGB7ciwgJ1RyYXRhbmRvX3N0cmluZ3MnfQ0KQ2lkYWRlc0FMIDwtIENpZGFkZXNBTCAlPiUgDQogIG11dGF0ZShUaXBvX1Byb2pldG8gPSBmaXJzdHVwKHN1YigiIG7Cui4qIiwgIiIsIGBfX3N0cl9fYCkpLA0KICAgICAgICAgVGlwbyA9IHN0cmlfdHJhbnNfZ2VuZXJhbChzdWIoIiAuKiIsICIiLCBgVGlwb19Qcm9qZXRvYCksICJsYXRpbi1hc2NpaSIpLA0KICAgICAgICAgZW1lbnRhID0gdG9sb3dlcihzdWIoIlxcKi4qP1xcKiIsICIiLCBlbWVudGEpKSwNCiAgICAgICAgIFVGID0gc3Vic3RyaW5nKGdzdWIoIi4qXFwuKFteLl0rKVxcLlteLl0rXFwuLioiLCAiXFwxIiwgQVBJX1VSTCksIDEsIDIpKSAlPiUNCiAgZ3JvdXBfYnkoQ2l0eSkgJT4lDQogIG11dGF0ZShwcmltLmFubyA9IG1pbihhbm8pLA0KICAgICAgICAgTXVuaWNpcGlvID0gZmlyc3R1cChzdHJpX3RyYW5zX2dlbmVyYWwoQ2l0eSwgImxhdGluLWFzY2lpIikpLA0KICAgICAgICAgVUYgPSB0b3VwcGVyKFVGKSkgJT4lIA0KICByZW5hbWUoIk5vbWVfUHJvcG9zaXR1cmEiID0gIl9fc3RyX18iKSAlPiUgDQogIHVuZ3JvdXAoKQ0KDQojUmVtb3ZlbmRvIGNvbHVuYXMgZGVzbmVjZXJzc8OhcmlhczoNCg0KQ2lkYWRlc0FMIDwtIENpZGFkZXNBTCAlPiUgDQogIHNlbGVjdChpZCwgRGF0YSwgTXVuaWNpcGlvLCBVRiwgbnVtZXJvLCBBbm8sIE3DqnMsIE5vbWVfUHJvcG9zaXR1cmEsIFRpcG9fUHJvamV0bywgVGlwbywgZW1lbnRhLCBwcmltLmFubykNCmBgYA0KDQpgYGB7ciwgJ3Rlcm1vc19jbGltYSd9DQoNCnRlcm1vc19jbGltYSA8LSBjKCIgY2xpbWEiLCAiIGFkYXB0YcOnw6NvIGNsaW3DoXRpY2EiLCAiIGRlZmVzYSBjaXZpbCIsICIgYWxhZ2FtZW50byIsICAiIGludW5kYcOnw6NvIiwgIiBpbnVuZGHDp8O1ZXMiLCAiIGRlc2xpemFtZW50byIsICIgYXF1ZWNpbWVudG8gZ2xvYmFsIiwgIiBtaXRpZ2HDp8OjbyIsICIgY2h1dmEiLCAiIGZvcnRlcyBjaHV2YXMiLCAiIHZlbnRvIiwgIiBkZXNsaXphbWVudG8iLCAiIHNvdGVycmFtZW50byIsICIgZGVzYWJhbWVudG8iLCAiIGluY8OqbmRpbyIsICIgZW54dXJyYWRhIiwgIiBldmVudG9zIGNsaW3DoXRpY29zIGV4dHJlbW9zIiwiIHNlY2EiLCAiIGVzdGlhZ2VtIiwgIiBlc3RpYWdlbnMiICwgInBsdXZpYWwiLCAiIHBsdXZpYWlzIiwgIiBlbmNoZW50ZSIsICIgY2h1dm9zbyIsICIgZXJvc8OjbyIpDQogIA0KIyBDcmlhbmRvIGNvbHVuYSBjb20gdGVybW9zIHNvYnJlIGNsaW1hDQpDaWRhZGVzQUwkY2xpbWFfdGVybW9zIDwtIE5BX2NoYXJhY3Rlcl8NCg0KIyBDcmlhbmRvIGR1bW15IHNvYnJlIHNlIG8gcHJvamV0byDDqSBkbyBDbGltYSBvdSBuw6NvDQpDaWRhZGVzQUwkcHJvamV0b2NsaW1hIDwtIEZBTFNFDQoNCiMgTG9vcCBjaGVjYW5kbyBzZSDDqSB1bSB0ZXJtbyByZWxhY2lvbmFkbyBhbyBDbGltYS4NCmZvciAodGVybW8gaW4gdGVybW9zX2NsaW1hKSB7DQogICMgQ2hlY2FuZG8gc2UgbyB0ZXJtbyBhcGFyZWNlIG5hIEVtZW50YQ0KICB0ZXJtb19mb3VuZCA8LSBncmVwbCh0ZXJtbywgQ2lkYWRlc0FMJGVtZW50YSwgaWdub3JlLmNhc2UgPSBUUlVFKQ0KICANCiAgIyBBZGljaW9uYW5kbyBhcyByZXNwZWN0aXZhcyBjb2x1bmFzIGVtICJjbGltYV90ZXJtb3MiDQogIENpZGFkZXNBTCRjbGltYV90ZXJtb3NbdGVybW9fZm91bmRdIDwtIGlmZWxzZShpcy5uYShDaWRhZGVzQUwkY2xpbWFfdGVybW9zW3Rlcm1vX2ZvdW5kXSksIHRlcm1vLCBwYXN0ZShDaWRhZGVzQUwkY2xpbWFfdGVybW9zW3Rlcm1vX2ZvdW5kXSwgdGVybW8sIHNlcCA9ICIsICIpKQ0KICANCiAgIyBBdHVhbGl6YW5kbyBjb2x1bmEgInByb2pldG9jbGltYQ0KICBDaWRhZGVzQUwkcHJvamV0b2NsaW1hIDwtIENpZGFkZXNBTCRwcm9qZXRvY2xpbWEgfCB0ZXJtb19mb3VuZA0KfQ0KDQpDaWRhZGVzQUwgPC0gQ2lkYWRlc0FMICU+JSANCiAgdW5ncm91cCgpDQoNCnJtKHRlcm1vLCB0ZXJtb19mb3VuZCwgdGVybW9zX2NsaW1hKQ0KYGBgDQoNCmBgYHtyLCAnU2FsdmFuZG9fZGFkb3MnfQ0KI0FkaWNpb25hbmRvIHRvdGFsIGRlIGRhZG9zDQoNCmFkZF9wcm9qX2RhdGEgPC0gQ2lkYWRlc0FMICU+JSANCiAgZ3JvdXBfYnkoRGF0YSwgTXVuaWNpcGlvKSAlPiUgDQogIHN1bW1hcmlzZSh0b3RhbF9wcm9qX2RhdGEgPSBuKCkpICU+JSANCiAgZGF0YS5mcmFtZSgpDQoNCkNpZGFkZXNBTCA8LSBtZXJnZShDaWRhZGVzQUwsIGFkZF9wcm9qX2RhdGEsIGJ5ID0gYygiRGF0YSIsICJNdW5pY2lwaW8iKSwgYWxsID0gVCkNCg0KDQphZGRfcHJval9jbGltYSA8LSBDaWRhZGVzQUwgJT4lDQogIGZpbHRlcihwcm9qZXRvY2xpbWEgPT0gVCkgJT4lIA0KICBncm91cF9ieShEYXRhLCBNdW5pY2lwaW8pICU+JSANCiAgc3VtbWFyaXNlKHRvdGFsX3Byb2pfY2xpbWEgPSBuKCkpICU+JSANCiAgZGF0YS5mcmFtZSgpDQoNCkNpZGFkZXNBTCA8LSBtZXJnZShDaWRhZGVzQUwsIGFkZF9wcm9qX2NsaW1hLCBieSA9IGMoIkRhdGEiLCAiTXVuaWNpcGlvIiksIGFsbCA9IFQpICU+JSANCiAgbXV0YXRlKHRvdGFsX3Byb2pfY2xpbWEgPSBpZmVsc2UoaXMubmEodG90YWxfcHJval9jbGltYSksIDAsIHRvdGFsX3Byb2pfY2xpbWEpLA0KICAgICAgICAgTXVuaWNpcGlvX1VGID0gcGFzdGUoTXVuaWNpcGlvLCBVRiwgc2VwID0gIl8iKSkNCg0KQUxDbGltYSA8LSBDaWRhZGVzQUwgJT4lIA0KICBmaWx0ZXIocHJvamV0b2NsaW1hID09IFQpDQoNCkFMQ2xpbWEgPC0gQUxDbGltYVshZHVwbGljYXRlZChBTENsaW1hW2MoJ0RhdGEnLCAnTXVuaWNpcGlvJywgJ2VtZW50YScpXSksXQ0KDQpzYXZlUkRTKENpZGFkZXNBTCwgZmlsZSA9IGhlcmUoIkRhZG9zIFNEL0NpZGFkZXNBTC5SRFMiKSkNCg0Kcm0oYWRkX3Byb2pfY2xpbWEsIGFkZF9wcm9qX2RhdGEsIENpZGFkZXNBTCkNCg0KYGBgDQoNCiMgMi4gQWRpY2lvbmFuZG8gZGlhcyBkZXNkZSBvIMO6bHRpbW8gZGVzYXN0cmUuDQoNCmBgYHtyLCAnZnVuw6fDtWVzX2Rpc3RhbmNpYV9kZXNhc3RyZSd9DQojIEZ1bsOnw6NvIHBhcmEgZGF0YSBtYWlzIHByw7N4aW1hIGNvbSBkZXNhc3RyZQ0KZGlzdGFuY2lhX2Rlc2FzdHJlIDwtIGZ1bmN0aW9uKGRhdGUsIGRhdGVfdmVjdG9yLCBzZW50aWRvID0gImFudGVzIikgew0KICBpZiAoc2VudGlkbyA9PSAiYW50ZXMiKSB7DQogICAgIyBGaWx0cmEgbmEgc8OpcmllIGRhdGVfdmVjdG9yIGFzIGRhdGFzIGFudGVyaW9yZXMgw6AgZGF0YSBlc3RpcHVsYWRhDQogICAgZGF0YXNfZmlsdHJhZGFzIDwtIGRhdGVfdmVjdG9yW2RhdGVfdmVjdG9yIDwgZGF0ZV0NCiAgICANCiAgICAjIFNlIG7Do28gaG91dmVyZW0gZGF0YXMgYW50ZXJpb3JlcywgcmV0b3JuYXIgTkE6DQogICAgaWYobGVuZ3RoKGRhdGFzX2ZpbHRyYWRhcykgPT0gMCkgew0KICAgICAgcmV0dXJuKE5BKQ0KICAgIH0NCiAgICANCiAgICAjIFNlbGVjaW9uYSBhIGRhdGEgbWFpcyBwcsOzeGltYQ0KICAgIGRhdGFfcHJveGltYSA8LSBtYXgoZGF0YXNfZmlsdHJhZGFzKQ0KICAgIA0KICB9IGVsc2UgaWYgKHNlbnRpZG8gPT0gImRlcG9pcyIpIHsNCiAgICAjIEZpbHRyYSBuYSBzw6lyaWUgZGF0ZV92ZWN0b3IgYXMgZGF0YXMgcG9zdGVyaW9yZXMgb3UgaWd1YWlzIMOgIGRhdGEgZXN0aXB1bGFkYQ0KICAgIGRhdGFzX2ZpbHRyYWRhcyA8LSBkYXRlX3ZlY3RvcltkYXRlX3ZlY3RvciA+PSBkYXRlXQ0KICAgIA0KICAgICMgU2UgbsOjbyBob3V2ZXIgZGF0YXMgZnV0dXJhcywgcmV0b3JuYSBOQQ0KICAgIGlmKGxlbmd0aChkYXRhc19maWx0cmFkYXMpID09IDApIHsNCiAgICAgIHJldHVybihOQSkNCiAgICB9DQogICAgDQogICAgIyBTZWxlY2lvbmEgYSBkYXRhIG1haXMgcHLDs3hpbWENCiAgICBkYXRhX3Byb3hpbWEgPC0gbWluKGRhdGFzX2ZpbHRyYWRhcykNCiAgfSBlbHNlIHsNCiAgICBzdG9wKCJTZW50aWRvIEludsOhbGlkby4gVXNlICdhbnRlcycgb3UgJ2RlcG9pcycuIikNCiAgfQ0KICANCiAgcmV0dXJuKGRhdGFfcHJveGltYSkNCn0NCmBgYA0KDQpgYGB7ciwgJ2ZhemVuZG9fbGlzdGFfbXVuaW5jaXBpb3MnfQ0KQ2lkYWRlc0FMIDwtIHJlYWRSRFMoZmlsZSA9IGhlcmUoIkRhZG9zIFNEL0NpZGFkZXNBTC5SRFMiKSkNCg0KQUxDbGltYSA8LSBDaWRhZGVzQUwgJT4lIA0KICBmaWx0ZXIocHJvamV0b2NsaW1hID09IFQpICU+JSANCiAgbXV0YXRlKE11bmljaXBpb19VRiA9IHBhc3RlKE11bmljaXBpbywgVUYsIHNlcCA9ICJfIikpDQoNCnJtKENpZGFkZXNBTCkNCg0KRGVzYXN0cmVzIDwtIHJlYWRSRFMoZmlsZSA9IGhlcmUoIkRhZG9zIFNEL0Rlc2FzdHJlcy5SRFMiKSklPiUgDQogIG11dGF0ZShNdW5pY2lwaW9fVUYgPSBwYXN0ZShNdW5pY2lwaW8sIFVGLCBzZXAgPSAiXyIpKQ0KDQpsaXN0YV9tdW5pY2lwaW9zIDwtIEFMQ2xpbWEgJT4lIA0KICBzZWxlY3QoTXVuaWNpcGlvX1VGLCBNdW5pY2lwaW8sIFVGKSAlPiUgDQogIHVuaXF1ZSgpICU+JSANCiAgZGF0YS5mcmFtZSgpDQoNCkRlc2FzdHJlcyA8LSBEZXNhc3RyZXMgJT4lIA0KICBmaWx0ZXIoTXVuaWNpcGlvX1VGICVpbiUgbGlzdGFfbXVuaWNpcGlvcyRNdW5pY2lwaW9fVUYpDQoNCmxpc3RhX211bmljaXBpb3MgPC0gRGVzYXN0cmVzICU+JSANCiAgc2VsZWN0KENvZF9JQkdFX011biwgTm9tZV9NdW5pY2lwaW8sIFVGLCBNdW5pY2lwaW9fVUYpICU+JSANCiAgdW5pcXVlKCkgJT4lIA0KICBkYXRhLmZyYW1lKCkNCmBgYA0KDQpgYGB7ciwgJ2RpYXNfZGVzZGVfdWx0aW1vX2Rlc2FzdHJlJ30NCiNDcmlhbmNvIGRhcyBjb2x1bmFzIGRlIGRhdGFzIGVtIHJlbGHDp8OjbyBhb3MgZGVzYXN0cmVzOg0KQUxDbGltYSA8LSBBTENsaW1hICU+JSANCiAgbXV0YXRlKGRhdGFfZGVzYXN0cmVfYW50ZXJpb3IgPSBhcy5EYXRlKE5BKSwNCiAgICAgICAgIGRlc2FzdHJlX2FudGVyaW9yID0gYXMuY2hhcmFjdGVyKE5BKSwNCiAgICAgICAgIGRhdGFfZGVzYXN0cmVfcHJveGltbyA9IGFzLkRhdGUoTkEpLA0KICAgICAgICAgZGVzYXN0cmVfcHJveGltbyA9IGFzLmNoYXJhY3RlcihOQSkpDQoNCkFMQyA8LSBBTENsaW1hWzAsXQ0KDQojTG9vcCBtdW5pY8OtcGlvLXBvci1tdW5pY8OtcGlvIGRvcyBkZXNhc3RyZXM6DQpmb3IgKGkgaW4gbGlzdGFfbXVuaWNpcGlvcyRNdW5pY2lwaW9fVUYpew0KICBBTENtdW4gPC0gQUxDbGltYSAlPiUgDQogICAgZmlsdGVyKE11bmljaXBpb19VRiA9PSBpKQ0KICANCiAgZGZfbXVuIDwtIERlc2FzdHJlcyAlPiUgDQogICAgZmlsdGVyKE11bmljaXBpb19VRiA9PSBpKQ0KDQogICNMb29wIGludGVybm86IHVzYW5kbyBhIGZ1bsOnw6NvIHBhcmEgY2FsY3VsYXIgY8OpbHVsYSBwb3IgY8OpbHVsYSBhcyBkYXRhczoNCiAgZm9yIChqIGluIDE6bnJvdyhBTENtdW4pKXsNCiAgICBkYXRhX3Byb2ogPC0gQUxDbXVuW2osICdEYXRhJ10NCiAgICANCiAgICBBTENtdW4kZGF0YV9kZXNhc3RyZV9hbnRlcmlvcltqXSA8LSBkaXN0YW5jaWFfZGVzYXN0cmUoZGF0YV9wcm9qLCBkZl9tdW4kRGF0YSwgc2VudGlkbyA9ICdhbnRlcycgKQ0KICAgIA0KICAgIEFMQ211biRkYXRhX2Rlc2FzdHJlX3Byb3hpbW9bal0gPC0gZGlzdGFuY2lhX2Rlc2FzdHJlKGRhdGFfcHJvaiwgZGZfbXVuJERhdGEsIHNlbnRpZG8gPSAnZGVwb2lzJyApDQogICAgDQogICAgQUxDbXVuJGRlc2FzdHJlX2FudGVyaW9yW2pdIDwtIGRmX211biAlPiUNCiAgZmlsdGVyKERhdGEgPT0gQUxDbXVuJGRhdGFfZGVzYXN0cmVfYW50ZXJpb3Jbal0pICU+JQ0KICBwdWxsKERlc2FzdHJlKSAlPiUNCiAgICAgIHsgaWZlbHNlKGxlbmd0aCguKSA+IDAsIC4sIGFzLmNoYXJhY3RlcihOQSkpIH0NCiAgICANCiAgICBBTENtdW4kZGVzYXN0cmVfcHJveGltb1tqXSA8LSBkZl9tdW4gJT4lDQogIGZpbHRlcihEYXRhID09IEFMQ211biRkYXRhX2Rlc2FzdHJlX3Byb3hpbW9bal0pICU+JQ0KICBwdWxsKERlc2FzdHJlKSAlPiUNCiAgICAgIHsgaWZlbHNlKGxlbmd0aCguKSA+IDAsIC4sIGFzLmNoYXJhY3RlcihOQSkpIH0NCiAgICANCiAgfQ0KDQogIEFMQyA8LSBiaW5kX3Jvd3MoQUxDLCBBTENtdW4pDQp9IA0KDQoNCkFMQ2xpbWEgPC0gQUxDICU+JSANCiAgbXV0YXRlKGRpYXNfZGVzYXN0cmVfYW50ZXJpb3IgID0gYXMuaW50ZWdlcihEYXRhIC0gZGF0YV9kZXNhc3RyZV9hbnRlcmlvciksDQogICAgICAgICBkaWFzX2Rlc2FzdHJlX3Byb3hpbW8gID0gYXMuaW50ZWdlcihEYXRhIC0gZGF0YV9kZXNhc3RyZV9wcm94aW1vKSkNCg0KQUxDbGltYSA8LSBtZXJnZShBTENsaW1hLCBsaXN0YV9tdW5pY2lwaW9zLCBieSA9IGMoJ1VGJywgJ011bmljaXBpb19VRicpKQ0KDQpzYXZlUkRTKEFMQ2xpbWEsIGZpbGUgPSBoZXJlKCJEYWRvcyBTRC9BTENsaW1hLlJEUyIpKQ0KDQoNCnJtKGksIGosIEFMQ211biwgZGF0YV9wcm9qLCBkaXN0YW5jaWFfZGVzYXN0cmUsIGRmX211biwgQUxDLCBEZXNhc3RyZXMsIGxpc3RhX211bmljaXBpb3MpDQpgYGANCg==</div>
+<div id="rmd-source-code">LS0tDQp0aXRsZTogIjQuIEFuw6FsaXNlIGRvIGVmZWl0byBkb3MgRUNFcyBzb2JyZSBhIGFnZW5kYSINCm91dHB1dDogaHRtbF9ub3RlYm9vaw0KLS0tDQoNCg0KYGBge3J9DQpwbG90KGNhcnMpDQpgYGANCg0K</div>
 
 
 
@@ -2116,7 +1809,7 @@ $(document).ready(function () {
 <!-- code folding -->
 <script>
 $(document).ready(function () {
-  window.initializeSourceEmbed("1. Carregando e limpando as bases de dados.Rmd");
+  window.initializeSourceEmbed("4. Análise do efeito dos ECEs sobre a agenda.Rmd");
   window.initializeCodeFolding("show" === "show");
 });
 </script>

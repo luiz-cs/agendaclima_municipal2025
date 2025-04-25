@@ -1,0 +1,237 @@
+---
+title: "2. Análise descritiva dos bancos de dados"
+output: html_notebook
+---
+
+
+```{r}
+plot(cars)
+```
+
+# 2. Análise descritiva dos dados:
+
+## 2.1 Desastres
+
+```{r}
+df <- readRDS(here("Dados/df.RDS"))
+```
+
+```{r, n_biomas}
+df_desastres <- df %>% 
+  filter(TDesastre == TRUE)  
+
+p_df <- df_desastres %>%  
+  group_by(Desastre, Bioma) %>%
+  summarise(n = n()) %>% 
+  group_by(Bioma) %>% 
+  mutate(p_des = n / sum(n))%>% 
+  mutate(Desastre = ifelse(p_des < 0.09, "Outros", Desastre))
+
+
+graf1 <- p_df%>% 
+  ggplot(aes( x = Bioma, y = p_des, fill =Desastre)) + 
+  geom_bar(stat = "identity", position = "fill")+ 
+  theme_linedraw()+
+  labs(title = "Gráfico 1 - Distribuição dos tipos de desastre no 'Atlas', por Bioma")+
+  scale_fill_brewer(palette = "Dark2")+
+   ylab(label = "Percentual")+
+  theme(legend.position="bottom",
+        legend.title = element_blank())
+
+ggsave(graf1, file = (here("Gráficos/graf1.png")), width = 20, height = 12, units = "cm")
+
+plot(graf1)
+```
+
+```{r, 'n_ocorrencias'}
+
+fig1 <- Desastres %>% 
+  count(Desastre) %>% 
+  data.frame() %>% 
+  arrange(desc(n)) %>% 
+  rename("Nº de ocorrências" = n) %>% 
+  ggplot(aes(x = `Nº de ocorrências`, y = reorder(Desastre, `Nº de ocorrências`))) +
+  geom_col() +
+  theme_linedraw()+ 
+  xlab(label = "Número de ocorrências") +
+  ylab(label = "Tipo de desastre") +
+  labs(title = "Figura 1- Número de ocorrências no 'Atlas' (1991-2022)")+
+  theme(axis.text.x = element_text(angle = 60, vjust = 1, hjust=1)) +
+  theme(legend.position="none", text=element_text(size=10))+ 
+  scale_fill_brewer(palette = "Dark2")
+
+plot(fig1)
+```
+
+```{r, 'Cronologia_Desastres'}
+Desastres <- readRDS(here("Dados/Desastres.RDS"))
+
+pDesastres <- Desastres %>%
+  group_by(Desastre, Ano) %>% 
+  summarise(n_al = n()) %>%
+  group_by(Ano) %>%
+  mutate(p_al = n_al / sum(n_al))
+
+ggDesastres <- merge(Desastres, pDesastres, by = c('Desastre', 'Ano'), all.x = T) %>% 
+  mutate(p_al = ifelse(is.na(p_al), 0, p_al))%>% 
+  mutate(Desastre = ifelse(p_al < 0.06, "Outros", Desastre))
+
+fig2 <- ggDesastres%>% 
+  group_by(Ano, Desastre) %>% 
+  summarise("Ocorrências" = n()) %>% 
+  arrange(Ano) %>% 
+  ggplot(aes(x = Ano, y = Ocorrências , fill = Desastre)) +
+  geom_bar(stat="identity") +
+  theme_linedraw()+
+  xlab(label = "Ano") +
+  ylab(label = "Número de ocorrências") +
+  labs(title = "Figura 2 - Número de ocorrências no 'Atlas' (1991-2022)")+
+  theme(axis.text.x = element_text(angle = 60, vjust = 1, hjust=1),
+        legend.position="bottom", text=element_text(size=10))+
+  theme(legend.title = element_blank())+
+  scale_fill_brewer(palette = "Dark2")
+    
+
+plot(fig2)
+```
+
+```{r, 'Decis populacionais'}
+
+df_desastres <- readRDS(here("Dados/df.RDS")) %>% 
+  filter(TDesastre == TRUE)  
+
+p_df <- df_desastres %>%  
+  group_by(Desastre, `Decil populacional`) %>%
+  summarise(n = n()) %>% 
+  group_by(`Decil populacional`) %>% 
+  mutate(p_des = n / sum(n))%>% 
+  mutate(Desastre = ifelse(p_des < 0.065, "Outros", Desastre))
+
+
+fig3 <- p_df%>% 
+  ggplot(aes( x = `Decil populacional`, y = p_des, fill =Desastre)) + 
+  geom_bar(stat = "identity", position = "fill")+ 
+  theme_linedraw()+
+  labs(title = "Figura 3 - Distribuição dos tipos de desastre, por decil populacional")+
+  scale_fill_brewer(palette = "Dark2")+
+   ylab(label = "Percentual")+
+  theme(legend.position="bottom",
+        legend.title = element_blank())
+plot(fig3)
+```
+
+## 2.2 Descritivo Atividade Legislativa das Câmaras Municipais
+
+```{r 'N_cidades_ano'}
+mCidadesAl <- readRDS(file = here("Dados/mCidadesAL.RDS"))
+# Calcula quantas cidades aparecem em cada ano:
+presence <- mCidadesAl %>%
+  group_by(Ano, Município) %>%
+  summarise(N_Proj = n()) %>% 
+  ungroup() %>%
+  complete(Ano, Município, fill = list(N_Proj = 0)) %>%  
+  mutate(presente = ifelse(N_Proj > 0 , 1, 0)) %>% 
+  group_by(Ano) %>% 
+  summarise(n_cidades = sum(presente)) %>% 
+  mutate(percent= n_cidades / max(n_cidades))
+
+
+# Create the plot
+fig4 <- ggplot(presence, aes(x = Ano, y = n_cidades)) +
+  geom_bar(stat = "identity", fill = "#1B9E77") +
+  labs(x = "Ano", y = "Número de cidades") +
+  ggtitle("Figura 4 - Número de cidades presentes na base de dados por ano") +
+  theme_linedraw()+
+  scale_y_continuous(n.breaks = 10)+
+  scale_x_continuous(n.breaks = 10)
+
+plot(fig4)
+
+rm(presence)
+```
+
+```{r 'Tipos_Projetos'}
+tiproj <- mCidadesAl %>%
+  group_by(Tipo_Projeto, Ano) %>% 
+  summarise(n_al = n()) %>%
+  group_by(Ano) %>%
+  mutate(p_al = n_al / sum(n_al))%>% 
+  mutate(Tipo_Projeto = ifelse(p_al < 0.06, "Outros", Tipo_Projeto)) %>%
+  group_by(Tipo_Projeto, Ano) %>%
+  summarise(p_al = sum(p_al))
+
+fig5 <- tiproj %>% 
+  ggplot(aes( x = `Ano`, y = p_al, fill = Tipo_Projeto)) + 
+  geom_bar(stat = "identity")+ 
+  theme_linedraw()+
+  labs(title = "Figura 5 - Distribuição dos tipos de projeto, por ano")+
+  scale_fill_brewer(palette = "Dark2")+
+  ylab('Percentual de projetos')
+
+plot(fig5)
+```
+
+# 3. Definindo recorte temporal
+
+```{r, 'Tabela_contagem_AL_tempo'}
+#Caso df não esteja carreagado:
+df <- readRDS(here("Dados/df.RDS")) 
+
+df2 <- df %>% 
+  filter(TDesastre == F)
+  
+df_contagem <- data.frame(Ano = c(),  n_municipios = c(), AL_Ano = c(), AL_pos_ano = c()) #Tabela para contagem
+Anos <- df2 %>% distinct(Ano) #Anos no dataframe df
+
+#Loop para criar tabela comparando número de observações por ano:
+for (i in min(Anos):max(Anos)){
+  #Cria uma variável com o número de observações no ano i selecionado
+  dfano <- df2 %>% 
+    filter(Ano == i)
+  #Cria uma variável com o código de municípios distintos no ano
+  ctm_municipios <- dfano %>% 
+    distinct(ibge) 
+  #Cria uma variável com todos registros dos municípios presentes no ano "i" nos anos posteriores
+  dfanomais <- df2 %>% 
+    filter(Ano >= i,
+           ibge %in% ctm_municipios$ibge)
+  
+  #Criando linha do dataframe para o ano
+  df_ctm <- data.frame("Ano" = i, "n_municipios" = n_distinct(ctm_municipios), "AL_Ano" = nrow(dfano), "AL_pos_ano" = nrow(dfanomais))
+  
+  #Juntando à tabela principal
+  df_contagem <- bind_rows(df_contagem, df_ctm)  
+}
+
+rm(Anos, dfano, ctm_municipios, dfanomais, df_ctm, i, df2)
+```
+
+```{r, 'plotando_contagem_tempo'}
+
+# Criar o gráfico
+fig6 <- ggplot(df_contagem, aes(x = Ano)) +
+  # Adicionar o gráfico de barras para "n_municipios"
+  geom_bar(aes(y = n_municipios), stat = "identity", fill = "#1B9E77") +
+  # Adicionar o gráfico de linha para "AL_pos_ano"
+  geom_line(aes(y = AL_pos_ano * (max(df_contagem$n_municipios) / max(df_contagem$AL_pos_ano)))) +
+  geom_vline(xintercept = 2013, linetype = "dashed")+
+  # Adicionar eixos duplos
+  scale_y_continuous(
+    name = "Número de Municípios",
+    sec.axis = sec_axis(~ . * (max(df_contagem$AL_pos_ano) / max(df_contagem$n_municipios)), name = "Registros nos anos subsequentes (até 2022)",
+      breaks = scales::pretty_breaks(),
+      labels = scales::comma_format(big.mark = ".", decimal.mark = ","))
+  ) +
+  scale_x_continuous(n.breaks = 10)+
+  # Personalizar cores e temas
+  theme_linedraw()+
+  labs(title = "Figura 6 - Nº de municípios na base de dados por ano x Total de registros nos anos subsequentes")+
+  theme(title = element_text(size = 9),
+        axis.text.y.left = element_text(color = "#1B9E77", size = 10),   # Cor do texto do eixo Y à esquerda
+        axis.title.y.left = element_text(color = "#1B9E77"))   # Cor do título do eixo Y à esquerda
+
+
+# Exibir o gráfico
+print(fig6)
+
+```

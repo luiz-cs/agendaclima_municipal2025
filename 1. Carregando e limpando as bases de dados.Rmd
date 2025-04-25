@@ -7,10 +7,268 @@ output: html_notebook
 
 # 1. Carregando e limpando as bases de dados
 
-## Importando pacotes
+## 1.1 Importando pacotes
 
 Antes de começar, estes são os pacotes que serão necessários para manipulação destes dados. Caso ainda não os tenha instalados, é só retirar o "\#" da frente e rodar as células
 
 ```{r}
-plot(cars)
+#install.packages(")
+```
+
+```{r}
+library(dplyr)
+```
+
+```{r, 'carregando_funções'}
+#Função para padronizar maiúsculas
+firstup = function(x){
+    stri_trans_general(paste(toupper(substring(x, 1, 1)),
+          tolower(substring(x, 2, nchar(x))),
+          sep = ""), "latin-ascii") }
+
+```
+
+## 1.2 Criando Pacotes 
+
+# 1. Recolhendo os dados
+
+## 1.1 Dados sobre desastres:
+
+```{r, 'Baixando_desastres', warning = FALSE}
+# Fonte Dados BD Atlas: http://atlasdigital.mdr.gov.br/paginas/downloads.xhtml
+
+Desastres <- read_csv2(file = here("Dados/BD_Atlas_1991_2023_v1.0_2024.04.29.csv"), locale = locale(encoding = "Latin1"))
+```
+
+```{r, 'Limpando_desastres'}
+
+Desastres <- Desastres  %>% 
+  select(Cod_IBGE_Mun,Nome_Municipio,Sigla_UF,regiao,Data_Evento,tipologia, descricao_tipologia, grupo_de_desastre, Status, DH_Descricao, DH_total_danos_humanos, DM_Descricao, DM_total_danos_materiais) %>% 
+  rename("UF" = "Sigla_UF",
+         "Desastre" = "descricao_tipologia",
+         "Grupo_Desastre" = "grupo_de_desastre") %>% 
+  mutate(Data = as.Date(Data_Evento, format = "%d/%m/%Y")) %>% 
+    mutate("Mês" = month(`Data`), 
+           "Ano" = year(`Data`), 
+           Municipio = firstup(stri_trans_general(Nome_Municipio, "latin-ascii"))) %>% 
+   filter(!(Desastre %in% c('Doenças infecciosas','Rompimento/Colapso de barragens', 'Outros'))) %>% 
+    mutate(Municipio = gsub(" ", "", Municipio),
+           Municipio_UF = paste(Municipio, UF, sep = "_"))
+
+saveRDS(Desastres, file = here("Dados SD/Desastres.RDS"))
+```
+
+## 1.2 Dados de atividade legislativa
+
+```{r, 'Baixando os dados atividade legislativa'}
+#Dados retirados da api dos municípios. Link "https://sapl.nomedacidade.uf.leg.br/api/materia/materialegislativa
+#Código para levantar e compilar todos em anexo (em Python)
+CidadesAL <- read_csv(file= here("Dados/ProjCidades.csv"))
+```
+
+```{r, 'Tornando base menor'}
+CidadesAL <- CidadesAL%>% 
+  select(!(c(metadata, tipo_apresentacao, ip, user, anexadas, )))%>% 
+  mutate(Data = as.Date(data_apresentacao)) %>% 
+  mutate(Mês = month(Data),
+         Ano = year(Data)) %>% 
+  filter(Ano >= 1991,
+         Ano <= 2023)
+
+
+```
+
+```{r, 'Tratando_strings'}
+CidadesAL <- CidadesAL %>% 
+  mutate(Tipo_Projeto = firstup(sub(" nº.*", "", `__str__`)),
+         Tipo = stri_trans_general(sub(" .*", "", `Tipo_Projeto`), "latin-ascii"),
+         ementa = tolower(sub("\\*.*?\\*", "", ementa)),
+         UF = substring(gsub(".*\\.([^.]+)\\.[^.]+\\..*", "\\1", API_URL), 1, 2)) %>%
+  group_by(City) %>%
+  mutate(prim.ano = min(ano),
+         Municipio = firstup(stri_trans_general(City, "latin-ascii")),
+         UF = toupper(UF)) %>% 
+  rename("Nome_Propositura" = "__str__") %>% 
+  ungroup()
+
+#Removendo colunas desnecerssárias:
+
+CidadesAL <- CidadesAL %>% 
+  select(id, Data, Municipio, UF, numero, Ano, Mês, Nome_Propositura, Tipo_Projeto, Tipo, ementa, prim.ano)
+```
+
+```{r, 'termos_clima'}
+
+termos_clima <- c(" clima", " adaptação climática", " defesa civil", " alagamento",  " inundação", " inundações", " deslizamento", " aquecimento global", " mitigação", " chuva", " fortes chuvas", " vento", " deslizamento", " soterramento", " desabamento", " incêndio", " enxurrada", " eventos climáticos extremos"," seca", " estiagem", " estiagens" , "pluvial", " pluviais", " enchente", " chuvoso", " erosão")
+  
+# Criando coluna com termos sobre clima
+CidadesAL$clima_termos <- NA_character_
+
+# Criando dummy sobre se o projeto é do Clima ou não
+CidadesAL$projetoclima <- FALSE
+
+# Loop checando se é um termo relacionado ao Clima.
+for (termo in termos_clima) {
+  # Checando se o termo aparece na Ementa
+  termo_found <- grepl(termo, CidadesAL$ementa, ignore.case = TRUE)
+  
+  # Adicionando as respectivas colunas em "clima_termos"
+  CidadesAL$clima_termos[termo_found] <- ifelse(is.na(CidadesAL$clima_termos[termo_found]), termo, paste(CidadesAL$clima_termos[termo_found], termo, sep = ", "))
+  
+  # Atualizando coluna "projetoclima
+  CidadesAL$projetoclima <- CidadesAL$projetoclima | termo_found
+}
+
+CidadesAL <- CidadesAL %>% 
+  ungroup()
+
+rm(termo, termo_found, termos_clima)
+```
+
+```{r, 'Salvando_dados'}
+#Adicionando total de dados
+
+add_proj_data <- CidadesAL %>% 
+  group_by(Data, Municipio) %>% 
+  summarise(total_proj_data = n()) %>% 
+  data.frame()
+
+CidadesAL <- merge(CidadesAL, add_proj_data, by = c("Data", "Municipio"), all = T)
+
+
+add_proj_clima <- CidadesAL %>%
+  filter(projetoclima == T) %>% 
+  group_by(Data, Municipio) %>% 
+  summarise(total_proj_clima = n()) %>% 
+  data.frame()
+
+CidadesAL <- merge(CidadesAL, add_proj_clima, by = c("Data", "Municipio"), all = T) %>% 
+  mutate(total_proj_clima = ifelse(is.na(total_proj_clima), 0, total_proj_clima),
+         Municipio_UF = paste(Municipio, UF, sep = "_"))
+
+ALClima <- CidadesAL %>% 
+  filter(projetoclima == T)
+
+ALClima <- ALClima[!duplicated(ALClima[c('Data', 'Municipio', 'ementa')]),]
+
+saveRDS(CidadesAL, file = here("Dados SD/CidadesAL.RDS"))
+
+rm(add_proj_clima, add_proj_data, CidadesAL)
+
+```
+
+# 2. Adicionando dias desde o último desastre.
+
+```{r, 'funções_distancia_desastre'}
+# Função para data mais próxima com desastre
+distancia_desastre <- function(date, date_vector, sentido = "antes") {
+  if (sentido == "antes") {
+    # Filtra na série date_vector as datas anteriores à data estipulada
+    datas_filtradas <- date_vector[date_vector < date]
+    
+    # Se não houverem datas anteriores, retornar NA:
+    if(length(datas_filtradas) == 0) {
+      return(NA)
+    }
+    
+    # Seleciona a data mais próxima
+    data_proxima <- max(datas_filtradas)
+    
+  } else if (sentido == "depois") {
+    # Filtra na série date_vector as datas posteriores ou iguais à data estipulada
+    datas_filtradas <- date_vector[date_vector >= date]
+    
+    # Se não houver datas futuras, retorna NA
+    if(length(datas_filtradas) == 0) {
+      return(NA)
+    }
+    
+    # Seleciona a data mais próxima
+    data_proxima <- min(datas_filtradas)
+  } else {
+    stop("Sentido Inválido. Use 'antes' ou 'depois'.")
+  }
+  
+  return(data_proxima)
+}
+```
+
+```{r, 'fazendo_lista_munincipios'}
+CidadesAL <- readRDS(file = here("Dados SD/CidadesAL.RDS"))
+
+ALClima <- CidadesAL %>% 
+  filter(projetoclima == T) %>% 
+  mutate(Municipio_UF = paste(Municipio, UF, sep = "_"))
+
+rm(CidadesAL)
+
+Desastres <- readRDS(file = here("Dados SD/Desastres.RDS"))%>% 
+  mutate(Municipio_UF = paste(Municipio, UF, sep = "_"))
+
+lista_municipios <- ALClima %>% 
+  select(Municipio_UF, Municipio, UF) %>% 
+  unique() %>% 
+  data.frame()
+
+Desastres <- Desastres %>% 
+  filter(Municipio_UF %in% lista_municipios$Municipio_UF)
+
+lista_municipios <- Desastres %>% 
+  select(Cod_IBGE_Mun, Nome_Municipio, UF, Municipio_UF) %>% 
+  unique() %>% 
+  data.frame()
+```
+
+```{r, 'dias_desde_ultimo_desastre'}
+#Crianco das colunas de datas em relação aos desastres:
+ALClima <- ALClima %>% 
+  mutate(data_desastre_anterior = as.Date(NA),
+         desastre_anterior = as.character(NA),
+         data_desastre_proximo = as.Date(NA),
+         desastre_proximo = as.character(NA))
+
+ALC <- ALClima[0,]
+
+#Loop município-por-município dos desastres:
+for (i in lista_municipios$Municipio_UF){
+  ALCmun <- ALClima %>% 
+    filter(Municipio_UF == i)
+  
+  df_mun <- Desastres %>% 
+    filter(Municipio_UF == i)
+
+  #Loop interno: usando a função para calcular célula por célula as datas:
+  for (j in 1:nrow(ALCmun)){
+    data_proj <- ALCmun[j, 'Data']
+    
+    ALCmun$data_desastre_anterior[j] <- distancia_desastre(data_proj, df_mun$Data, sentido = 'antes' )
+    
+    ALCmun$data_desastre_proximo[j] <- distancia_desastre(data_proj, df_mun$Data, sentido = 'depois' )
+    
+    ALCmun$desastre_anterior[j] <- df_mun %>%
+  filter(Data == ALCmun$data_desastre_anterior[j]) %>%
+  pull(Desastre) %>%
+      { ifelse(length(.) > 0, ., as.character(NA)) }
+    
+    ALCmun$desastre_proximo[j] <- df_mun %>%
+  filter(Data == ALCmun$data_desastre_proximo[j]) %>%
+  pull(Desastre) %>%
+      { ifelse(length(.) > 0, ., as.character(NA)) }
+    
+  }
+
+  ALC <- bind_rows(ALC, ALCmun)
+} 
+
+
+ALClima <- ALC %>% 
+  mutate(dias_desastre_anterior  = as.integer(Data - data_desastre_anterior),
+         dias_desastre_proximo  = as.integer(Data - data_desastre_proximo))
+
+ALClima <- merge(ALClima, lista_municipios, by = c('UF', 'Municipio_UF'))
+
+saveRDS(ALClima, file = here("Dados SD/ALClima.RDS"))
+
+
+rm(i, j, ALCmun, data_proj, distancia_desastre, df_mun, ALC, Desastres, lista_municipios)
 ```
