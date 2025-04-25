@@ -12,11 +12,18 @@ output: html_notebook
 Antes de começar, estes são os pacotes que serão necessários para manipulação destes dados. Caso ainda não os tenha instalados, é só retirar o "\#" da frente e rodar as células
 
 ```{r}
-#install.packages(")
+#install.packages("dplyr")
+#install.packages("readr")
+#install.packages("here")
+#install.packages("lubridate")
+#install.packages("stringi")
 ```
 
-```{r}
+```{r, 'packages', echo=FALSE}
+library(readr)
+library(here)
 library(dplyr)
+library(lubridate)
 ```
 
 ```{r, 'carregando_funções'}
@@ -28,80 +35,88 @@ firstup = function(x){
 
 ```
 
-## 1.2 Criando Pacotes 
+## 1.2 Base de Dados sobre Desastres
 
-# 1. Recolhendo os dados
+Os dados sobre a ocorrência de desastres foram levantados a partir do "Atlas Digital de Desastres no Brasil", publicado pelo Ministério de Integração e Desenvolvimento Regional do Brasil.
 
-## 1.1 Dados sobre desastres:
+Eles podem ser baixados aqui: <http://atlasdigital.mdr.gov.br/paginas/downloads.xhtml>
 
-```{r, 'Baixando_desastres', warning = FALSE}
-# Fonte Dados BD Atlas: http://atlasdigital.mdr.gov.br/paginas/downloads.xhtml
+A versão que utilizo é a publicada em 29 de abril de 2024, que inclui dados de 1991 a 2023
 
-Desastres <- read_csv2(file = here("Dados/BD_Atlas_1991_2023_v1.0_2024.04.29.csv"), locale = locale(encoding = "Latin1"))
+```{r, 'Baixando_desastres', warning=FALSE}
+# Coloque a base de dados extraída do site do Atlas Digital de Desastres na pasta "Dados"
+Desastres <- read_csv2(file = here("Dados/BD_Atlas_1991_2023_v1.0_2024.04.29.csv"), locale = locale(encoding = "Latin1")) #Baixa a base de dados de Desastres
 ```
 
 ```{r, 'Limpando_desastres'}
 
 Desastres <- Desastres  %>% 
-  select(Cod_IBGE_Mun,Nome_Municipio,Sigla_UF,regiao,Data_Evento,tipologia, descricao_tipologia, grupo_de_desastre, Status, DH_Descricao, DH_total_danos_humanos, DM_Descricao, DM_total_danos_materiais) %>% 
+  select(Cod_IBGE_Mun,Nome_Municipio,Sigla_UF,regiao,Data_Evento,tipologia, descricao_tipologia, grupo_de_desastre, Status, DH_Descricao, DH_MORTOS, DH_DESAPARECIDOS, DH_total_danos_humanos, DM_Descricao, DM_total_danos_materiais) %>% #Seleciona as colunas de interesse
   rename("UF" = "Sigla_UF",
          "Desastre" = "descricao_tipologia",
-         "Grupo_Desastre" = "grupo_de_desastre") %>% 
-  mutate(Data = as.Date(Data_Evento, format = "%d/%m/%Y")) %>% 
-    mutate("Mês" = month(`Data`), 
-           "Ano" = year(`Data`), 
-           Municipio = firstup(stri_trans_general(Nome_Municipio, "latin-ascii"))) %>% 
-   filter(!(Desastre %in% c('Doenças infecciosas','Rompimento/Colapso de barragens', 'Outros'))) %>% 
-    mutate(Municipio = gsub(" ", "", Municipio),
-           Municipio_UF = paste(Municipio, UF, sep = "_"))
+         "Grupo_Desastre" = "grupo_de_desastre") %>% #Simplifica o nome de algumas colunas
+     filter(!(Desastre %in% c('Doenças infecciosas','Rompimento/Colapso de barragens', 'Outros'))) %>%  #Remove as emergências que não são causadas diretamente por fatores climáticos
+  mutate(Data = as.Date(Data_Evento, format = "%d/%m/%Y"),
+                        "Mês" = month(`Data`), 
+                        "Ano" = year(`Data`), #Atualiza colunas de tempo
+           Municipio = tolower(Nome_Municipio)) %>% #Coloca todos os nomes de municipios em minúscula, para facilitar identificação com outras bases 
+    mutate(Municipio = gsub(" ", "", Municipio), #Remove espaços no nome dos municípios, para facilitar identificação com outras bases
+           Municipio_UF = paste(Municipio, UF, sep = "_")) #Cria um identificador único de nome do município e UF, para impedir a fusão de municípios homônimos
 
-saveRDS(Desastres, file = here("Dados SD/Desastres.RDS"))
+saveRDS(Desastres, file = here("Dados/Desastres.RDS")) #Salva a base de dados tratada na pasta Dados
+
+rm(Desastres) #Limpa a base tratada, para economizar memória enquanto tratamos as demais
 ```
 
-## 1.2 Dados de atividade legislativa
+## 1.3 Dados de produção legislativa
 
-```{r, 'Baixando os dados atividade legislativa'}
-#Dados retirados da api dos municípios. Link "https://sapl.nomedacidade.uf.leg.br/api/materia/materialegislativa
-#Código para levantar e compilar todos em anexo (em Python)
-CidadesAL <- read_csv(file= here("Dados/ProjCidades.csv"))
+Os dados de produção legislativa foram extraídos a partir das APIs abertas dos sites das câmaras municipais que utilizam o "Sistema de Apoio ao Processo Legislativo".
+
+A lista de municípios participantes pode ser encontrada em: <https://www.senado.leg.br/senado/hotsites/interlegis/orgaos-atendidos.asp>
+
+**O código para raspagem de dados dessa API está na pasta "Scraping", e deve ser rodado antes de utilizar este código.**
+
+```{r, 'Dados_Camaras', warning=FALSE}
+#Verifique que o documento com os dados raspados das Câmaras Municipais já está na pasta "Dados"
+#ATENÇÃO: Este arquivo é muito pesado. Certifique-se de que seu computador tem memória para tratá-lo
+
+CidadesAL <- read_csv(file= here("Dados/ProjCidades.csv")) 
 ```
 
-```{r, 'Tornando base menor'}
+```{r, 'Reduzindo_base'}
+library(stringi)
+
+#Removendo entradas duplicadas:
+CidadesAL <- CidadesAL[!duplicated(CidadesAL[c('data_apresentacao', 'City', 'ementa')]),]
+
 CidadesAL <- CidadesAL%>% 
-  select(!(c(metadata, tipo_apresentacao, ip, user, anexadas, )))%>% 
-  mutate(Data = as.Date(data_apresentacao)) %>% 
-  mutate(Mês = month(Data),
-         Ano = year(Data)) %>% 
-  filter(Ano >= 1991,
-         Ano <= 2023)
-
-
-```
-
-```{r, 'Tratando_strings'}
-CidadesAL <- CidadesAL %>% 
-  mutate(Tipo_Projeto = firstup(sub(" nº.*", "", `__str__`)),
+  select(id, data_apresentacao, ano, City, numero, `__str__`, ementa, API_URL)%>% #selecionando colunas de interesse
+  mutate(Data = as.Date(data_apresentacao), #Atualiza coluna para formato de Data
+         Mês = month(Data), #Separa o mês
+         Tipo_Projeto = tolower(sub(" nº.*", "", `__str__`)), #Separa o tipo de projeto
          Tipo = stri_trans_general(sub(" .*", "", `Tipo_Projeto`), "latin-ascii"),
-         ementa = tolower(sub("\\*.*?\\*", "", ementa)),
-         UF = substring(gsub(".*\\.([^.]+)\\.[^.]+\\..*", "\\1", API_URL), 1, 2)) %>%
-  group_by(City) %>%
-  mutate(prim.ano = min(ano),
-         Municipio = firstup(stri_trans_general(City, "latin-ascii")),
-         UF = toupper(UF)) %>% 
-  rename("Nome_Propositura" = "__str__") %>% 
+         ementa = tolower(sub("\\*.*?\\*", "", ementa)), #Uniformiza as ementas
+         UF = substring(gsub(".*\\.([^.]+)\\.[^.]+\\..*", "\\1", API_URL), 1, 2)) %>% #Separa a UF a partir do link
+  group_by(City) %>%  #Agrupa dados por cidade, para que a base indique qual o primeiro ano com dados
+  mutate(prim.ano = min(ano), #Separa o primeiro ano que o município tem um registro
+         prim.data = min(Data), #Separa primeira data que o município tem um registro
+         UF = toupper(UF),#Coloca UF em maiúscula
+         Municipio_UF = paste(City, UF, sep = "_")) %>% #Cria coluna com municipio e UF, para facilitar junção às outras bases
+  rename("Nome_Propositura" = "__str__",
+         "Municipio" = "City",
+         "Ano" = "ano") %>% #Renomeia colunas
   ungroup()
 
-#Removendo colunas desnecerssárias:
 
-CidadesAL <- CidadesAL %>% 
-  select(id, Data, Municipio, UF, numero, Ano, Mês, Nome_Propositura, Tipo_Projeto, Tipo, ementa, prim.ano)
 ```
 
-```{r, 'termos_clima'}
+Agora, irei adicionar à base um registro dos termos relacionados às políticas climáticas que serão utilizados na análise, para classificar os projetos a partir de suas ementas.
 
-termos_clima <- c(" clima", " adaptação climática", " defesa civil", " alagamento",  " inundação", " inundações", " deslizamento", " aquecimento global", " mitigação", " chuva", " fortes chuvas", " vento", " deslizamento", " soterramento", " desabamento", " incêndio", " enxurrada", " eventos climáticos extremos"," seca", " estiagem", " estiagens" , "pluvial", " pluviais", " enchente", " chuvoso", " erosão")
+```{r, 'termos_clima'}
+#Lista de termos relacionados às políticas climáticas
+termos_clima <- c(" clima", " adaptação climática", " defesa civil", " alagamento",  " inundação", " inundações", " deslizamento", " aquecimento global", " mitigação", " chuva", " fortes chuvas", " vento", " deslizamento", " soterramento", " desabamento", " incêndio", " enxurrada", " eventos climáticos extremos"," seca", " estiagem", " estiagens" , " pluvial", " pluviais", " enchente", " chuvoso", " erosão", " descarbonização", " transição energética", " carbono", " efeito estufa")
   
-# Criando coluna com termos sobre clima
+# Criando coluna para inserir termos sobre clima
 CidadesAL$clima_termos <- NA_character_
 
 # Criando dummy sobre se o projeto é do Clima ou não
@@ -119,45 +134,53 @@ for (termo in termos_clima) {
   CidadesAL$projetoclima <- CidadesAL$projetoclima | termo_found
 }
 
-CidadesAL <- CidadesAL %>% 
-  ungroup()
 
-rm(termo, termo_found, termos_clima)
+rm(termo, termo_found, termos_clima) #Removendo lista de termos
 ```
 
-```{r, 'Salvando_dados'}
-#Adicionando total de dados
+Por fim, vamos salvar a base de Atividade Legislativa das Cidades
 
-add_proj_data <- CidadesAL %>% 
-  group_by(Data, Municipio) %>% 
-  summarise(total_proj_data = n()) %>% 
+```{r, 'salvando_dados_projetos'}
+#Base geral
+CidadesAL <- CidadesAL %>% 
+  select(id, Data, Ano, Municipio_UF, UF, Tipo, Tipo_Projeto, ementa, clima_termos,  Nome_Propositura, API_URL, prim.data, prim.ano, projetoclima)
+
+#Salvando na pasta
+saveRDS(CidadesAL, file = here("Dados/CidadesAL.RDS"))
+```
+
+## 1.4 Salvando base só com projetos climáticos
+
+A seguir, filtraremos apenas os projetos em que foram identificados como tendo termos associados às políticas climáticas.
+
+Primeiro, criamos uma contagem do número total de projetos no dia em cada município, para não perdermos esta informação
+
+```{r, 'dados_so_clima'}
+#Adicionando total de projetos por dia, por tipo de projeto, por cidade
+
+##Criando segunda base de dados sumarizando número de projetos por dia
+#Só por projeto e data:
+
+nproj_data <- CidadesAL %>% 
+  group_by(Data, Municipio_UF, Tipo) %>% 
+  summarise(total_proj_dia = n())
   data.frame()
-
-CidadesAL <- merge(CidadesAL, add_proj_data, by = c("Data", "Municipio"), all = T)
-
-
-add_proj_clima <- CidadesAL %>%
-  filter(projetoclima == T) %>% 
-  group_by(Data, Municipio) %>% 
-  summarise(total_proj_clima = n()) %>% 
-  data.frame()
-
-CidadesAL <- merge(CidadesAL, add_proj_clima, by = c("Data", "Municipio"), all = T) %>% 
-  mutate(total_proj_clima = ifelse(is.na(total_proj_clima), 0, total_proj_clima),
-         Municipio_UF = paste(Municipio, UF, sep = "_"))
-
-ALClima <- CidadesAL %>% 
+  
+#Base só com projetos de Clima
+CidadesAL <- CidadesAL %>% 
   filter(projetoclima == T)
 
-ALClima <- ALClima[!duplicated(ALClima[c('Data', 'Municipio', 'ementa')]),]
 
-saveRDS(CidadesAL, file = here("Dados SD/CidadesAL.RDS"))
+#Juntando as informações
+CidadesAL <- merge(CidadesAL, nproj_data, by = c("Data", "Municipio_UF", "Tipo"), all.x = T)
 
-rm(add_proj_clima, add_proj_data, CidadesAL)
+#Salvando (com um NOME DIFERENTE) a base com dados só de clima:
+saveRDS(CidadesAL, file = here("Dados/ALClima.RDS"))
 
+rm(nproj_data) #Removendo base temporária
 ```
 
-# 2. Adicionando dias desde o último desastre.
+# 1.5 Adicionando dias desde o último desastre.
 
 ```{r, 'funções_distancia_desastre'}
 # Função para data mais próxima com desastre
@@ -194,15 +217,10 @@ distancia_desastre <- function(date, date_vector, sentido = "antes") {
 ```
 
 ```{r, 'fazendo_lista_munincipios'}
-CidadesAL <- readRDS(file = here("Dados SD/CidadesAL.RDS"))
+ALClima <- readRDS(file = here("Dados/ALClima.RDS"))
 
-ALClima <- CidadesAL %>% 
-  filter(projetoclima == T) %>% 
-  mutate(Municipio_UF = paste(Municipio, UF, sep = "_"))
 
-rm(CidadesAL)
-
-Desastres <- readRDS(file = here("Dados SD/Desastres.RDS"))%>% 
+Desastres <- readRDS(file = here("Dados/Desastres.RDS"))%>% 
   mutate(Municipio_UF = paste(Municipio, UF, sep = "_"))
 
 lista_municipios <- ALClima %>% 
