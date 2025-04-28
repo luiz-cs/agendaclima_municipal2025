@@ -18,6 +18,8 @@ Antes de começar, estes são os pacotes que serão necessários para manipulaç
 #install.packages("lubridate")
 #install.packages("stringi")
 #install.packages("data.table")
+#install.packages("purrr")
+#install.packages("tidyr")
 ```
 
 ```{r, 'packages', echo=FALSE}
@@ -26,15 +28,6 @@ library(here)
 library(dplyr)
 library(lubridate)
 library(data.table)
-```
-
-```{r, 'carregando_funções'}
-#Função para padronizar maiúsculas
-firstup = function(x){
-    stri_trans_general(paste(toupper(substring(x, 1, 1)),
-          tolower(substring(x, 2, nchar(x))),
-          sep = ""), "latin-ascii") }
-
 ```
 
 ## 1.2 Base de Dados sobre Desastres
@@ -167,19 +160,18 @@ nproj_data <- CidadesAL %>%
   group_by(Data, Municipio_UF, Tipo) %>% 
   summarise(total_proj_dia = n())
   data.frame()
-  
+
 #Base só com projetos de Clima
 CidadesAL <- CidadesAL %>% 
   filter(projetoclima == T)
 
-
 #Juntando as informações
-CidadesAL <- merge(CidadesAL, nproj_data, by = c("Data", "Municipio_UF", "Tipo"), all.x = T)
+ALClima <- merge(CidadesAL, nproj_data, by = c("Data", "Municipio_UF", "Tipo"), all.x = T)
 
 #Salvando (com um NOME DIFERENTE) a base com dados só de clima:
-saveRDS(CidadesAL, file = here("Dados/ALClima.RDS"))
+saveRDS(ALClima, file = here("Dados/ALClima.RDS"))
 
-rm(nproj_data, CidadesAL) #Removendo base temporária
+rm(nproj_data) #Removendo base temporária
 ```
 
 ## 1.5 Adicionando mais informações dos municípios
@@ -190,39 +182,49 @@ Agora, iremos adicionar algumas informações da base de desastres à base de at
 
 Primeiro, fazemos uma lista de municípios que estão em ambas as bases, com informações como o código IBGE:
 
-```{r, 'fazendo_lista_munincipios'}
-
-ALClima <- readRDS(file = here("Dados/ALClima.RDS")) #Recupera a base ALClima
-
-
+```{r, 'fazendo_lista_municipios'}
+## CidadesAL
+#Trazendo de volta a base de Desastres
 DesastresSAPL <- readRDS(file = here("Dados/Desastres.RDS")) #Recupera a base de Desastres
 
-#Cria uma lista de municípios que aparece na base de desastres:
-lista_municipios <- ALClima %>% 
-  select(Municipio_UF) %>% 
-  unique() %>% 
-  data.frame() 
-
-#Filtra na lista de desastres os municípios presentes nas bases do SAPL
-DesastresSAPL <- DesastresSAPL %>% 
-  filter(Municipio_UF %in% lista_municipios$Municipio_UF)
-
-#Adiciona mais informações na lista de municípios
+#Adiciona informações na lista de municípios
 lista_municipios <-  DesastresSAPL %>% 
   select(Cod_IBGE_Mun, Nome_Municipio, UF, Municipio_UF) %>% 
   unique() %>% 
-  data.frame() %>% 
-  merge (lista_municipios, by = "Municipio_UF", all = T)
+  data.frame()
+
+#Adiciona informações da lista de municípios em CidadesAL
+CidadesAL <- merge(CidadesAL, lista_municipios, by = c("UF", "Municipio_UF"), all.x = TRUE)
+
+#Salvando CidadesAL atualizado:
+saveRDS(CidadesAL, file = here("Dados/CidadesAL.RDS"))
+
+rm(CidadesAL)
+
+
+#ALClima
+#Filtra na lista de desastres os municípios presentes nas bases do SAPL
+DesastresSAPL <- DesastresSAPL %>% 
+  filter(Municipio_UF %in% ALClima$Municipio_UF)
+
+saveRDS(DesastresSAPL, here("Dados/DesastresSAPL.RDS"))
 
 
 # Adiciona informações de lista municípios à ALClima
 ALClima <- merge(ALClima, lista_municipios, by = c("UF", "Municipio_UF"), all.x = TRUE)
 
 
+#Atualizando lista de municípios só com os usados no SAPL:
+lista_municipios <- ALClima %>% 
+  select(Cod_IBGE_Mun, Nome_Municipio, UF, Municipio_UF) %>% 
+  unique()
+
+#Salvando bases atualizadas
 saveRDS(lista_municipios, here("Dados/lista_municipios.RDS")) #Salva a lista de municípios
+saveRDS(ALClima, here("Dados/ALClima.RDS")) #Salva a lista de municípios
 
-saveRDS(DesastresSAPL, here("Dados/DesastresSAPL.RDS"))
 
+rm(lista_municipios)
 ```
 
 ### Adicionando dias desde o último desastre.
@@ -247,25 +249,109 @@ ALClima_next <- ALClima %>%
   group_by(UF, Municipio_UF, Cod_IBGE_Mun, Data) %>%
   slice_min(Data_desastre, with_ties = FALSE) %>%
   ungroup() %>%
-  select(UF, Municipio_UF, Cod_IBGE_Mun, Data, data_desastre_proximo2 = Data_desastre, desastre_proximo2 = Desastre)
+  select(UF, Municipio_UF, Cod_IBGE_Mun, Data, data_desastre_proximo = Data_desastre, desastre_proximo = Desastre)
 
 #Junta os arquivos na base original:
 ALClima <- ALClima %>%
   left_join(ALClima_prev, by = c("UF", "Municipio_UF", "Cod_IBGE_Mun", "Data")) %>%
   left_join(ALClima_next, by = c("UF", "Municipio_UF", "Cod_IBGE_Mun", "Data")) %>%
   mutate(
-    dias_desastre_anterior2 = as.integer(Data - data_desastre_anterior),
-    dias_desastre_proximo2 = as.integer(Data - data_desastre_proximo)
+    dias_desastre_anterior = as.integer(Data - data_desastre_anterior),
+    dias_desastre_proximo = as.integer(Data - data_desastre_proximo)
   )
 
 #Salva a versão atualizada da base
 saveRDS(ALClima, file = here("Dados/ALClima.RDS"))
 
 # Remove os objetos que não serão mais utilizados
-rm(ALClima_prev, ALClima_next, lista_municipios, DesastresSAPL)
+rm(ALClima_prev, ALClima_next, lista_municipios, DesastresSAPL, ALClima)
 
 ```
 
 ## 1.6 Adicionando informações municipais de outras fontes
 
 Agora que já temos uma base de dados com todas as informações, incluindo os códigos do IBGE dos municípios, podemos adicionar outras informações que serão utilizadas como controle na nossa análise.
+
+O Senado Federal, através do "Panorama do Legislativo Municipal", compila uma série de dados de várias fontes que oferecem um bom ponto de partida.
+
+Lista de fontes: <https://www.senado.leg.br/institucional/datasenado/panorama/#/fonte-dados>
+
+Dados: <https://www.senado.leg.br/institucional/datasenado/panorama/#/dados>
+
+Primeiro, iremos fazer a leitura e unir as bases de dados sugeridas:
+
+```{r, 'subindo_bases_legis', warning=FALSE}
+#Confira se os arquivos com as bases de dados CSV estão salvos na pasta "Panorama do Legislativo Municipal"
+
+#Sobe o pacote 'purrr'
+library(purrr)
+
+# Lista todos os arquivos CSV na pasta
+csv_files <- list.files(path = here("Dados/Panorama do Legislativo Municipal"), pattern = "\\.csv$", full.names = TRUE)
+
+# Importa todos os arquivos  CSV na lista
+csv_dataframes <- csv_files %>%
+  set_names(~ tools::file_path_sans_ext(basename(.x))) %>% #Dá nome aos arquivos
+  map(~ read_csv2(.x, locale = locale(encoding = "Latin1"))) #Replica a leitura para cada elemento do vetor de nomes
+
+rm(csv_files)
+```
+
+```{r 'limpando_bases_legis'}
+library(tidyr)
+
+#Dados básicos do Município
+csv_dataframes$municipio <- csv_dataframes$municipio %>% 
+  rename("Cod_IBGE_Mun" = "Cód.")
+
+#Dados do orçamento municipal
+csv_dataframes$orcamentodomunicipio <- csv_dataframes$orcamentodomunicipio %>% 
+  select(!Porcentagem) %>% 
+  pivot_wider(names_from = Categoria,
+              values_from = Valor, 
+              names_prefix = "Orcamento_Mun ") %>% 
+  rename("Cod_IBGE_Mun" = "Cod.IBGE")
+
+#Dados sobre a Câmara de Vereadores
+csv_dataframes$vereadores <- csv_dataframes$vereadores %>% 
+  mutate(Municipio_UF = stri_trans_general(paste(tolower(Municipio), UF, sep = "_"), "Latin-ASCII")) %>% 
+  group_by(Ano, UF, Codigo_IBGE, Municipio_UF) %>% 
+  summarise(n_Vereadores = n()) %>% 
+  rename("Cod_IBGE_Mun" = "Codigo_IBGE")
+  
+#Juntando as bases de dados:
+DadosMunic <- reduce(
+  csv_dataframes,
+  full_join,
+  by = c("Ano", "Cod_IBGE_Mun"))
+
+saveRDS(DadosMunic, here("Dados/DadosMunic.RDS"))
+
+rm(csv_dataframes)
+```
+
+### Dados demográficos e ecocômicos (Densidade Demográfica, Pobreza, Principais setores econômicos)
+
+```{r}
+
+```
+
+### Capacidades estatais (Burocracia)
+
+### Características climáticas (Biomas, Índices Pluviométricos) 
+
+```{r}
+
+```
+
+### Número de desastres
+
+```{r}
+
+```
+
+### Estações do ano
+
+```{r}
+
+```
