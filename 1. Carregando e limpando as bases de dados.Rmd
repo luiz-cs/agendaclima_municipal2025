@@ -17,6 +17,7 @@ Antes de começar, estes são os pacotes que serão necessários para manipulaç
 #install.packages("here")
 #install.packages("lubridate")
 #install.packages("stringi")
+#install.packages("data.table")
 ```
 
 ```{r, 'packages', echo=FALSE}
@@ -24,6 +25,7 @@ library(readr)
 library(here)
 library(dplyr)
 library(lubridate)
+library(data.table)
 ```
 
 ```{r, 'carregando_funções'}
@@ -212,101 +214,58 @@ lista_municipios <-  DesastresSAPL %>%
   data.frame() %>% 
   merge (lista_municipios, by = "Municipio_UF", all = T)
 
+
+# Adiciona informações de lista municípios à ALClima
+ALClima <- merge(ALClima, lista_municipios, by = c("UF", "Municipio_UF"), all.x = TRUE)
+
+
 saveRDS(lista_municipios, here("Dados/lista_municipios.RDS")) #Salva a lista de municípios
 
 saveRDS(DesastresSAPL, here("Dados/DesastresSAPL.RDS"))
+
 ```
 
 ### Adicionando dias desde o último desastre.
 
 A seguir adicionamos a informação sobre a distância entre a data do desastres mais recente (ou do desastre seguinte) em relação à apresentação do projeto. Esta informação irá ajudar a compreender melhor o contexto em que um projeto foi apresentado
 
-```{r, 'funções_distancia_desastre'}
-# Função para identificar data mais próxima com desastre
-distancia_desastre <- function(date, date_vector, sentido = "antes") {
-  if (sentido == "antes") {
-    # Filtra na série date_vector as datas anteriores à data estipulada
-    datas_filtradas <- date_vector[date_vector < date]
-    
-    # Se não houverem datas anteriores, retornar NA:
-    if(length(datas_filtradas) == 0) {
-      return(NA)
-    }
-    
-    # Seleciona a data mais próxima
-    data_proxima <- max(datas_filtradas)
-    
-  } else if (sentido == "depois") {
-    # Filtra na série date_vector as datas posteriores ou iguais à data estipulada
-    datas_filtradas <- date_vector[date_vector >= date]
-    
-    # Se não houver datas futuras, retorna NA
-    if(length(datas_filtradas) == 0) {
-      return(NA)
-    }
-    
-    # Seleciona a data mais próxima
-    data_proxima <- min(datas_filtradas)
-  } else {
-    stop("Sentido Inválido. Use 'antes' ou 'depois'.")
-  }
-  
-  return(data_proxima)
-}
+```{r, 'dias_ultimo_desastre'}
+
+# 1. Criando base de dados alinhando combinações de projetos e deastres que aconteceram antes deles
+ALClima_prev <- ALClima %>%
+  left_join(DesastresSAPL, by = "Municipio_UF", suffix = c("", "_desastre")) %>% #Cria todas as combinações de projetos e desastres por município
+  filter(Data_desastre < Data) %>% #Filtra só as linhas em que a data do desastre antecede a data do projeto
+  group_by(UF, Municipio_UF, Cod_IBGE_Mun, Data) %>% #Agrupa pelas informações de município e data  
+  slice_max(Data_desastre, with_ties = FALSE) %>% #mantêm apenas a primeira versão de cada combinação em cada cidade
+  ungroup() %>%
+  select(UF, Municipio_UF, Cod_IBGE_Mun, Data, data_desastre_anterior = Data_desastre, desastre_anterior = Desastre) #Seleciona as colunas que serão integradas depois, renomeando as novas
+
+#Repete o anterior, mas para o desastre seguinte
+ALClima_next <- ALClima %>%
+  left_join(DesastresSAPL, by = "Municipio_UF", suffix = c("", "_desastre")) %>%
+  filter(Data_desastre >= Data) %>%
+  group_by(UF, Municipio_UF, Cod_IBGE_Mun, Data) %>%
+  slice_min(Data_desastre, with_ties = FALSE) %>%
+  ungroup() %>%
+  select(UF, Municipio_UF, Cod_IBGE_Mun, Data, data_desastre_proximo2 = Data_desastre, desastre_proximo2 = Desastre)
+
+#Junta os arquivos na base original:
+ALClima <- ALClima %>%
+  left_join(ALClima_prev, by = c("UF", "Municipio_UF", "Cod_IBGE_Mun", "Data")) %>%
+  left_join(ALClima_next, by = c("UF", "Municipio_UF", "Cod_IBGE_Mun", "Data")) %>%
+  mutate(
+    dias_desastre_anterior2 = as.integer(Data - data_desastre_anterior),
+    dias_desastre_proximo2 = as.integer(Data - data_desastre_proximo)
+  )
+
+#Salva a versão atualizada da base
+saveRDS(ALClima, file = here("Dados/ALClima.RDS"))
+
+# Remove os objetos que não serão mais utilizados
+rm(ALClima_prev, ALClima_next, lista_municipios, DesastresSAPL)
+
 ```
 
-```{r, 'dias_desde_ultimo_desastre'}
-#Crianco das colunas de datas em relação aos desastres:
-ALClima <- ALClima %>% 
-  mutate(data_desastre_anterior = as.Date(NA),
-         desastre_anterior = as.character(NA),
-         data_desastre_proximo = as.Date(NA),
-         desastre_proximo = as.character(NA))
+## 1.6 Adicionando informações municipais de outras fontes
 
-#Criando dataframe temporário para armazenar informações novas
-ALC <- ALClima[0,]
-
-#Loop município-por-município dos desastres:
-for (i in lista_municipios$Municipio_UF){
-  ALCmun <- ALClima %>%  filter(Municipio_UF == i) #Cria base temporária de atividade legislativa com só um municipio por vez
-  
-  df_mun <- DesastresSAPL %>%  filter(Municipio_UF == i) #Cria base temporária de desastres com só um municipio por vez
-  
-
-  #Loop interno: usando a função para calcular célula por célula as datas:
-  for (j in 1:nrow(ALCmun)){
-    data_proj <- ALCmun[j, 'Data'] #Seleciona um dia
-    
-    ALCmun$data_desastre_anterior[j] <- distancia_desastre(data_proj, df_mun$Data, sentido = 'antes' ) #Descobre qual a data desde o último desastre, se houver
-    
-    ALCmun$data_desastre_proximo[j] <- distancia_desastre(data_proj, df_mun$Data, sentido = 'depois' ) #Descobre qual a data do desastre seguinte, se houver
-    
-    ALCmun$desastre_anterior[j] <- df_mun %>%
-  filter(Data == ALCmun$data_desastre_anterior[j]) %>%
-  pull(Desastre) %>%
-      { ifelse(length(.) > 0, ., as.character(NA)) } #Verificando a data do último desastre, anota qual a categoria desse desastre
-    
-    ALCmun$desastre_proximo[j] <- df_mun %>%
-  filter(Data == ALCmun$data_desastre_proximo[j]) %>%
-  pull(Desastre) %>%
-      { ifelse(length(.) > 0, ., as.character(NA)) } #Verificando a data do próximo desastre, anota qual a categoria desse desastre
-    
-  }
-
-  ALC <- bind_rows(ALC, ALCmun) #Adiciona os valores ao dataframe temporário. 
-} 
-
-
-ALClima <- ALC %>% 
-  mutate(dias_desastre_anterior  = as.integer(Data - data_desastre_anterior), #Cria coluna do número de dias desde o último desastre
-         dias_desastre_proximo  = as.integer(Data - data_desastre_proximo))  #Cria coluna do número de dias até o próximo desastre
-
-ALClima <- merge(ALClima, lista_municipios, by = c('UF', 'Municipio_UF'), all.x = T) #Junta as bases de dados "lista municipios" e "ALClima" para salvar uma versão de ALClima com os códigos do IBGE, que serão utilizados para identificar as cidades nas próximas etapas
-
-saveRDS(ALClima, file = here("Dados/ALClima.RDS")) #Salvando a base de projetos atualizada
-
-
-rm(i, j, ALCmun, data_proj, distancia_desastre, df_mun, ALC, DesastresSAPL, lista_municipios) #Removendo variáveis que não serão mais utilizadas.
-```
-
-### Adicionando informações municipais de outras fontes
+Agora que já temos uma base de dados com todas as informações, incluindo os códigos do IBGE dos municípios, podemos adicionar outras informações que serão utilizadas como controle na nossa análise.
