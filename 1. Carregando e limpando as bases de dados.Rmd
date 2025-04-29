@@ -20,6 +20,7 @@ Antes de começar, estes são os pacotes que serão necessários para manipulaç
 #install.packages("data.table")
 #install.packages("purrr")
 #install.packages("tidyr")
+#install.packages("readxl")
 ```
 
 ```{r, 'packages', echo=FALSE}
@@ -338,19 +339,51 @@ rm(csv_dataframes)
 
 ### Capacidades estatais (Burocracia)
 
-### Características climáticas (Biomas, Índices Pluviométricos) 
+### Características climáticas (Biomas, Índices Pluviométricos)
+
+Agora, serão adicionados os dados sobre os biomas a que os municípios pertencem. Esses dados são importantes para controlar pela predisposição de cada região a desastres, e aos tipos de desastre predominantes em cada região.
+
+### Biomas
+
+A fonte dos dados é o levantamento da organização "MapBiomas", baseados em dados territoriais do IBGE
+
+**Dados MapBiomas**: <https://brasil.mapbiomas.org/estatisticas/>
 
 ```{r}
 
+library(readxl)
+
+MapBiomas <- read_excel(path = here("Dados/mapbiomas_brazil_col_coverage_biome_state_municipality.xlsx"), sheet = "COVERAGE_9") %>% 
+  select(geocode, municipality, state, biome) %>% 
+  unique() %>% 
+  rename("Bioma" = "biome",
+         "Município" = "municipality",
+         "Estado" = "state",
+         "Cod_IBGE_Mun" = "geocode")
 ```
 
-### Número de desastres
+### Cidades costeiras
+
+#Municípios Costeiros: <https://www.ibge.gov.br/geociencias/organizacao-do-territorio/estrutura-territorial/34330-municipios-costeiros.html>
 
 ```{r}
+Costeiro <- read_excel(path = here("Dados/Municipios_Costeiros_2021.xls")) %>% 
+  rename("Cod_IBGE_Mun" = "CD_MUN") %>% 
+  mutate("Costeiro" = TRUE)
+
 
 ```
 
-### Estações do ano
+### Área dos municípios
+
+<https://www.ibge.gov.br/geociencias/organizacao-do-territorio/estrutura-territorial/15761-areas-dos-municipios.html>
+
+```{r}
+area <- read_excel(here("Dados/AR_BR_RG_UF_RGINT_RGI_MUN_2024.xls")) %>% 
+  rename("Cod_IBGE_Mun" = CD_MUN)
+```
+
+É NECESSÁRIO DIFERENCIAR NA BASE ENTRE DIAS EM QUE OS PROJETOS CLIMÁTICOS REPRESENTAM 0% E DIAS EM QUE NENHUM PROJETO FOI APRESENTADO
 
 ```{r}
 
