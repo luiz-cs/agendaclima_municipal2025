@@ -388,3 +388,7 @@ area <- read_excel(here("Dados/AR_BR_RG_UF_RGINT_RGI_MUN_2024.xls")) %>%
 ```{r}
 
 ```
+
+### Presença de grupos de interesse
+
+Dados: <https://mapaosc.ipea.gov.br/base-dados>
