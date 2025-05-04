@@ -21,6 +21,11 @@ Antes de começar, estes são os pacotes que serão necessários para manipulaç
 #install.packages("purrr")
 #install.packages("tidyr")
 #install.packages("readxl")
+#install.packages("httr")
+#install.packages("jsonlite")
+#install.packages("stringr")
+#install.packages("purrr")
+#install.packages("readxl")
 ```
 
 ```{r, 'packages', echo=FALSE}
@@ -273,13 +278,215 @@ rm(ALClima_prev, ALClima_next, lista_municipios, DesastresSAPL, ALClima)
 
 Agora que já temos uma base de dados com todas as informações, incluindo os códigos do IBGE dos municípios, podemos adicionar outras informações que serão utilizadas como controle na nossa análise.
 
-O Senado Federal, através do "Panorama do Legislativo Municipal", compila uma série de dados de várias fontes que oferecem um bom ponto de partida.
+### 1.6.1 Níveis de Risco Climático
 
-Lista de fontes: <https://www.senado.leg.br/institucional/datasenado/panorama/#/fonte-dados>
+Uma importante variável de controle é o de nível de risco climático. Espera-se que a agenda em políticas de adaptação climática seja menor nos municípios que não estão diretamente vulneráveis aos efeitos das mudanças climáticas, e nos que já adotaram medidas de adaptação que dão conta de sua demanda.
+
+O "Sistema Adapta Brasil", produzido pelo Ministério de Ciência e Tecnologia, produz índices dos graus de adaptação dos municípios às mudanças climáticas a partir de uma série de indicadores : [https://sistema.adaptabrasil.mcti.gov.br/https://sistema.adaptabrasil.mcti.gov.br/](https://sistema.adaptabrasil.mcti.gov.br/){.uri}
+
+Iremos importar essa base para todos os municípios, incluindo dados segmentados sobre Vulnerabilidades, Nível de Ameaça Climática, Sensibilidade e Nível de Adaptação.
+
+```{r}
+#Importando os pacotes necessários:
+library(httr)
+library(jsonlite)
+library(stringr)
+library(purrr)
+```
+
+Primeiro, certifique-se de baixar e deixar o arquivo "adaptaBrasilAPIEstrutura.csv" dentro da pasta "Dados". Ela pode ser produzida ou baixada no Github oficial do projeto AdaptaBrasil: <https://github.com/AdaptaBrasil/AdaptaBrasilAPIAccess?tab=readme-ov-file>
+
+```{r}
+#Subindo e limpando a base de links (disponível em: https://github.com/AdaptaBrasil/AdaptaBrasilAPIAccess?tab=readme-ov-file )
+AdaptaBrasil <- read.csv(here("Dados/adaptaBrasilAPIEstrutura.csv"), sep = "|") %>% 
+  filter(nivel %in% c(2:4),
+        setor_estrategico %in% c("Recursos Hídricos", "Segurança Alimentar", "Desastres Hidrológicos"))
+
+
+```
+
+```{r}
+# Lista para armazenar os data.frames resultantes
+AdaptaBrasilInd <- list()
+
+# Função auxiliar para gerar nome único para cada dataframe
+gerar_nome_df <- function(setor, nivel, nome) {
+  nome_limpo <- str_replace_all(paste(nivel, setor, nome, sep = "_"), "\\s+", "_")
+  nome_limpo <- str_replace_all(nome_limpo, "[^[:alnum:]_]", "") # remove caracteres especiais
+  return(nome_limpo)
+}
+
+# Loop por cada linha do dataframe filtrado
+for (i in seq_len(nrow(AdaptaBrasil))) {
+  
+  # Extrai a URL e campos de nomeação
+  url <- AdaptaBrasil$url_obtem_dados_indicador[i]
+  setor <- AdaptaBrasil$setor_estrategico[i]
+  nivel <- AdaptaBrasil$nivel[i]
+  nome <- AdaptaBrasil$nome[i]
+  
+  # Gera nome da lista/dataframe
+  nome_df <- gerar_nome_df(setor, nivel, nome)
+  
+  # Tenta fazer a requisição GET e tratar a resposta
+  try({
+    resposta <- GET(url)
+    if (status_code(resposta) == 200) {
+      conteudo_json <- content(resposta, "text", encoding = "UTF-8")
+      dados <- fromJSON(conteudo_json, flatten = TRUE)
+      
+      # Converte para dataframe (caso necessário)
+      if (is.data.frame(dados)) {
+        AdaptaBrasilInd[[nome_df]] <- dados
+      } else if (is.list(dados)) {
+        AdaptaBrasilInd[[nome_df]] <- as.data.frame(dados)
+      }
+    } else {
+      message(sprintf("Falha na URL %s - Código: %d", url, status_code(resposta)))
+    }
+  }, silent = TRUE)
+}
+
+rm(conteudo_json, dados, gerar_nome_df, i, nivel, nome, nome_df, resposta, setor, url)
+```
+
+```{r}
+# Adiciona uma coluna "indicador_origem" com o nome da lista para identificar a origem de cada dataframe
+AdaptaBrasil <- imap(AdaptaBrasilInd, ~ mutate(.x, indicador_origem = .y))
+
+# Junta todos os dataframes em um único dataframe
+AdaptaBrasil <- bind_rows(AdaptaBrasil) %>% 
+  filter(pessimist == 1) %>% 
+  rename(Cod_IBGE_Mun = geocod_ibge) %>% 
+  mutate(Municipio_UF = str_replace(name, "/", "_"),
+         label = paste0("label_", indicador_origem)) %>% 
+  select(Cod_IBGE_Mun, Municipio_UF, value, indicador_origem) %>%  
+  pivot_wider(names_from = indicador_origem, values_from = value, names_prefix = "AB_")
+
+saveRDS(AdaptaBrasil, here("Dados/AdaptaBrasil.RDS"))
+
+rm(AdaptaBrasilInd, AdaptaBrasil)
+```
+
+### 1.6.2 Grupos de Interesse (OSCs, Associações, ONGs, etc)
+
+Um dos elementos presentes em toda a literatura a respeito da produção de política climáticas é o papel de organizações da sociedade civil em pressionar os agentes públicos, ajudando a colocar a pauta climática na agenda.
+
+No Brasil, essas organizações inscrevem seus CNPJs como "Organizações da Sociedade Civil" (OSCs). O IPEA disponibiliza o levantamento de todas essas organizações na plataforma "Mapa das OSCs". Iremos levantar e tratar esses dados para utilizar na análise:
+
+Fonte dos dados: <https://mapaosc.ipea.gov.br/base-dados>
+
+Certifique-se que estão na pasta "Dados" os arquivos:
+
+-   base_OSC_agosto_2023.csv
+
+-   area_subarea.xlsx
+
+```{r}
+#Baixando a base
+OSCs <- read_csv2(here("Dados/base_OSC_agosto_2023.csv"))
+
+#Selecionando só as colunas de interesse
+
+OSCs <- OSCs %>% 
+  select(!c(tx_nome_fantasia_osc, cd_natureza_juridica_osc, tx_endereco_completo, cd_uf, tx_latitude, tx_longitude, cn %>% ae, cnae_fiscal_secundaria)) %>% 
+  pivot_longer(cols = starts_with("Area_"), names_prefix = "Area_", names_to = "Area", values_to = "Value") %>% 
+  filter(Value == 1) %>% 
+  pivot_longer(cols = starts_with("SubArea_"), names_prefix = "SubArea_", names_to = "Subarea", values_to = "ValueSub") %>% 
+  filter(ValueSub == 1) %>% 
+  rename("Cod_IBGE_Mun" = cd_municipio) %>% 
+    select(!c(Value, ValueSub))
+```
+
+```{r}
+
+#Adicionando áreas
+#library(readxl) #pacote necessário
+
+#Adiciona a tabela com subáreas:
+OSC_Area <- read_xlsx(here("Dados/area_subarea.xlsx"))
+
+#Seleciona as colunas de interesse:
+OSC_Area <- OSC_Area %>% 
+  select(!c(id_osc...1, tx_razao_social_osc, tx_nome_fantasia_osc, dt_fundacao_osc, cd_natureza_juridica_osc, edmu_cd_municipio, edmu_nm_municipio, eduf_cd_uf, eduf_sg_uf, id_osc...12, id_osc...24, `HabitaÃ§Ã£o`, `SaÃºde`,	`Cultura e recreaÃ§Ã£o`, `EducaÃ§Ã£o e pesquisa`,	`AssistÃªncia social`,	`ReligiÃ£o`, 	`AssociaÃ§Ãµes patronais, profissionais e de produtores rurais`, 	`Meio ambiente e proteÃ§Ã£o animal`, 	`Desenvolvimento e defesa de direitos`,	`Outros`,	`Outras atividades associativas`)) %>% 
+  rename(cnpj = cd_identificador_osc) %>% 
+  pivot_longer(cols = c(3:46), names_to = "Subarea2", values_to = "Value") %>% 
+  filter(Value == 1) %>% 
+  select(!Value) %>%
+  mutate(across(where(is.character), ~ iconv(., from = "UTF-8", to = "latin1")))
+```
+
+```{r}
+#Juntando as duas
+
+OSCs <- merge(OSCs, OSC_Area, by = c("cnpj"), all.x = T) %>% 
+  mutate(Subarea2 = ifelse(is.na(Subarea2), Subarea, Subarea2))
+
+rm(OSC_Area)
+
+saveRDS(OSCs, here("Dados/OSCsLista.RDS")) 
+```
+
+```{r}
+#Limpando termos de OSCs que dizem pouco a respeito da agenda climática:
+
+lista_municipios <- readRDS("Dados/lista_municipios.RDS")
+
+OSCs <- OSCs %>% 
+  filter(Cod_IBGE_Mun %in% lista_municipios$Cod_IBGE_Mun) %>% 
+  filter(!Area %in%  c("Religiao", "Cultura_e_recreacao"), 
+         !Subarea %in% c("Educacao_infantil", "Ensino_fundamental", "Ensino_superior", "Hospitais", "Religiao", "Educacao_profissional", "Cultura_e_arte", "Esportes_e_recreacao"),
+         !Subarea2 %in% c("Cultura sub Cultura e arte", "Religiao sub Outros", "	
+Desenv e Def sub Religião", "Educacao sub Educação superior", "	
+Saude sub Hospitais", "Educacao sub Ensino médio", "Cultura sub Outros"), 
+         !tx_nome_classe_atividade_economica %in% c("tx_nome_classe_atividade_economica", "Atividades de assistência psicossocial e à saúde a portadores de distúrbios psíquicos, deficiência mental e dependência química", "Ensino de esportes", "Atividades de atenção ambulatorial executadas por médicos e odontólogos", "Ensino de arte e cultura", "Atividades de serviços de complementação diagnóstica e terapêutica", "Atividades de organizações religiosas", "Ensino de idiomas", "Artes cênicas, espetáculos e atividades complementares", "Ensino fundamental", "Educação infantil - creche", "Atividades de rádio", "Educação superior - graduação e pós-graduação", "Clubes sociais, esportivos e similares", "Educação superior - graduação", "Atividades de atendimento hospitalar", "	
+Educação infantil - pré-escola", "	
+Educação profissional de nível técnico", "	
+Planos de saúde", "	
+Atividades de museus e de exploração, restauração artística e conservação de lugares e prédios históricos e atrações similares", "	
+Comércio varejista de livros, jornais, revistas e papelaria", "Criação artística", "Serviços de remoção de pacientes, exceto os serviços móveis de atendimento a urgências", "Atividades de televisão aberta", "Comércio atacadista de resíduos e sucatas", "Atividades de produção cinematográfica, de vídeos e de programas de televisão", "Atividades de bibliotecas e arquivos", "Comércio atacadista de produtos alimentícios em geral", "Comércio varejista de outros produtos novos não especificados anteriormente", "Educação profissional de nível tecnológico", "Atividades de exibição cinematográfica", "Ensino médio", "Atividades de contabilidade, consultoria e auditoria contábil e tributária", "Edição de livros", "Fotocópias, preparação de documentos e outros serviços especializados de apoio administrativo", "Programadoras e atividades relacionadas à televisão por assinatura", "Restaurantes e outros estabelecimentos de serviços de alimentação e bebidas", "Comércio atacadista de cereais e leguminosas beneficiados, farinhas, amidos e féculas", "Comércio varejista de produtos farmacêuticos para uso humano e veterinário", "Transporte rodoviário coletivo de passageiros, com itinerário fixo, municipal e em região metropolitana", "Transporte rodoviário coletivo de passageiros, sob regime de fretamento, e outros transportes rodoviários não especificados anteriormente", "Atividades de gravação de som e de edição de música", "Comércio varejista de artigos médicos e ortopédicos", "Comércio varejista de artigos recreativos e esportivos", "Comércio varejista de produtos alimentícios em geral ou especializado em produtos alimentícios não especificados anteriormente; produtos do fumo", "Comércio varejista de produtos de padaria, laticínio, doces, balas e semelhantes", "Desenvolvimento de programas de computador sob encomenda", "Edição integrada à impressão de livros", "Estacionamento de veículos", "Hotéis e similares", "Portais, provedores de conteúdo e outros serviços de informação na internet", "Transporte escolar", "Atividades de exploração de jogos de azar e apostas", "Educação infantil - pré-escola", "Transporte rodoviário de táxi", "Edição integrada à impressão de revistas", "Serviços de pré-impressão"))
+
+OSCsClima <- OSCs %>% 
+  group_by(Cod_IBGE_Mun, municipio_nome, sigla_uf, dt_fundacao_osc) %>% 
+  summarise(n_OSCs = n())
+
+
+```
+
+```{r}
+#Adicionando número de OSCs na data, até o respectivo dia
+
+#Criando grid de datas
+date_grid <- expand_grid(
+  Cod_IBGE_Mun = unique(OSCsClima$Cod_IBGE_Mun),
+  Date = seq(as.Date("1991-01-01"), as.Date("2023-12-31"), by = "day")
+)
+
+#PAREI AQUI
+n_OSCsClima <- date_grid %>%
+  left_join(OSCsClima, by = "Cod_IBGE_Mun") %>%
+  filter(dt_fundacao_osc <= Date) %>%
+  group_by(Cod_IBGE_Mun, Date) %>%
+  summarise(n = sum(n_OSCs, na.rm = TRUE), .groups = "drop")
+
+saveRDS(OSCsClima, here("Dados/n_OSCsClima.RDS"))
+
+rm(OSCs, OSCsClima, lista_municipios)
+```
+
+### 1.6.3 Orçamento Municipal
+
+Outra variável importante levantada na bibliografia é a disponibilidade de recursos. Usamos as receitas orçamentárias municipais como proxy para essa variável.
+
+As receitas orçamentárias anuais estão disponíveis no site do "Sistema de Informações Contabéis e Fiscais do Setor Público Brasileiro - SICONFI", a partir da prestação de contas anuais: <https://siconfi.tesouro.gov.br/siconfi/pages/public/consulta_finbra/finbra_list.jsf>
+
+Para facilitar a leitura, o Senado Federal, através do "Panorama do Legislativo Municipal", compila os dados dos orçamentos municipais já tratados.
 
 Dados: <https://www.senado.leg.br/institucional/datasenado/panorama/#/dados>
 
-Primeiro, iremos fazer a leitura e unir as bases de dados sugeridas:
+```{r}
+orcamento <- read.csv2(here("Dados/Panorama do Legislativo Municipal/orcamentodomunicipio.csv"), locale = locale(encoding = "Latin1"))
+```
 
 ```{r, 'subindo_bases_legis', warning=FALSE}
 #Confira se os arquivos com as bases de dados CSV estão salvos na pasta "Panorama do Legislativo Municipal"
@@ -331,7 +538,7 @@ saveRDS(DadosMunic, here("Dados/DadosMunic.RDS"))
 rm(csv_dataframes)
 ```
 
-### Dados demográficos e ecocômicos (Densidade Demográfica, Pobreza, Principais setores econômicos)
+### Dados demográficos e ecocômicos (Pobreza, Principais setores econômicos)
 
 ```{r}
 
@@ -374,7 +581,7 @@ Costeiro <- read_excel(path = here("Dados/Municipios_Costeiros_2021.xls")) %>%
 
 ```
 
-### Área dos municípios
+### Área dos municípios (Densidade Demográfica)
 
 <https://www.ibge.gov.br/geociencias/organizacao-do-territorio/estrutura-territorial/15761-areas-dos-municipios.html>
 
@@ -391,4 +598,8 @@ area <- read_excel(here("Dados/AR_BR_RG_UF_RGINT_RGI_MUN_2024.xls")) %>%
 
 ### Presença de grupos de interesse
 
-Dados: <https://mapaosc.ipea.gov.br/base-dados>
+Dados:
+
+```{r}
+
+```
