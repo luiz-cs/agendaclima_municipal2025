@@ -453,8 +453,6 @@ OSCsClima <- OSCs %>%
 
 ```
 
-### PAREI AQUI:
-
 ```{r}
 #Adicionando número de OSCs na data, até o respectivo dia
 
