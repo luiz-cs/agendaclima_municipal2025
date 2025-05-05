@@ -28,7 +28,7 @@ Antes de começar, estes são os pacotes que serão necessários para manipulaç
 #install.packages("readxl")
 ```
 
-```{r, 'packages', echo=FALSE}
+```{r, 'packages', warning=FALSE}
 library(readr)
 library(here)
 library(dplyr)
@@ -430,6 +430,8 @@ saveRDS(OSCs, here("Dados/OSCsLista.RDS"))
 ```{r}
 #Limpando termos de OSCs que dizem pouco a respeito da agenda climática:
 
+OSCs <- readRDS(here("Dados/OSCsLista.RDS")) 
+
 lista_municipios <- readRDS("Dados/lista_municipios.RDS")
 
 OSCs <- OSCs %>% 
@@ -446,32 +448,39 @@ Planos de saúde", "
 Atividades de museus e de exploração, restauração artística e conservação de lugares e prédios históricos e atrações similares", "	
 Comércio varejista de livros, jornais, revistas e papelaria", "Criação artística", "Serviços de remoção de pacientes, exceto os serviços móveis de atendimento a urgências", "Atividades de televisão aberta", "Comércio atacadista de resíduos e sucatas", "Atividades de produção cinematográfica, de vídeos e de programas de televisão", "Atividades de bibliotecas e arquivos", "Comércio atacadista de produtos alimentícios em geral", "Comércio varejista de outros produtos novos não especificados anteriormente", "Educação profissional de nível tecnológico", "Atividades de exibição cinematográfica", "Ensino médio", "Atividades de contabilidade, consultoria e auditoria contábil e tributária", "Edição de livros", "Fotocópias, preparação de documentos e outros serviços especializados de apoio administrativo", "Programadoras e atividades relacionadas à televisão por assinatura", "Restaurantes e outros estabelecimentos de serviços de alimentação e bebidas", "Comércio atacadista de cereais e leguminosas beneficiados, farinhas, amidos e féculas", "Comércio varejista de produtos farmacêuticos para uso humano e veterinário", "Transporte rodoviário coletivo de passageiros, com itinerário fixo, municipal e em região metropolitana", "Transporte rodoviário coletivo de passageiros, sob regime de fretamento, e outros transportes rodoviários não especificados anteriormente", "Atividades de gravação de som e de edição de música", "Comércio varejista de artigos médicos e ortopédicos", "Comércio varejista de artigos recreativos e esportivos", "Comércio varejista de produtos alimentícios em geral ou especializado em produtos alimentícios não especificados anteriormente; produtos do fumo", "Comércio varejista de produtos de padaria, laticínio, doces, balas e semelhantes", "Desenvolvimento de programas de computador sob encomenda", "Edição integrada à impressão de livros", "Estacionamento de veículos", "Hotéis e similares", "Portais, provedores de conteúdo e outros serviços de informação na internet", "Transporte escolar", "Atividades de exploração de jogos de azar e apostas", "Educação infantil - pré-escola", "Transporte rodoviário de táxi", "Edição integrada à impressão de revistas", "Serviços de pré-impressão"))
 
-OSCsClima <- OSCs %>% 
-  group_by(Cod_IBGE_Mun, municipio_nome, sigla_uf, dt_fundacao_osc) %>% 
-  summarise(n_OSCs = n())
-
-
 ```
 
 ```{r}
-#Adicionando número de OSCs na data, até o respectivo dia
 
-#Criando grid de datas
-date_grid <- expand_grid(
-  Cod_IBGE_Mun = unique(OSCsClima$Cod_IBGE_Mun),
-  Date = seq(as.Date("1991-01-01"), as.Date("2023-12-31"), by = "day")
+library(tidyr)
+#Sumarizando:
+OSCsClima <- OSCs %>% 
+  group_by(Cod_IBGE_Mun, dt_fundacao_osc) %>% 
+  summarise(n = n()) %>% 
+  pivot_wider(names_from = "Cod_IBGE_Mun", values_from = n) %>%
+  arrange(dt_fundacao_osc) %>% 
+  as.data.table()
+
+# Removendo NAs:
+cols <- setdiff(names(OSCsClima), "dt_fundacao_osc")
+OSCsClima[, (cols) := lapply(.SD, function(x) fifelse(is.na(x), 0L, x)), .SDcols = cols]
+
+# Calculando cumulativo de OSCs por cidade
+OSCsClima[, (cols) := lapply(.SD, cumsum), .SDcols = cols]
+
+# Pivot Longer para Coluna "Cod_IBGE_Mun"
+OSCsClima <- OSCsClima %>% 
+  melt(id.vars = "dt_fundacao_osc", # Mantém data inalterada
+  variable.name = "Cod_IBGE_Mun",   # Transfere as demais colunas para "Cod_IBGE_Mun"
+  value.name = "n_OSCs"         # Transfere os valores para n_OSCs
 )
 
-#PAREI AQUI
-n_OSCsClima <- date_grid %>%
-  left_join(OSCsClima, by = "Cod_IBGE_Mun") %>%
-  filter(dt_fundacao_osc <= Date) %>%
-  group_by(Cod_IBGE_Mun, Date) %>%
-  summarise(n = sum(n_OSCs, na.rm = TRUE), .groups = "drop")
+#Separando só datas a partir de 1991
+OSCsClima <- OSCsClima[dt_fundacao_osc >= as.Date("1991-01-01"), ]
 
-saveRDS(OSCsClima, here("Dados/n_OSCsClima.RDS"))
+saveRDS(OSCsClima, here("Dados/OSCsClima.RDS"))
 
-rm(OSCs, OSCsClima, lista_municipios)
+rm(OSCs, OSCsClima, lista_municipios, cols)
 ```
 
 ### 1.6.3 Orçamento Municipal
@@ -480,126 +489,62 @@ Outra variável importante levantada na bibliografia é a disponibilidade de rec
 
 As receitas orçamentárias anuais estão disponíveis no site do "Sistema de Informações Contabéis e Fiscais do Setor Público Brasileiro - SICONFI", a partir da prestação de contas anuais: <https://siconfi.tesouro.gov.br/siconfi/pages/public/consulta_finbra/finbra_list.jsf>
 
-Para facilitar a leitura, o Senado Federal, através do "Panorama do Legislativo Municipal", compila os dados dos orçamentos municipais já tratados.
+Para facilitar a leitura, o Senado Federal, através do "Panorama do Legislativo Municipal", compila os dados dos orçamentos municipais já tratados **entre 2013 e 2021**
 
 Dados: <https://www.senado.leg.br/institucional/datasenado/panorama/#/dados>
 
 ```{r}
-orcamento <- read.csv2(here("Dados/Panorama do Legislativo Municipal/orcamentodomunicipio.csv"), locale = locale(encoding = "Latin1"))
-```
+orcamento <- read.csv2(here("Dados/orcamentodomunicipio.csv"), encoding = "UTF-8")
 
-```{r, 'subindo_bases_legis', warning=FALSE}
-#Confira se os arquivos com as bases de dados CSV estão salvos na pasta "Panorama do Legislativo Municipal"
-
-#Sobe o pacote 'purrr'
-library(purrr)
-
-# Lista todos os arquivos CSV na pasta
-csv_files <- list.files(path = here("Dados/Panorama do Legislativo Municipal"), pattern = "\\.csv$", full.names = TRUE)
-
-# Importa todos os arquivos  CSV na lista
-csv_dataframes <- csv_files %>%
-  set_names(~ tools::file_path_sans_ext(basename(.x))) %>% #Dá nome aos arquivos
-  map(~ read_csv2(.x, locale = locale(encoding = "Latin1"))) #Replica a leitura para cada elemento do vetor de nomes
-
-rm(csv_files)
-```
-
-```{r 'limpando_bases_legis'}
-library(tidyr)
-
-#Dados básicos do Município
-csv_dataframes$municipio <- csv_dataframes$municipio %>% 
-  rename("Cod_IBGE_Mun" = "Cód.")
+#Permite visualizar corretamento os caracteres:
+orcamento[] <- lapply(orcamento, function(x) {
+  if (is.character(x)) iconv(x, from = "Latin1", to = "UTF-8") else x
+})
 
 #Dados do orçamento municipal
-csv_dataframes$orcamentodomunicipio <- csv_dataframes$orcamentodomunicipio %>% 
+orcamento <- orcamento %>% 
   select(!Porcentagem) %>% 
+  filter(Categoria == "Receitas realizadas") %>% 
   pivot_wider(names_from = Categoria,
               values_from = Valor, 
               names_prefix = "Orcamento_Mun ") %>% 
-  rename("Cod_IBGE_Mun" = "Cod.IBGE")
-
-#Dados sobre a Câmara de Vereadores
-csv_dataframes$vereadores <- csv_dataframes$vereadores %>% 
-  mutate(Municipio_UF = stri_trans_general(paste(tolower(Municipio), UF, sep = "_"), "Latin-ASCII")) %>% 
-  group_by(Ano, UF, Codigo_IBGE, Municipio_UF) %>% 
-  summarise(n_Vereadores = n()) %>% 
-  rename("Cod_IBGE_Mun" = "Codigo_IBGE")
-  
-#Juntando as bases de dados:
-DadosMunic <- reduce(
-  csv_dataframes,
-  full_join,
-  by = c("Ano", "Cod_IBGE_Mun"))
-
-saveRDS(DadosMunic, here("Dados/DadosMunic.RDS"))
-
-rm(csv_dataframes)
+  rename("Cod_IBGE_Mun" = "Cod.IBGE", 
+         "Receitas_Mun" = "Orcamento_Mun Receitas realizadas")
 ```
 
-### Dados demográficos e ecocômicos (Pobreza, Principais setores econômicos)
+E agora, adicionando os dados de 2022 e 2023:
 
 ```{r}
+#Orçamento 2022
+orcamento2022 <- read.csv2(here("Dados/finbra2022.csv"), skip = 3, sep = ";", encoding = "latin1")
 
+orcamento2022 <- orcamento2022 %>% 
+  filter(Conta == "RECEITAS (EXCETO INTRA-ORÇAMENTÁRIAS) (I)", 
+         Coluna == "Receitas Brutas Realizadas") %>% 
+  rename(Cod_IBGE_Mun = Cod.IBGE, 
+         "Receitas_Mun" = Valor) %>% 
+  mutate(Ano = 2022) %>% 
+  select(Cod_IBGE_Mun, Ano, Receitas_Mun)
+
+#Orçamento 2023
+
+orcamento2023 <- read.csv2(here("Dados/finbra2023.csv"), skip = 3, sep = ";", encoding = "latin1")
+
+orcamento2023 <- orcamento2023 %>% 
+  filter(Conta == "RECEITAS (EXCETO INTRA-ORÇAMENTÁRIAS) (I)", 
+         Coluna == "Receitas Brutas Realizadas") %>% 
+  rename(Cod_IBGE_Mun = Cod.IBGE, 
+         "Receitas_Mun" = Valor) %>% 
+  mutate(Ano = 2023) %>% 
+  select(Cod_IBGE_Mun, Ano, Receitas_Mun)
+
+orcamento <- bind_rows(orcamento, orcamento2022)
+
+orcamento <- bind_rows(orcamento, orcamento2023)
+
+saveRDS(orcamento, here("Dados/orcamento2013_2023.RDS"))
+
+rm(orcamento, orcamento2022, orcamento2023)
 ```
 
-### Capacidades estatais (Burocracia)
-
-### Características climáticas (Biomas, Índices Pluviométricos)
-
-Agora, serão adicionados os dados sobre os biomas a que os municípios pertencem. Esses dados são importantes para controlar pela predisposição de cada região a desastres, e aos tipos de desastre predominantes em cada região.
-
-### Biomas
-
-A fonte dos dados é o levantamento da organização "MapBiomas", baseados em dados territoriais do IBGE
-
-**Dados MapBiomas**: <https://brasil.mapbiomas.org/estatisticas/>
-
-```{r}
-
-library(readxl)
-
-MapBiomas <- read_excel(path = here("Dados/mapbiomas_brazil_col_coverage_biome_state_municipality.xlsx"), sheet = "COVERAGE_9") %>% 
-  select(geocode, municipality, state, biome) %>% 
-  unique() %>% 
-  rename("Bioma" = "biome",
-         "Município" = "municipality",
-         "Estado" = "state",
-         "Cod_IBGE_Mun" = "geocode")
-```
-
-### Cidades costeiras
-
-#Municípios Costeiros: <https://www.ibge.gov.br/geociencias/organizacao-do-territorio/estrutura-territorial/34330-municipios-costeiros.html>
-
-```{r}
-Costeiro <- read_excel(path = here("Dados/Municipios_Costeiros_2021.xls")) %>% 
-  rename("Cod_IBGE_Mun" = "CD_MUN") %>% 
-  mutate("Costeiro" = TRUE)
-
-
-```
-
-### Área dos municípios (Densidade Demográfica)
-
-<https://www.ibge.gov.br/geociencias/organizacao-do-territorio/estrutura-territorial/15761-areas-dos-municipios.html>
-
-```{r}
-area <- read_excel(here("Dados/AR_BR_RG_UF_RGINT_RGI_MUN_2024.xls")) %>% 
-  rename("Cod_IBGE_Mun" = CD_MUN)
-```
-
-É NECESSÁRIO DIFERENCIAR NA BASE ENTRE DIAS EM QUE OS PROJETOS CLIMÁTICOS REPRESENTAM 0% E DIAS EM QUE NENHUM PROJETO FOI APRESENTADO
-
-```{r}
-
-```
-
-### Presença de grupos de interesse
-
-Dados:
-
-```{r}
-
-```
+**É NECESSÁRIO DIFERENCIAR NA BASE ENTRE DIAS EM QUE OS PROJETOS CLIMÁTICOS REPRESENTAM 0% E DIAS EM QUE NENHUM PROJETO FOI APRESENTADO**
