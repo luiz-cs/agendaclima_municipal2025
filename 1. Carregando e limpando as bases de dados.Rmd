@@ -547,4 +547,14 @@ saveRDS(orcamento, here("Dados/orcamento2013_2023.RDS"))
 rm(orcamento, orcamento2022, orcamento2023)
 ```
 
+### 1.6.4 - Datas eleições TSE
+
+Por fim, outra variável relevante é a proximidade de eleições. Elas afetam o comportamento dos políticos e podem alterar o comportamento legislativo. Vamos criar uma base com as datas dos 1ºturnos das eleições municipais no período analisado, extraída do calendário do TSE: <https://www.tse.jus.br/eleicoes/eleicoes-anteriores?tab=ancora-3>
+
+<https://www.tse.jus.br/eleicoes/calendario-eleitoral/calendario-eleitoral>
+
+```{r}
+eleicoes <- data.frame("eleicoes" = c("1992-10-03", "1996-10-03", "2000-10-01", "2004-10-03", "2008-10-05", "2012-10-07", "2016-10-02", "2020-11-15", "2024-10-06"))
+```
+
 **É NECESSÁRIO DIFERENCIAR NA BASE ENTRE DIAS EM QUE OS PROJETOS CLIMÁTICOS REPRESENTAM 0% E DIAS EM QUE NENHUM PROJETO FOI APRESENTADO**
