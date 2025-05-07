@@ -150,37 +150,152 @@ CidadesAL <- CidadesAL %>%
 saveRDS(CidadesAL, file = here("Dados/CidadesAL.RDS"))
 ```
 
-## 1.4 Salvando base só com projetos climáticos
+## 1.4 Definindo o recorte temporal
+
+Uma vez que já limpamos a base de dados de projetos, podemos definir o recorte temporal de análise.
+
+Para utilizar um critério objetivo, será analisada a proporção de municípios presentes no SAPL que estão presentes em cada ano, o volume de produção legislativa em cada período, e a disponibilidade de dados.
+
+```{r, 'Tabela_contagem_AL_tempo'}
+CidadesAL <- CidadesAL %>% 
+  data.table()
+
+# Conferir que os tipos estão corretos.
+CidadesAL[, Ano := as.integer(Ano)]
+CidadesAL[, Cod_IBGE_Mun := as.character(Cod_IBGE_Mun)]
+
+# 1. Get unique year-municipality combinations
+municipios_por_ano <- unique(CidadesAL[, .(Ano, Cod_IBGE_Mun)])
+
+# 2. Create lookup table: for each year, get municipios and join to later years
+all_anos <- sort(unique(CidadesAL$Ano))
+
+# 3. Initialize result list
+result <- lapply(all_anos, function(ano) {
+  # municípios in current year
+  munis_i <- municipios_por_ano[Ano == ano, Cod_IBGE_Mun]
+
+  # filter rows for year i and after, only for those municipalities
+  after_rows <- CidadesAL[Ano >= ano & Cod_IBGE_Mun %in% munis_i]
+
+  data.table(
+    Ano = ano,
+    n_municipios = length(unique(munis_i)),
+    AL_Ano = nrow(CidadesAL[Ano == ano]),
+    AL_pos_ano = nrow(after_rows)
+  )
+})
+
+# Combine all rows into one data.table
+df_contagem <- rbindlist(result)
+
+rm(all_anos, municipios_por_ano, result)
+```
+
+```{r, 'plotando_contagem_tempo', warning = FALSE}
+
+# Criar o gráfico
+sapl_mun_years <- df_contagem %>% 
+  filter(Ano >= 1991) %>% 
+  ggplot(aes(x = Ano)) +
+  # Adicionar o gráfico de barras para "n_municipios"
+  geom_bar(aes(y = n_municipios), stat = "identity", fill = "#1B9E77") +
+  # Adicionar o gráfico de linha para "AL_pos_ano"
+  geom_line(aes(y = AL_pos_ano * (max(df_contagem$n_municipios) / max(df_contagem$AL_pos_ano)))) +
+  geom_vline(xintercept = 2013, linetype = "dashed")+
+  # Adicionar eixos duplos
+  scale_y_continuous(
+    name = "Número de Municípios",
+    sec.axis = sec_axis(~ . * (max(df_contagem$AL_pos_ano) / max(df_contagem$n_municipios)), name = "Registros nos anos subsequentes (até 2025)",
+      breaks = scales::pretty_breaks(),
+      labels = scales::comma_format(big.mark = ".", decimal.mark = ","))
+  ) +
+  scale_x_continuous(n.breaks = 10)+
+  # Personalizar cores e temas
+  theme_linedraw()+
+  labs(title = "Nº de municípios na base de dados por ano x Total de proposituras nos anos subsequentes")+
+  theme(title = element_text(size = 9),
+        axis.text.y.left = element_text(color = "#1B9E77", size = 10),   # Cor do texto do eixo Y à esquerda
+        axis.title.y.left = element_text(color = "#1B9E77"))   # Cor do título do eixo Y à esquerda
+
+
+
+
+ggsave(here("Figuras/2. SAPL recorte temporal.png"), sapl_mun_years)
+
+# Exibir o gráfico
+print(sapl_mun_years)
+
+```
+
+```{r}
+rm(df_contagem, sapl_mun_years)
+```
+
+A partir desta análise, foi escolhido o período de 2013 a 2023 como ponto de corte. Podemos salvar a lista de municípios presentes a partir deste ano com o seguinte código:
+
+```{r}
+#Selecionando só os municípios presentes em todo o período selecionado
+CidadesAL13_23 <- CidadesAL %>% 
+  filter(as.Date("2013-01-01") < prim.data,
+         Data < as.Date("2023-12-31")) %>% 
+  data.table()
+
+saveRDS(CidadesAL13_23, here("Dados/CidadesAL13_23.RDS"))
+
+```
+
+## 1.5 Salvando base só com projetos climáticos
 
 A seguir, filtraremos apenas os projetos em que foram identificados como tendo termos associados às políticas climáticas.
 
 Primeiro, criamos uma contagem do número total de projetos no dia em cada município, para não perdermos esta informação
 
 ```{r, 'dados_so_clima'}
+
 #Adicionando total de projetos por dia, por tipo de projeto, por cidade
 
 ##Criando segunda base de dados sumarizando número de projetos por dia
 #Só por projeto e data:
+#CidadesAL_13_23 <- readRDS(here("Dados/CidadesAL_13_23.RDS"))
 
-nproj_data <- CidadesAL %>% 
-  group_by(Data, Municipio_UF, Tipo) %>% 
-  summarise(total_proj_dia = n())
-  data.frame()
+nproj_data <- CidadesAL13_23 %>% 
+  group_by(Data, Municipio_UF, Tipo_Projeto) %>% 
+  summarise(total_tipo_proj_dia = n(), .groups = "drop") %>% 
+  data.table() 
+
+# Para evitar contar dias em que as câmaras estão fechadas, criamos a variável "Dia" para levar em conta apenas dias em que elas estão abertas
+
+lista_municipios_datas <- nproj_data[, .(Data = unique(Data)), by = Municipio_UF]
+
+setorder(lista_municipios_datas, Municipio_UF, Data)
+
+lista_municipios_datas[, Dia := seq_len(.N), by = Municipio_UF]
+
+# Step 2: Join lista_municipios_datas back to nproj_data
+nproj_data <- merge(nproj_data, lista_municipios_datas, by = c("Municipio_UF", "Data"), all.x = TRUE)
+
+saveRDS(lista_municipios_datas, here("Dados/lista_municipios_datas.RDS"))
+
+rm(lista_municipios_datas)
+```
+
+```{r}
 
 #Base só com projetos de Clima
-CidadesAL <- CidadesAL %>% 
+CidadesAL13_23 <- CidadesAL13_23 %>% 
   filter(projetoclima == T)
 
 #Juntando as informações
-ALClima <- merge(CidadesAL, nproj_data, by = c("Data", "Municipio_UF", "Tipo"), all.x = T)
+ALClima13_23 <- merge(CidadesAL13_23, nproj_data, by = c("Data", "Municipio_UF", "Tipo_Projeto"), all.x  = T)
 
 #Salvando (com um NOME DIFERENTE) a base com dados só de clima:
-saveRDS(ALClima, file = here("Dados/ALClima.RDS"))
+saveRDS(ALClima13_23, file = here("Dados/ALClima13_23.RDS"))
 
-rm(nproj_data) #Removendo base temporária
+rm(nproj_data, CidadesAL13_23) #Removendo baseS temporária
 ```
 
-## 1.5 Adicionando mais informações dos municípios
+## 1.6 Adicionando mais informações dos municípios
 
 ### Criando lista de municípios
 
@@ -191,94 +306,50 @@ Primeiro, fazemos uma lista de municípios que estão em ambas as bases, com inf
 ```{r, 'fazendo_lista_municipios'}
 ## CidadesAL
 #Trazendo de volta a base de Desastres
-DesastresSAPL <- readRDS(file = here("Dados/Desastres.RDS")) #Recupera a base de Desastres
+Desastres <- readRDS(file = here("Dados/Desastres.RDS")) #Recupera a base de Desastres
 
 #Adiciona informações na lista de municípios
-lista_municipios <-  DesastresSAPL %>% 
+lista_municipios <-  Desastres %>% 
   select(Cod_IBGE_Mun, Nome_Municipio, UF, Municipio_UF) %>% 
   unique() %>% 
   data.frame()
 
+```
+
+```{r}
 #Adiciona informações da lista de municípios em CidadesAL
 CidadesAL <- merge(CidadesAL, lista_municipios, by = c("UF", "Municipio_UF"), all.x = TRUE)
 
 #Salvando CidadesAL atualizado:
 saveRDS(CidadesAL, file = here("Dados/CidadesAL.RDS"))
 
-rm(CidadesAL)
+#Filtra na lista de desastres os municípios presentes nas bases do SAPL
+Desastres <- Desastres %>% 
+  filter(Municipio_UF %in% ALClima13_23$Municipio_UF)
 
+saveRDS(Desastres, here("Dados/Desastres13_23.RDS"))
+
+rm( CidadesAL, Desastres )
+```
+
+```{r}
 
 #ALClima
-#Filtra na lista de desastres os municípios presentes nas bases do SAPL
-DesastresSAPL <- DesastresSAPL %>% 
-  filter(Municipio_UF %in% ALClima$Municipio_UF)
-
-saveRDS(DesastresSAPL, here("Dados/DesastresSAPL.RDS"))
-
 
 # Adiciona informações de lista municípios à ALClima
-ALClima <- merge(ALClima, lista_municipios, by = c("UF", "Municipio_UF"), all.x = TRUE)
+ALClima13_23 <- merge(ALClima13_23, lista_municipios, by = c("UF", "Municipio_UF"), all.x = TRUE)
 
+saveRDS(ALClima13_23, here("Dados/ALClima13_23.RDS")) #Salva a lista de municípios
 
-#Atualizando lista de municípios só com os usados no SAPL:
-lista_municipios <- ALClima %>% 
-  select(Cod_IBGE_Mun, Nome_Municipio, UF, Municipio_UF) %>% 
-  unique()
-
-#Salvando bases atualizadas
-saveRDS(lista_municipios, here("Dados/lista_municipios.RDS")) #Salva a lista de municípios
-saveRDS(ALClima, here("Dados/ALClima.RDS")) #Salva a lista de municípios
-
-
-rm(lista_municipios)
-```
-
-### Adicionando dias desde o último desastre.
-
-A seguir adicionamos a informação sobre a distância entre a data do desastres mais recente (ou do desastre seguinte) em relação à apresentação do projeto. Esta informação irá ajudar a compreender melhor o contexto em que um projeto foi apresentado
-
-```{r, 'dias_ultimo_desastre'}
-
-# 1. Criando base de dados alinhando combinações de projetos e deastres que aconteceram antes deles
-ALClima_prev <- ALClima %>%
-  left_join(DesastresSAPL, by = "Municipio_UF", suffix = c("", "_desastre")) %>% #Cria todas as combinações de projetos e desastres por município
-  filter(Data_desastre < Data) %>% #Filtra só as linhas em que a data do desastre antecede a data do projeto
-  group_by(UF, Municipio_UF, Cod_IBGE_Mun, Data) %>% #Agrupa pelas informações de município e data  
-  slice_max(Data_desastre, with_ties = FALSE) %>% #mantêm apenas a primeira versão de cada combinação em cada cidade
-  ungroup() %>%
-  select(UF, Municipio_UF, Cod_IBGE_Mun, Data, data_desastre_anterior = Data_desastre, desastre_anterior = Desastre) #Seleciona as colunas que serão integradas depois, renomeando as novas
-
-#Repete o anterior, mas para o desastre seguinte
-ALClima_next <- ALClima %>%
-  left_join(DesastresSAPL, by = "Municipio_UF", suffix = c("", "_desastre")) %>%
-  filter(Data_desastre >= Data) %>%
-  group_by(UF, Municipio_UF, Cod_IBGE_Mun, Data) %>%
-  slice_min(Data_desastre, with_ties = FALSE) %>%
-  ungroup() %>%
-  select(UF, Municipio_UF, Cod_IBGE_Mun, Data, data_desastre_proximo = Data_desastre, desastre_proximo = Desastre)
-
-#Junta os arquivos na base original:
-ALClima <- ALClima %>%
-  left_join(ALClima_prev, by = c("UF", "Municipio_UF", "Cod_IBGE_Mun", "Data")) %>%
-  left_join(ALClima_next, by = c("UF", "Municipio_UF", "Cod_IBGE_Mun", "Data")) %>%
-  mutate(
-    dias_desastre_anterior = as.integer(Data - data_desastre_anterior),
-    dias_desastre_proximo = as.integer(Data - data_desastre_proximo)
-  )
-
-#Salva a versão atualizada da base
-saveRDS(ALClima, file = here("Dados/ALClima.RDS"))
-
-# Remove os objetos que não serão mais utilizados
-rm(ALClima_prev, ALClima_next, lista_municipios, DesastresSAPL, ALClima)
+rm(lista_municipios, ALClima13_23)
 
 ```
 
-## 1.6 Adicionando informações municipais de outras fontes
+## 1.7 Adicionando informações municipais de outras fontes
 
 Agora que já temos uma base de dados com todas as informações, incluindo os códigos do IBGE dos municípios, podemos adicionar outras informações que serão utilizadas como controle na nossa análise.
 
-### 1.6.1 Níveis de Risco Climático
+### 1.7.1 Níveis de Risco Climático
 
 Uma importante variável de controle é o de nível de risco climático. Espera-se que a agenda em políticas de adaptação climática seja menor nos municípios que não estão diretamente vulneráveis aos efeitos das mudanças climáticas, e nos que já adotaram medidas de adaptação que dão conta de sua demanda.
 
@@ -361,14 +432,15 @@ AdaptaBrasil <- bind_rows(AdaptaBrasil) %>%
   mutate(Municipio_UF = str_replace(name, "/", "_"),
          label = paste0("label_", indicador_origem)) %>% 
   select(Cod_IBGE_Mun, Municipio_UF, value, indicador_origem) %>%  
-  pivot_wider(names_from = indicador_origem, values_from = value, names_prefix = "AB_")
+  pivot_wider(names_from = indicador_origem, values_from = value, names_prefix = "AB_") %>% 
+  data.table()
 
 saveRDS(AdaptaBrasil, here("Dados/AdaptaBrasil.RDS"))
 
 rm(AdaptaBrasilInd, AdaptaBrasil)
 ```
 
-### 1.6.2 Grupos de Interesse (OSCs, Associações, ONGs, etc)
+### 1.7.2 Grupos de Interesse (OSCs, Associações, ONGs, etc)
 
 Um dos elementos presentes em toda a literatura a respeito da produção de política climáticas é o papel de organizações da sociedade civil em pressionar os agentes públicos, ajudando a colocar a pauta climática na agenda.
 
@@ -483,7 +555,7 @@ saveRDS(OSCsClima, here("Dados/OSCsClima.RDS"))
 rm(OSCs, OSCsClima, lista_municipios, cols)
 ```
 
-### 1.6.3 Orçamento Municipal
+### 1.7.3 Orçamento Municipal
 
 Outra variável importante levantada na bibliografia é a disponibilidade de recursos. Usamos as receitas orçamentárias municipais como proxy para essa variável.
 
@@ -547,7 +619,7 @@ saveRDS(orcamento, here("Dados/orcamento2013_2023.RDS"))
 rm(orcamento, orcamento2022, orcamento2023)
 ```
 
-### 1.6.4 - Datas eleições TSE
+### 1.7.4 - Datas eleições TSE
 
 Por fim, outra variável relevante é a proximidade de eleições. Elas afetam o comportamento dos políticos e podem alterar o comportamento legislativo. Vamos criar uma base com as datas dos 1ºturnos das eleições municipais no período analisado, extraída do calendário do TSE: <https://www.tse.jus.br/eleicoes/eleicoes-anteriores?tab=ancora-3>
 
@@ -555,6 +627,136 @@ Por fim, outra variável relevante é a proximidade de eleições. Elas afetam o
 
 ```{r}
 eleicoes <- data.frame("eleicoes" = c("1992-10-03", "1996-10-03", "2000-10-01", "2004-10-03", "2008-10-05", "2012-10-07", "2016-10-02", "2020-11-15", "2024-10-06"))
+
+saveRDS(eleicoes, here("Dados/eleicoes.RDS"))
+
+rm(eleicoes)
 ```
 
-**É NECESSÁRIO DIFERENCIAR NA BASE ENTRE DIAS EM QUE OS PROJETOS CLIMÁTICOS REPRESENTAM 0% E DIAS EM QUE NENHUM PROJETO FOI APRESENTADO**
+## 1.8 Juntando as bases de dados
+
+Agora, vamos juntar todas as bases de dados.
+
+### ALClima + AdaptaBrasil
+
+Vamos começar adicionando as informações do AdaptaBrasil à nossa base de ALClima para os anos analisados
+
+```{r}
+#Recuperando as bases de dados:
+ALClima13_23 <- readRDS(here("Dados/ALClima13_23.RDS"))
+
+AdaptaBrasil <- readRDS(here("Dados/AdaptaBrasil.RDS"))
+
+#Verificando quais códigos IBGE faltam em "ALClima13_23"
+
+na_ibge <-  ALClima13_23 %>% 
+  filter(is.na(Cod_IBGE_Mun)) %>% 
+  select(Municipio_UF)
+
+#Juntando as duas bases
+df <- merge(df, AdaptaBrasil, by = c("Cod_IBGE_Mun"), all = T)
+
+rm(AdaptaBrasil)
+```
+
+### Adicionando dias desde o último desastre.
+
+Primeiro, adicionamos a informação sobre a distância entre a data do desastres mais recente (ou do desastre seguinte) em relação à apresentação do projeto. Esta informação irá ajudar a compreender melhor o contexto em que um projeto foi apresentado
+
+```{r, 'dias_ultimo_desastre'}
+
+
+# 1. Criando base de dados alinhando combinações de projetos e deastres que aconteceram antes deles
+ALClima_prev <- ALClima13_23 %>%
+  left_join(Desastres, by = "Municipio_UF", suffix = c("", "_desastre")) %>% #Cria todas as combinações de projetos e desastres por município
+  filter(Data_desastre < Data) %>% #Filtra só as linhas em que a data do desastre antecede a data do projeto
+  group_by(UF, Municipio_UF, Cod_IBGE_Mun, Data) %>% #Agrupa pelas informações de município e data  
+  slice_max(Data_desastre, with_ties = FALSE) %>% #mantêm apenas a primeira versão de cada combinação em cada cidade
+  ungroup() %>%
+  select(UF, Municipio_UF, Cod_IBGE_Mun, Data, data_desastre_anterior = Data_desastre, desastre_anterior = Desastre) #Seleciona as colunas que serão integradas depois, renomeando as novas
+
+#Repete o anterior, mas para o desastre seguinte
+ALClima_next <- ALClima13_23 %>%
+  left_join(Desastres, by = "Municipio_UF", suffix = c("", "_desastre")) %>%
+  filter(Data_desastre >= Data) %>%
+  group_by(UF, Municipio_UF, Cod_IBGE_Mun, Data) %>%
+  slice_min(Data_desastre, with_ties = FALSE) %>%
+  ungroup() %>%
+  select(UF, Municipio_UF, Cod_IBGE_Mun, Data, data_desastre_proximo = Data_desastre, desastre_proximo = Desastre)
+
+#Junta os arquivos na base original:
+ALClima13_23 <- ALClima13_23 %>%
+  left_join(ALClima_prev, by = c("UF", "Municipio_UF", "Cod_IBGE_Mun", "Data")) %>%
+  left_join(ALClima_next, by = c("UF", "Municipio_UF", "Cod_IBGE_Mun", "Data")) %>%
+  mutate(
+    dias_desastre_anterior = as.integer(Data - data_desastre_anterior),
+    dias_desastre_proximo = as.integer(Data - data_desastre_proximo)
+  )
+
+#Salva a versão atualizada da base
+saveRDS(ALClima13_23, file = here("Dados/ALClima13_23.RDS"))
+
+# Remove os objetos que não serão mais utilizados
+rm(ALClima_prev, ALClima_next, lista_municipios, Desastres, ALClima13_23)
+
+```
+
+### ALClima
+
+```{r}
+library(tidyr)
+
+
+
+#Criando base para juntar informações
+df <- expand_grid(
+  Cod_IBGE_Mun = unique(ALClima$Cod_IBGE_Mun),
+  Data = seq(as.Date("2013-01-01"), as.Date("2023-12-31"), by = "day")
+)%>% 
+  data.table()
+
+#Juntando base ALClima a essa
+
+df <- merge(df, ALClima, by = c("Cod_IBGE_Mun", "Data"), all = T) %>% 
+  mutate(Cod_IBGE_Mun = as.character(Cod_IBGE_Mun)) %>% 
+  filter(!is.na(Cod_IBGE_Mun))
+
+rm(ALClima)
+```
+
+### Orçamento Municipal
+
+```{r}
+orcamento <- readRDS(here("Dados/orcamento2013_2023.RDS"))
+
+
+```
+
+### Eleições
+
+```{r}
+eleicoes <- readRDS(here("Dados/eleicoes.RDS"))
+```
+
+### OSCs
+
+```{r}
+OSCsClima <- readRDS(here("Dados/OSCsClima.RDS")) %>% 
+  rename("Data" = dt_fundacao_osc) %>% 
+  filter(Cod_IBGE_Mun %in% unique(df$Cod_IBGE_Mun), 
+         Data  %in% unique(df$Data)) %>% 
+  data.table()
+
+
+df <- merge(df, OSCsClima, by = c("Cod_IBGE_Mun", "Data"), all = T)
+```
+
+```{r}
+
+
+
+
+
+```
+
+orcamento \<- readRDS(here("Dados/orcamento2013_2023.RDS"))
