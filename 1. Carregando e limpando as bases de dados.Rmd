@@ -84,7 +84,8 @@ A lista de municípios participantes pode ser encontrada em: <https://www.senado
 #Verifique que o documento com os dados raspados das Câmaras Municipais já está na pasta "Dados"
 #ATENÇÃO: Este arquivo é muito pesado. Certifique-se de que seu computador tem memória para tratá-lo
 
-CidadesAL <- read_csv(file= here("Dados/ProjCidades.csv")) 
+CidadesAL <- read_csv(file= here("Dados/ProjCidades.csv")) %>% 
+  data.table()
 ```
 
 ```{r, 'Reduzindo_base'}
@@ -98,7 +99,6 @@ CidadesAL <- CidadesAL%>%
   mutate(Data = as.Date(data_apresentacao), #Atualiza coluna para formato de Data
          Mês = month(Data), #Separa o mês
          Tipo_Projeto = tolower(sub(" nº.*", "", `__str__`)), #Separa o tipo de projeto
-         Tipo = stri_trans_general(sub(" .*", "", `Tipo_Projeto`), "latin-ascii"),
          ementa = tolower(sub("\\*.*?\\*", "", ementa)), #Uniformiza as ementas
          UF = substring(gsub(".*\\.([^.]+)\\.[^.]+\\..*", "\\1", API_URL), 1, 2)) %>% #Separa a UF a partir do link
   group_by(City) %>%  #Agrupa dados por cidade, para que a base indique qual o primeiro ano com dados
@@ -112,6 +112,184 @@ CidadesAL <- CidadesAL%>%
   ungroup()
 
 
+```
+
+Agora, irei criar a coluna "Tipo", para garantir que todos os projetos da mesma categoria sejam agrupados juntos:\
+
+```{r, 'mapeando_sinonimos'}
+# Mapeando os sinônimos
+mapping_dict <- c(
+  # Projetos de Lei Ordinária
+  "projeto de lei" = "projeto_de_lei_ordinaria",
+  "projeto de lei ordinária" = "projeto_de_lei_ordinaria",
+  "projeto de lei ordinario" = "projeto_de_lei_ordinaria",
+  "projeto de lei ordinário" = "projeto_de_lei_ordinaria",
+  "projeto de lei ordinária da câmara" = "projeto_de_lei_ordinaria",
+  "projeto de lei (câmara)" = "projeto_de_lei_ordinaria",
+  "projeto de lei (legislativo)" = "projeto_de_lei_ordinaria",
+  "projeto de lei do legislativo" = "projeto_de_lei_ordinaria",
+  "projeto de lei legislativo" = "projeto_de_lei_ordinaria",
+  "projeto de lei ordinária do legislativo" = "projeto_de_lei_ordinaria",
+  "projeto de lei ordinária legislativo" = "projeto_de_lei_ordinaria",
+  "projeto de lei ordinária origem legislativa" = "projeto_de_lei_ordinaria",
+  "projeto de lei ordinária (poder legislativo)" = "projeto_de_lei_ordinaria",
+  "projeto de lei de vereador" = "projeto_de_lei_ordinaria",
+  
+  # Projetos de Lei do Executivo
+  "projeto de lei - executivo" = "projeto_de_lei_executivo",
+  "projeto de lei do executivo" = "projeto_de_lei_executivo",
+  "projeto de lei executivo" = "projeto_de_lei_executivo",
+  "projeto executivo municipal" = "projeto_de_lei_executivo",
+  "projeto de lei ordinária do executivo" = "projeto_de_lei_executivo",
+  "projeto de lei ordinária executivo" = "projeto_de_lei_executivo",
+  "projeto de lei (executivo)" = "projeto_de_lei_executivo",
+  "projeto de lei ordinária (poder executivo)" = "projeto_de_lei_executivo",
+  "projeto de lei (prefeitura)" = "projeto_de_lei_executivo",
+  
+  # Projetos de Lei Complementar
+  "projeto de lei complementar" = "projeto_de_lei_complementar",
+  "projeto de lei complementar legislativo municipal" = "projeto_de_lei_complementar",
+  "projeto de lei complementar do executivo" = "projeto_de_lei_complementar",
+  "projeto de lei complementar - executivo" = "projeto_de_lei_complementar",
+  "projeto de lei complementar (executivo)" = "projeto_de_lei_complementar",
+  "projeto de lei complementar substitutivo" = "projeto_de_lei_complementar",
+  
+  # Anteprojetos
+  "anteprojeto de lei" = "anteprojeto_de_lei",
+  "anteprojeto de lei ordinaria" = "anteprojeto_de_lei",
+  "ante projeto de lei" = "anteprojeto_de_lei",
+  
+  # Requerimentos
+  "requerimento" = "requerimento",
+  "requerimentos" = "requerimento",
+  "requerimento legislativo" = "requerimento",
+  "requerimento / legislativo" = "requerimento",
+  "requerimento de vereador" = "requerimento",
+  "requerimento de vereador(a)" = "requerimento",
+  "requerimento solicitação" = "requerimento",
+  "requerimento especial" = "requerimento",
+  "requerimento interno" = "requerimento",
+  "requerimento verbal" = "requerimento",
+  "requerimento plenário" = "requerimento",
+  "requerimento presidência" = "requerimento",
+  
+  # Requerimentos Específicos
+  "requerimento de informações" = "requerimento_de_informacoes",
+  "requerimento informações" = "requerimento_de_informacoes",
+  "pedido de informações" = "requerimento_de_informacoes",
+  "pedido de informação" = "requerimento_de_informacoes",
+  
+  # Moções
+  "moção" = "mocao",
+  "moção de aplausos" = "mocao_de_aplausos",
+  "moção aplausos" = "mocao_de_aplausos",
+  "moção de aplauso" = "mocao_de_aplausos",
+  "moção aplauso" = "mocao_de_aplausos",
+  "moção de congratulações" = "mocao_de_congratulacoes",
+  "moção de congratulação" = "mocao_de_congratulacoes",
+  "projeto de moção" = "mocao",
+  "moção especial de louvor" = "mocao_de_louvor",
+  "moção de apelo" = "mocao_de_apelo",
+  "moção de reconhecimento" = "mocao_de_reconhecimento",
+  
+  # Indicações
+  "indicação" = "indicacao",
+  "indicações" = "indicacao",
+  "indicação - a" = "indicacao",
+  "indicação verbal" = "indicacao",
+  "indicação ao executivo" = "indicacao",
+  "pedido de indicação" = "indicacao",
+  
+  # Pareceres
+  "parecer" = "parecer",
+  "parecer cpjr" = "parecer",
+  "parecer cpof" = "parecer",
+  "parecer jurídico" = "parecer",
+  "parecer conjunto das comissões" = "parecer",
+  "parecer das comissões" = "parecer",
+  "parecer das comissões permanentes" = "parecer",
+  "parecer da comissão" = "parecer",
+  "parecer ccj" = "parecer",
+  "parecer cfo" = "parecer",
+  "parecer cesam" = "parecer",
+  "parecer cotsp" = "parecer",
+  "parecer contrário ccj" = "parecer",
+  "parecer da comissão geral" = "parecer",
+  
+  # Ofícios
+  "oficio" = "oficio",
+  "ofício" = "oficio",
+  "ofício pmc" = "oficio",
+  "ofício expedido" = "oficio",
+  "ofício gab_ver" = "oficio",
+  "ofício legislativo" = "oficio",
+  "ofício da administração municipal" = "oficio",
+  "ofício do executivo" = "oficio",
+  "oficio do executivo" = "oficio",
+  "ofício do gabinete do vereador" = "oficio",
+  "oficio recebido" = "oficio",
+  "ofícios da câmara" = "oficio",
+  
+  # Emendas
+  "emenda" = "emenda",
+  "emenda orçamentária" = "emenda_orcamentaria",
+  "emenda ao projeto de lei" = "emenda_projeto_lei",
+  "emenda à loa" = "emenda_loa",
+  "emenda à loa (lei orçamentária anual)" = "emenda_loa",
+  "emenda impositiva" = "emenda_impositiva",
+  "emenda parlamentar orçamentária impositiva" = "emenda_impositiva",
+  "emenda impositiva ao orçamento" = "emenda_impositiva",
+  "emenda parlamentar impositiva à loa" = "emenda_impositiva",
+  "emenda à ldo (lei de diretrizes orçamentárias)" = "emenda_ldo",
+  "emenda ao ppa" = "emenda_ppa",
+  "emenda modificativa" = "emenda_modificativa",
+  "emenda aditiva" = "emenda_aditiva",
+  
+  # Vetos
+  "veto" = "veto",
+  "veto do prefeito" = "veto",
+  "processo de veto" = "veto",
+  "veto parcial a projeto de lei" = "veto",
+  "mensagem de veto a projeto de lei" = "veto",
+  
+  # Pedidos de Providência
+  "pedido de providências" = "pedido_de_providencia",
+  "pedido de providência" = "pedido_de_providencia",
+  "pedido de providência " = "pedido_de_providencia",
+  "pedido de providências " = "pedido_de_providencia",
+  
+  # Outros
+  "decreto" = "decreto",
+  "decretos" = "decreto",
+  "decreto de calamidade publica" = "decreto_calamidade_publica",
+  "projeto de decreto legislativo" = "projeto_decreto_legislativo",
+  "projeto de resolução" = "projeto_resolucao",
+  "projeto de resolução legislativa" = "projeto_resolucao",
+  "substitutivo" = "substitutivo",
+  "substitutivo projeto de lei" = "substitutivo",
+  "substitutivo ao projeto de lei" = "substitutivo",
+  "projeto substitutivo" = "substitutivo",
+  "lei ordinaria" = "lei_ordinaria",
+  "lei ordinária municipal" = "lei_ordinaria",
+  "lei" = "lei",
+  "leis" = "lei",
+  "autografo de lei" = "autografo_lei",
+  "autógrafos" = "autografo_lei",
+  "medida provisória" = "medida_provisoria",
+  "protocolo" = "protocolo",
+  "protocolo da casa" = "protocolo",
+  "processo" = "processo",
+  "portaria" = "portaria",
+  "portarias" = "portaria",
+  "redação final" = "redacao_final",
+  "projeto de redação final" = "redacao_final"
+)
+
+# Aplicar mapeamento
+CidadesAL[, Tipo := fcase(
+  tolower(Tipo_Projeto) %in% names(mapping_dict), mapping_dict[tolower(Tipo_Projeto)],
+  default = Tipo_Projeto
+)] 
 ```
 
 Agora, irei adicionar à base um registro dos termos relacionados às políticas climáticas que serão utilizados na análise, para classificar os projetos a partir de suas ementas.
@@ -253,7 +431,7 @@ saveRDS(CidadesAL13_23, here("Dados/CidadesAL13_23.RDS"))
 
 ```
 
-## 1.5 Salvando base só com projetos climáticos
+## 1.5 Projetos climáticos
 
 A seguir, filtraremos apenas os projetos em que foram identificados como tendo termos associados às políticas climáticas.
 
@@ -268,7 +446,7 @@ Primeiro, criamos uma contagem do número total de projetos no dia em cada munic
 CidadesAL13_23 <- readRDS(here("Dados/CidadesAL13_23.RDS"))
 
 nproj_data <- CidadesAL13_23 %>% 
-  group_by(Data, Municipio_UF, Tipo_Projeto) %>% 
+  group_by(Data, Municipio_UF, Tipo) %>% 
   summarise(total_tipo_proj_dia = n(), .groups = "drop") %>% 
 data.table()
 
@@ -293,10 +471,12 @@ Agora, vamos filtrar só os projetos em que "projetoclima = T"
 #Base só com projetos de Clima
 CidadesAL13_23 <- CidadesAL13_23 %>% 
   filter(projetoclima == T) %>% 
-  select(!c(projetoclima, prim.data, prim.ano))
+  select(!c(projetoclima, prim.data, prim.ano)) %>% 
+  mutate(Ano = year(Data))
+
 
 #Juntando as informações
-ALClima13_23 <- merge(CidadesAL13_23, nproj_data, by = c("Data", "Municipio_UF", "Tipo_Projeto"), all.x  = T)
+ALClima13_23 <- merge(CidadesAL13_23, nproj_data, by = c("Data", "Municipio_UF", "Tipo"), all.x  = T)
 
 #Salvando (com um NOME DIFERENTE) a base com dados só de clima:
 saveRDS(ALClima13_23, file = here("Dados/ALClima13_23.RDS"))
@@ -387,12 +567,11 @@ AdaptaBrasil <- imap(AdaptaBrasilInd, ~ mutate(.x, indicador_origem = .y))
 
 # Junta todos os dataframes em um único dataframe
 AdaptaBrasil <- bind_rows(AdaptaBrasil) %>% 
-  filter(pessimist == 1) %>% 
   rename(Cod_IBGE_Mun = geocod_ibge) %>% 
   mutate(Municipio_UF = str_replace(name, "/", "_"),
          label = paste0("label_", indicador_origem)) %>% 
   select(Cod_IBGE_Mun, Municipio_UF, value, indicador_origem) %>%  
-  pivot_wider(names_from = indicador_origem, values_from = value, names_prefix = "AB_") %>% 
+  pivot_wider(names_from = indicador_origem, values_from = value, names_prefix = "AB") %>% 
   mutate(
     Municipio_UF = paste0(
       tolower(substr(Municipio_UF, 1, nchar(Municipio_UF) - 2)),
@@ -609,8 +788,6 @@ Vamos começar adicionando as informações do AdaptaBrasil à nossa base de ALC
 #Recuperando as duas bases
 ALClima13_23 <- readRDS(here("Dados/ALClima13_23.RDS")) 
 
-ALClima13_23[Municipio_UF == "saovaleriodanatividade_TO", Municipio_UF := "saovalerio_TO"] #Corrigindo nome de município que não bate com os demais
-
 AdaptaBrasil <- readRDS(here("Dados/AdaptaBrasil.RDS"))
 
 #Juntando as duas bases
@@ -634,19 +811,19 @@ Desastres <- readRDS(here("Dados/Desastres.RDS"))
 df_prev <- df %>%
   left_join(Desastres, by = "Cod_IBGE_Mun", suffix = c("", "_desastre")) %>%  #Cria todas as combinações de projetos e desastres por município
   filter(Data_desastre < Data) %>% #Filtra só as linhas em que a data do desastre antecede a data do projeto
-  group_by(UF, Municipio_UF, Cod_IBGE_Mun, Data) %>% #Agrupa pelas informações de município e data  
+  group_by(UF, Municipio_UF, Cod_IBGE_Mun, Nome_Municipio, Data) %>% #Agrupa pelas informações de município e data  
   slice_max(Data_desastre, with_ties = FALSE) %>% #mantêm apenas a primeira versão de cada combinação em cada cidade
   ungroup() %>%
-  select(UF, Municipio_UF, Cod_IBGE_Mun, Data, data_desastre_anterior = Data_desastre, desastre_anterior = Desastre) #Seleciona as colunas que serão integradas depois, renomeando as novas
+  select(UF, Municipio_UF, Cod_IBGE_Mun, Nome_Municipio, Data, data_desastre_anterior = Data_desastre, desastre_anterior = Desastre, obitos_desastre_anterior = DH_MORTOS) #Seleciona as colunas que serão integradas depois, renomeando as novas
 
 #Repete o anterior, mas para o desastre seguinte
 df_next <- df %>%
   left_join(Desastres, by = "Cod_IBGE_Mun", suffix = c("", "_desastre")) %>%
   filter(Data_desastre >= Data) %>%
-  group_by(UF, Municipio_UF, Cod_IBGE_Mun, Data) %>%
+  group_by(UF, Municipio_UF, Cod_IBGE_Mun, Nome_Municipio, Data) %>%
   slice_min(Data_desastre, with_ties = FALSE) %>%
   ungroup() %>%
-  select(UF, Municipio_UF, Cod_IBGE_Mun, Data, data_desastre_proximo = Data_desastre, desastre_proximo = Desastre)
+  select(UF, Municipio_UF, Cod_IBGE_Mun, Data, data_desastre_proximo = Data_desastre, desastre_proximo = Desastre, obitos_desastre_proximo = DH_MORTOS)
 
 #Junta os arquivos na base original:
 df <- df %>%
@@ -656,7 +833,6 @@ df <- df %>%
     dias_desastre_anterior = as.integer(Data - data_desastre_anterior),
     dias_desastre_proximo = as.integer(Data - data_desastre_proximo)
   )
-
 
 # Remove os objetos que não serão mais utilizados
 rm(df_prev, df_next, Desastres)
@@ -711,7 +887,38 @@ rm(OSCsClima)
 ### Salvando base de dados final
 
 ```{r}
-saveRDS(df, here("Dados/dfagendaclima_municipal.RDS"))
+
+df<- df %>% 
+  mutate(Nome_Municipio = ifelse(is.na(Nome_Municipio), Municipio_UF, Nome_Municipio)) %>% 
+  select(Data, Ano, Dia, 
+         Cod_IBGE_Mun, Nome_Municipio, UF, 
+         Nome_Propositura, Tipo,  Tipo_Projeto, ementa, API_URL, total_tipo_proj_dia, 
+         clima_termos,
+         data_desastre_anterior, desastre_anterior, obitos_desastre_anterior, dias_desastre_anterior,
+         data_desastre_proximo, desastre_proximo, obitos_desastre_proximo, dias_desastre_proximo, 
+         Receitas_Mun, proxima_eleicao, dias_proxima_eleicao, n_OSCs, 
+         AB2_Recursos_Hídricos_Seca, 
+           AB3_Recursos_Hídricos_Ameaça_Climática,
+           AB3_Recursos_Hídricos_Exposição,
+           AB3_Recursos_Hídricos_Vulnerabilidade, 
+            AB4_Recursos_Hídricos_Sensibilidade,
+            AB4_Recursos_Hídricos_Capacidade_Adaptativa,
+         AB2_Segurança_Alimentar_Seca, 
+         AB2_Segurança_Alimentar_Chuva,
+           AB3_Segurança_Alimentar_Ameaça_Climática,
+           AB3_Segurança_Alimentar_Exposição,
+           AB3_Segurança_Alimentar_Vulnerabilidade,
+            AB4_Segurança_Alimentar_Sensibilidade,
+            AB4_Segurança_Alimentar_Capacidade_Adaptativa,
+         AB2_Desastres_Hidrológicos_Inundações_enxurradas_e_alagamentos,
+         AB2_Desastres_Hidrológicos_Deslizamento_de_terra,
+          AB3_Desastres_Hidrológicos_Ameaça, 
+          AB3_Desastres_Hidrológicos_Exposição,
+          AB3_Desastres_Hidrológicos_Vulnerabilidade, 
+           AB4_Desastres_Hidrológicos_Sensibilidade,
+           AB4_Desastres_Hidrológicos_Capacidade_Adaptativa)
+
+saveRDS(df, here("Dados/df_agendaclima_municipal.RDS"))
 
 
 rm(df)

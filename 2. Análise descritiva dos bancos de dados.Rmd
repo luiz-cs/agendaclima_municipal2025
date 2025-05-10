@@ -10,12 +10,23 @@ output: html_notebook
 Agora que já criamos a base de dados, podemos fazer uma primeira análise descritiva dela. Vamos por categorias:
 
 ```{r}
-#Carregando os pacotes que serão utilizados
-library(dplyr)
-library(ggplot2)
+#Instalando pacotes (não utilizados nos anteriores):
+#install.packages("sf")
+#install.packages("geobr")
+#install.packages("scales")
+#install.packages("formattable")
 ```
 
-```{r}
+```{r, 'carregando_pacotes'}
+#Carregando os pacotes que serão utilizados
+library(here)
+library(dplyr)
+library(data.table)
+library(ggplot2)
+library(formattable)
+```
+
+```{r, 'upando_df'}
 #Carregando a base de dados
 df <- readRDS(here("Dados/df_agendaclima_municipal.RDS"))
 ```
@@ -24,25 +35,223 @@ df <- readRDS(here("Dados/df_agendaclima_municipal.RDS"))
 
 Para começar, faremos uma lista e um mapa dos municípios que serão analisados.
 
-```{r}
+```{r, 'cria_lista_municipios'}
 #Lista de municípios analisados
 lista_municipios <- df %>% 
-  select(Cod_IBGE_Mun, )
+  select(Cod_IBGE_Mun, Nome_Municipio, UF) %>%
+  unique()
+
+write.csv(lista_municipios, here("Dados/lista_municipios.csv"))
 ```
 
-## Variável dependente: Projetos
-
-A seguir, vamos analisar as características da base de projetos.
-
-### 2.1.1 Linha do tempo da 
+### 2.1.1Criando mapa
 
 ```{r}
-plot(cars)
+library(sf)
+library(geobr)
+#Listando os municípios presentes na seleção:
+
+# Lê todos os municípios de 2023 apenas uma vez
+mapa_brasil <- read_municipality(year = 2023)
+
+# Filtra apenas os municípios presentes na lista
+mapa_munic <- mapa_brasil %>%
+  filter(code_muni %in% lista_municipios$Cod_IBGE_Mun) %>%
+  select(code_muni, geom)
+
+mapa_sapl <- ggplot() +
+  geom_sf(data=mapa_brasil, alpha = 0.5, fill= "#666666", color = NA, size= .15)+
+  geom_sf(data=mapa_munic, fill= "#D95F02", size=.15)+
+  labs(title="Mapa dos Municípios selecionados para análise",
+       caption='Fonte: Elaboração própria', size=8)+
+  theme_linedraw()
+
+ggsave(here("Figuras/2.1.1 MapaMunicipios.png"), mapa_sapl)
+
+rm(mapa_brasil, mapa_munic, mapa_sapl)
 ```
 
-# 2. Análise descritiva dos dados:
+Todas as figuras salvas podem ser vistas na pasta "Figuras"
 
-## 2.1 Desastres
+### 2.1.2 Divisão dos Estados
+
+Agora vamos fazer uma contagem do número de municípios por UF, e compará-la com o número de municípios que existem em cada estado
+
+```{r}
+#Criando base com número de municípios por UF
+uf <- lista_municipios %>% 
+  group_by(UF) %>% 
+  summarise(n_selecionados = n()) %>% 
+  arrange(UF) 
+
+#Trazendo a lista completa de municípios por UF a partir da base "AdaptaBrasil"
+
+AB_UF <- readRDS(here("Dados/AdaptaBrasil.RDS")) %>% 
+  select(Cod_IBGE_Mun, Municipio_UF) %>% 
+  mutate(UF = substr(Municipio_UF, nchar(Municipio_UF) - 1, nchar(Municipio_UF)))%>% 
+  group_by(UF) %>% 
+  summarise(total_UF = n()) %>% 
+  arrange(UF)
+
+#Juntando as bases
+uf <- merge(uf, AB_UF, by = "UF", all = T) %>% 
+  mutate(n_selecionados = ifelse(is.na(n_selecionados), 0, n_selecionados),
+         Percentual_UF = n_selecionados/total_UF)
+
+#Adicionando as regiões: 
+regioes <- data.table(
+  UF = c("AC", "AL", "AM", "AP", "BA", "CE", "DF", "ES", "GO", "MA", "MG", "MS", "MT", "PA", "PB", "PE", "PI", "PR", "RJ", "RN", "RO", "RR", "RS", "SC", "SE", "SP", "TO"), 
+  Regiao = c("Norte", "Nordeste", "Norte", "Norte", "Nordeste", "Nordeste", "Centro-Oeste", "Sudeste", "Centro-Oeste", "Nordeste", "Sudeste", "Centro-Oeste", "Centro-Oeste", "Norte", "Nordeste", "Nordeste", "Nordeste", "Sul", "Sudeste", "Nordeste", "Norte", "Norte", "Sul", "Sul", "Nordeste", "Sudeste", "Norte")
+)
+
+cores <- data.table(Regiao = c("Norte", "Nordeste", "Centro-Oeste", "Sudeste", "Sul"),
+                    Cores = c("#45D14A", "#D17C46", "#D1D145", "#D14568", "#45C3D1"))
+
+regioes <- merge(regioes, cores, by = "Regiao")
+
+uf <- merge(uf, regioes, by = "UF", all = T)
+
+rm(AB_UF, regioes, cores)
+```
+
+```{r}
+#Plotando os gráficos
+library(scales)
+
+cores <- setNames(uf$Cores, uf$Regiao)
+
+#Número absoluto de  Municípios, por UF
+
+uf_num <- uf %>%
+  ggplot(aes(x = reorder(UF, n_selecionados), y = n_selecionados, fill = Regiao)) +
+  geom_col() +
+  scale_fill_manual(values = cores) +
+  geom_text(aes(label = n_selecionados), vjust = -0.1,
+              position = position_dodge(width = 0.5)) +
+  labs(
+    title = "Número de municípios presentes na seleção, por UF",
+    x = "Unidades Federativas",
+    y = "Número de Municípios",
+    fill = "Regiões"
+  ) +
+  theme_classic() +
+  theme(legend.position = "bottom")
+
+ggsave(here("Figuras/2.1.2N_Municipios_UF.png"), uf_num)
+
+rm(uf_num)
+```
+
+```{r}
+#Percentual de municípios por UF
+
+uf_percent <- uf %>%
+  ggplot(aes(x = reorder(UF, Percentual_UF), y = Percentual_UF, fill = Regiao)) +
+  geom_col() +
+  scale_fill_manual(values = cores) +
+  scale_y_continuous(labels = label_percent(accuracy = 1)) +
+  labs(
+    title = "Percentual de municípios presentes na seleção, por UF",
+    x = "Unidades Federativas",
+    y = "Percentual de Municípios",
+    fill = "Regiões"
+  ) +
+  theme_classic() +
+  theme(legend.position = "bottom")
+
+ggsave(here("Figuras/2.1.2P_Municipios_UF.png"), uf_percent)
+
+rm(uf_percent)
+```
+
+```{r}
+#Reduzindo apenas para região
+regiao <- uf %>% 
+  group_by(Regiao, Cores) %>% 
+  summarise(n_selecionados = sum(n_selecionados),
+            total_UF = sum(total_UF)) %>% 
+  mutate(Percentual_UF = n_selecionados/total_UF)
+
+#Número por região
+regiao_num <- regiao %>%
+  ggplot(aes(x = reorder(Regiao, n_selecionados), y = n_selecionados, fill = Regiao)) +
+  geom_col() +
+  scale_fill_manual(values = cores) +
+  geom_text(aes(label = n_selecionados), vjust = -0.1,
+              position = position_dodge(width = 0.5)) +
+  labs(
+    title = "Número de municípios presentes na seleção, por Região",
+    x = "Unidades Federativas",
+    y = "Número de Municípios",
+    fill = "Regiões"
+  ) +
+  theme_classic() +
+  theme(legend.position = "bottom")
+
+regiao_num
+
+ggsave(here("Figuras/2.1.2N_Municipios_Regiao.png"), regiao_num)
+
+rm(regiao_num)
+```
+
+```{r}
+#Percentual por região
+
+regiao_percent <- regiao %>%
+  ggplot(aes(x = reorder(Regiao, Percentual_UF), y = Percentual_UF, fill = Regiao)) +
+  geom_col() +
+  scale_fill_manual(values = cores) +
+  scale_y_continuous(labels = label_percent(accuracy = 1)) +
+  labs(
+    title = "Percentual de municípios presentes na seleção, por UF",
+    x = "Unidades Federativas",
+    y = "Percentual de Municípios",
+    fill = "Regiões"
+  ) +
+  theme_linedraw() +
+  theme(legend.position = "bottom")
+
+ggsave(here("Figuras/2.1.2P_Municipios_Regiao.png"), regiao_percent)
+
+rm(regiao_percent, uf, cores, regiao)
+```
+
+## 2.2 Variável dependente: Projetos
+
+A seguir, vamos analisar as características da base de projetos:
+
+```{r 'Tipos_Projetos'}
+tiproj <- df %>%
+  group_by(Tipo_Projeto, Ano) %>% 
+  summarise(n_al = n()) %>%
+  group_by(Ano) %>%
+  mutate(p_al = n_al / sum(n_al))%>% 
+  mutate(Tipo_Projeto = ifelse(p_al < 0.02, "Outros", Tipo_Projeto)) %>%
+  group_by(Tipo_Projeto, Ano) %>%
+  summarise(p_al = sum(p_al))
+
+Tipo <- df%>%
+  select(Tipo_Projeto) %>% 
+  unique()
+
+write.csv(Tipo, here("Tipo.csv"))
+
+tiproj %>% 
+  ggplot(aes( x = `Ano`, y = p_al, fill = Tipo_Projeto)) + 
+  geom_bar(stat = "identity")+ 
+  theme_classic()+
+  labs(title = "Figura 5 - Distribuição dos tipos de projeto, por ano")+
+  scale_fill_brewer(palette = "Dark2")+
+  ylab('Percentual de projetos')
+
+```
+
+```{r}
+
+```
+
+## 2.3 Variável explicativa: Desastres
 
 ```{r}
 df <- readRDS(here("Dados/df.RDS"))
@@ -150,120 +359,4 @@ fig3 <- p_df%>%
   theme(legend.position="bottom",
         legend.title = element_blank())
 plot(fig3)
-```
-
-## 2.2 Descritivo Atividade Legislativa das Câmaras Municipais
-
-```{r 'N_cidades_ano'}
-mCidadesAl <- readRDS(file = here("Dados/mCidadesAL.RDS"))
-# Calcula quantas cidades aparecem em cada ano:
-presence <- mCidadesAl %>%
-  group_by(Ano, Município) %>%
-  summarise(N_Proj = n()) %>% 
-  ungroup() %>%
-  complete(Ano, Município, fill = list(N_Proj = 0)) %>%  
-  mutate(presente = ifelse(N_Proj > 0 , 1, 0)) %>% 
-  group_by(Ano) %>% 
-  summarise(n_cidades = sum(presente)) %>% 
-  mutate(percent= n_cidades / max(n_cidades))
-
-
-# Create the plot
-fig4 <- ggplot(presence, aes(x = Ano, y = n_cidades)) +
-  geom_bar(stat = "identity", fill = "#1B9E77") +
-  labs(x = "Ano", y = "Número de cidades") +
-  ggtitle("Figura 4 - Número de cidades presentes na base de dados por ano") +
-  theme_linedraw()+
-  scale_y_continuous(n.breaks = 10)+
-  scale_x_continuous(n.breaks = 10)
-
-plot(fig4)
-
-rm(presence)
-```
-
-```{r 'Tipos_Projetos'}
-tiproj <- mCidadesAl %>%
-  group_by(Tipo_Projeto, Ano) %>% 
-  summarise(n_al = n()) %>%
-  group_by(Ano) %>%
-  mutate(p_al = n_al / sum(n_al))%>% 
-  mutate(Tipo_Projeto = ifelse(p_al < 0.06, "Outros", Tipo_Projeto)) %>%
-  group_by(Tipo_Projeto, Ano) %>%
-  summarise(p_al = sum(p_al))
-
-fig5 <- tiproj %>% 
-  ggplot(aes( x = `Ano`, y = p_al, fill = Tipo_Projeto)) + 
-  geom_bar(stat = "identity")+ 
-  theme_linedraw()+
-  labs(title = "Figura 5 - Distribuição dos tipos de projeto, por ano")+
-  scale_fill_brewer(palette = "Dark2")+
-  ylab('Percentual de projetos')
-
-plot(fig5)
-```
-
-# 3. Definindo recorte temporal
-
-```{r, 'Tabela_contagem_AL_tempo'}
-#Caso df não esteja carreagado:
-df <- readRDS(here("Dados/df.RDS")) 
-
-df2 <- df %>% 
-  filter(TDesastre == F)
-  
-df_contagem <- data.frame(Ano = c(),  n_municipios = c(), AL_Ano = c(), AL_pos_ano = c()) #Tabela para contagem
-Anos <- df2 %>% distinct(Ano) #Anos no dataframe df
-
-#Loop para criar tabela comparando número de observações por ano:
-for (i in min(Anos):max(Anos)){
-  #Cria uma variável com o número de observações no ano i selecionado
-  dfano <- df2 %>% 
-    filter(Ano == i)
-  #Cria uma variável com o código de municípios distintos no ano
-  ctm_municipios <- dfano %>% 
-    distinct(ibge) 
-  #Cria uma variável com todos registros dos municípios presentes no ano "i" nos anos posteriores
-  dfanomais <- df2 %>% 
-    filter(Ano >= i,
-           ibge %in% ctm_municipios$ibge)
-  
-  #Criando linha do dataframe para o ano
-  df_ctm <- data.frame("Ano" = i, "n_municipios" = n_distinct(ctm_municipios), "AL_Ano" = nrow(dfano), "AL_pos_ano" = nrow(dfanomais))
-  
-  #Juntando à tabela principal
-  df_contagem <- bind_rows(df_contagem, df_ctm)  
-}
-
-rm(Anos, dfano, ctm_municipios, dfanomais, df_ctm, i, df2)
-```
-
-```{r, 'plotando_contagem_tempo'}
-
-# Criar o gráfico
-fig6 <- ggplot(df_contagem, aes(x = Ano)) +
-  # Adicionar o gráfico de barras para "n_municipios"
-  geom_bar(aes(y = n_municipios), stat = "identity", fill = "#1B9E77") +
-  # Adicionar o gráfico de linha para "AL_pos_ano"
-  geom_line(aes(y = AL_pos_ano * (max(df_contagem$n_municipios) / max(df_contagem$AL_pos_ano)))) +
-  geom_vline(xintercept = 2013, linetype = "dashed")+
-  # Adicionar eixos duplos
-  scale_y_continuous(
-    name = "Número de Municípios",
-    sec.axis = sec_axis(~ . * (max(df_contagem$AL_pos_ano) / max(df_contagem$n_municipios)), name = "Registros nos anos subsequentes (até 2022)",
-      breaks = scales::pretty_breaks(),
-      labels = scales::comma_format(big.mark = ".", decimal.mark = ","))
-  ) +
-  scale_x_continuous(n.breaks = 10)+
-  # Personalizar cores e temas
-  theme_linedraw()+
-  labs(title = "Figura 6 - Nº de municípios na base de dados por ano x Total de registros nos anos subsequentes")+
-  theme(title = element_text(size = 9),
-        axis.text.y.left = element_text(color = "#1B9E77", size = 10),   # Cor do texto do eixo Y à esquerda
-        axis.title.y.left = element_text(color = "#1B9E77"))   # Cor do título do eixo Y à esquerda
-
-
-# Exibir o gráfico
-print(fig6)
-
 ```
