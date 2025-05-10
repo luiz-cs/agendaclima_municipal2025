@@ -29,6 +29,11 @@ library(formattable)
 ```{r, 'upando_df'}
 #Carregando a base de dados
 df <- readRDS(here("Dados/df_agendaclima_municipal.RDS"))
+
+df <- df %>% 
+  mutate(Tipo = ifelse(Tipo == "requerimento (regimento antigo)", "requerimento", Tipo))
+
+saveRDS(df, here("Dados/df_agendaclima_municipal.RDS"))
 ```
 
 ## 2.1 Municípios analisados
@@ -44,7 +49,7 @@ lista_municipios <- df %>%
 write.csv(lista_municipios, here("Dados/lista_municipios.csv"))
 ```
 
-### 2.1.1Criando mapa
+### 2.1.1 Mapa dos municípios selecionados
 
 ```{r}
 library(sf)
@@ -107,9 +112,14 @@ regioes <- data.table(
 cores <- data.table(Regiao = c("Norte", "Nordeste", "Centro-Oeste", "Sudeste", "Sul"),
                     Cores = c("#45D14A", "#D17C46", "#D1D145", "#D14568", "#45C3D1"))
 
+
 regioes <- merge(regioes, cores, by = "Regiao")
 
 uf <- merge(uf, regioes, by = "UF", all = T)
+
+
+paleta_regiao <- setNames(uf$Cores, uf$Regiao)
+
 
 rm(AB_UF, regioes, cores)
 ```
@@ -118,14 +128,13 @@ rm(AB_UF, regioes, cores)
 #Plotando os gráficos
 library(scales)
 
-cores <- setNames(uf$Cores, uf$Regiao)
 
 #Número absoluto de  Municípios, por UF
 
 uf_num <- uf %>%
   ggplot(aes(x = reorder(UF, n_selecionados), y = n_selecionados, fill = Regiao)) +
   geom_col() +
-  scale_fill_manual(values = cores) +
+  scale_fill_manual(values = paleta_regiao) +
   geom_text(aes(label = n_selecionados), vjust = -0.1,
               position = position_dodge(width = 0.5)) +
   labs(
@@ -148,7 +157,7 @@ rm(uf_num)
 uf_percent <- uf %>%
   ggplot(aes(x = reorder(UF, Percentual_UF), y = Percentual_UF, fill = Regiao)) +
   geom_col() +
-  scale_fill_manual(values = cores) +
+  scale_fill_manual(values = paleta_regiao) +
   scale_y_continuous(labels = label_percent(accuracy = 1)) +
   labs(
     title = "Percentual de municípios presentes na seleção, por UF",
@@ -176,7 +185,7 @@ regiao <- uf %>%
 regiao_num <- regiao %>%
   ggplot(aes(x = reorder(Regiao, n_selecionados), y = n_selecionados, fill = Regiao)) +
   geom_col() +
-  scale_fill_manual(values = cores) +
+  scale_fill_manual(values = paleta_regiao) +
   geom_text(aes(label = n_selecionados), vjust = -0.1,
               position = position_dodge(width = 0.5)) +
   labs(
@@ -188,7 +197,6 @@ regiao_num <- regiao %>%
   theme_classic() +
   theme(legend.position = "bottom")
 
-regiao_num
 
 ggsave(here("Figuras/2.1.2N_Municipios_Regiao.png"), regiao_num)
 
@@ -201,7 +209,7 @@ rm(regiao_num)
 regiao_percent <- regiao %>%
   ggplot(aes(x = reorder(Regiao, Percentual_UF), y = Percentual_UF, fill = Regiao)) +
   geom_col() +
-  scale_fill_manual(values = cores) +
+  scale_fill_manual(values = paleta_regiao) +
   scale_y_continuous(labels = label_percent(accuracy = 1)) +
   labs(
     title = "Percentual de municípios presentes na seleção, por UF",
@@ -214,41 +222,143 @@ regiao_percent <- regiao %>%
 
 ggsave(here("Figuras/2.1.2P_Municipios_Regiao.png"), regiao_percent)
 
-rm(regiao_percent, uf, cores, regiao)
+rm(regiao_percent, uf, regiao)
 ```
 
 ## 2.2 Variável dependente: Projetos
 
 A seguir, vamos analisar as características da base de projetos:
 
-```{r 'Tipos_Projetos'}
+### 2.2.1 Número total de projetos climáticos, por tipo
+
+```{r}
+#Tipos de projetos mais comuns
+
 tiproj <- df %>%
-  group_by(Tipo_Projeto, Ano) %>% 
-  summarise(n_al = n()) %>%
-  group_by(Ano) %>%
-  mutate(p_al = n_al / sum(n_al))%>% 
-  mutate(Tipo_Projeto = ifelse(p_al < 0.02, "Outros", Tipo_Projeto)) %>%
-  group_by(Tipo_Projeto, Ano) %>%
-  summarise(p_al = sum(p_al))
+  group_by(Tipo, Ano) %>% 
+  summarise(n_al = n()) %>% 
+  data.table()
 
-Tipo <- df%>%
-  select(Tipo_Projeto) %>% 
-  unique()
+#Criando paleta de cores para os projetos mais comuns
+paleta_proposituras <- data.table(Tipo = c("indicacao", "requerimento", "pedido de providencia", "projeto de lei ordinaria", "protocolo", "mocao", "proposições", "projeto de lei executivo", "outros"),
+                    Cores = c("#29BC8B", "#BD872A", "#2A42BD", "#BD2A2A", "#BD2A9D", "#712ABD", "#3C83C2", "#47BD2A", "#92A48E"))
 
-write.csv(Tipo, here("Tipo.csv"))
+#Adicionando paleta à tiproj:
+tiproj <- tiproj %>% 
+  mutate(Tipo = ifelse(Tipo %in% paleta_proposituras$Tipo, Tipo, "outros")) %>% 
+  merge(paleta_proposituras, by = "Tipo", all.x = T)
+  
+tiproj_n <- tiproj %>%
+  ggplot(aes(y = reorder(Tipo, n_al), x = n_al, fill = Tipo)) +
+  geom_col() +
+  labs(
+    title = "Número de proposituras climáticas, por tipo",
+    x = "Número de proposituras apresentadas",
+    y = "Tipos de proposituras",
+    fill = "Tipos de proposituras"
+  ) +
+  theme_classic() +
+  theme(legend.position = "none")+
+  scale_fill_manual(values = paleta_proposituras$Cores, limits = paleta_proposituras$Tipo)
 
-tiproj %>% 
-  ggplot(aes( x = `Ano`, y = p_al, fill = Tipo_Projeto)) + 
+ggsave(here("Figuras/2.1.1N_Proposituras_Tipo.png"), tiproj_n)
+  
+rm(tiproj_n)
+```
+
+### 2.2.2 Projetos climáticos, por ano e tipo
+
+```{r 'Tipos_Projetos'}
+#Número de projetos por ano
+
+tiproj_ano <- tiproj %>% 
+  ggplot(aes( x = `Ano`, y = n_al, fill = Tipo)) + 
   geom_bar(stat = "identity")+ 
   theme_classic()+
-  labs(title = "Figura 5 - Distribuição dos tipos de projeto, por ano")+
-  scale_fill_brewer(palette = "Dark2")+
-  ylab('Percentual de projetos')
+  labs(title = "Número de proposituras climáticas, por ano", 
+       x = "Anos",
+       y = "Número de proposituras")+
+  theme(legend.position = "bottom")+
+  scale_fill_manual(values = paleta_proposituras$Cores, limits = paleta_proposituras$Tipo)
+
+ggsave(here("Figuras/2.1.2N_Proposituras_Ano.png"), tiproj_ano)
+  
+rm(tiproj_ano)
 
 ```
 
+### 2.2.3 Percentual dos tipos de proposituras na lista de projetos climáticos, por ano
+
 ```{r}
 
+#Percentual de proposituras climáticas, por tipo
+tiproj <- tiproj  %>% 
+  group_by(Ano) %>%
+  mutate(p_al = n_al / sum(n_al)) 
+  
+
+tiproj_pano <- tiproj %>% 
+  group_by(Tipo, Ano) %>%
+  summarise(p_al = sum(p_al)) %>% 
+  ggplot(aes( x = `Ano`, y = p_al, fill = Tipo)) + 
+  geom_bar(stat = "identity")+ 
+  theme_classic()+
+  labs(title = "Distribuição dos tipos de proposituras climáticas, por ano", 
+       y = 'Percentual de proposituras')+
+  scale_y_continuous(labels = label_percent(accuracy = 1)) +
+  theme(legend.position = "bottom")+
+  scale_fill_manual(values = paleta_proposituras$Cores, limits = paleta_proposituras$Tipo)
+
+ggsave(here("Figuras/2.2.3P_Tipos_Proposituras.png"), tiproj_pano)
+
+rm(tiproj_pano)
+```
+
+### 2.2.4. Proporção dos tipos de proposituras climáticas em relação ao total de projetos deste tipo, por ano
+
+```{r}
+#Percentual em relação ao total de proposituras
+
+tiproj <- df %>% 
+  mutate(Tipo = ifelse(Tipo %in% paleta_proposituras$Tipo, Tipo, "outros")) %>% 
+  group_by(Tipo, Data, Ano, total_tipo_proj_dia) %>% 
+  summarise(n_proj_clima = n()) %>% 
+  group_by(Ano, Tipo) %>% 
+  summarise(n_proj_clima = sum(n_proj_clima),
+            total_tipo_proj_ano = sum(total_tipo_proj_dia),
+            p_proj_clima_ano = n_proj_clima/total_tipo_proj_ano) %>% 
+  data.table()
+
+ptipano <- tiproj %>% 
+  ggplot(aes( x = Ano, y = p_proj_clima_ano, fill = Tipo)) + 
+  geom_bar(position = "dodge2", stat = "identity")+
+  theme_classic()+
+  labs(title = "Proporção dos tipos de proposituras climáticas em relação ao total de projetos deste tipo, por ano", 
+       y = 'Percentual de proposituras', 
+       x = "Ano")+
+  scale_y_continuous(labels = label_percent(accuracy = 1))+
+  theme(legend.position = "bottom")+
+  scale_fill_manual(values = paleta_proposituras$Cores, limits = paleta_proposituras$Tipo)+
+  facet_wrap(vars(Tipo))
+
+ggsave(here("Figuras/2.2.4P_Tipos_Prop_Ano.png"), ptipano)
+
+rm(ptipano)
+```
+
+### 2.2.5. Presença de termos climáticos #PAREI AQUI
+
+```{r}
+library(tidyr)
+#Termos clima presentes
+
+climatermos <- df %>% 
+  select(Ano, Tipo, clima_termos) %>% 
+  separate(clima_termos, c("clima_1", "clima_2", "clima_3", "clima_4", "clima_5", "clima_6", "clima_7"), sep = ", ", fill = "right") %>% 
+  pivot_longer(starts_with("clima_"), names_to = "clima_names", names_prefix = "clima_", values_to = "clima_termos") %>% 
+  filter(!is.na(clima_termos)) %>% 
+  group_by(Ano, Tipo, clima_termos) %>% 
+  summarise(n = n())
 ```
 
 ## 2.3 Variável explicativa: Desastres

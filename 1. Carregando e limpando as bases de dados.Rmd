@@ -172,6 +172,7 @@ mapping_dict <- c(
   "requerimento verbal" = "requerimento",
   "requerimento plenário" = "requerimento",
   "requerimento presidência" = "requerimento",
+  "requerimento (regimento antigo)" = "requerimento",
   
   # Requerimentos Específicos
   "requerimento de informações" = "requerimento de informacoes",
@@ -199,6 +200,7 @@ mapping_dict <- c(
   "indicação verbal" = "indicacao",
   "indicação ao executivo" = "indicacao",
   "pedido de indicação" = "indicacao",
+  "indicação (não usar)" = "indicacao",
   
   # Pareceres
   "parecer" = "parecer",
