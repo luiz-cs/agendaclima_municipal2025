@@ -84,8 +84,7 @@ A lista de municípios participantes pode ser encontrada em: <https://www.senado
 #Verifique que o documento com os dados raspados das Câmaras Municipais já está na pasta "Dados"
 #ATENÇÃO: Este arquivo é muito pesado. Certifique-se de que seu computador tem memória para tratá-lo
 
-CidadesAL <- read_csv(file= here("Dados/ProjCidades.csv")) %>% 
-  data.table()
+CidadesAL <- read_csv(file= here("Dados/ProjCidades.csv"))
 ```
 
 ```{r, 'Reduzindo_base'}
@@ -109,7 +108,8 @@ CidadesAL <- CidadesAL%>%
   rename("Nome_Propositura" = "__str__",
          "Municipio" = "City",
          "Ano" = "ano") %>% #Renomeia colunas
-  ungroup()
+  ungroup() %>% 
+  data.table()
 
 
 ```
@@ -120,44 +120,44 @@ Agora, irei criar a coluna "Tipo", para garantir que todos os projetos da mesma 
 # Mapeando os sinônimos
 mapping_dict <- c(
   # Projetos de Lei Ordinária
-  "projeto de lei" = "projeto_de_lei_ordinaria",
-  "projeto de lei ordinária" = "projeto_de_lei_ordinaria",
-  "projeto de lei ordinario" = "projeto_de_lei_ordinaria",
-  "projeto de lei ordinário" = "projeto_de_lei_ordinaria",
-  "projeto de lei ordinária da câmara" = "projeto_de_lei_ordinaria",
-  "projeto de lei (câmara)" = "projeto_de_lei_ordinaria",
-  "projeto de lei (legislativo)" = "projeto_de_lei_ordinaria",
-  "projeto de lei do legislativo" = "projeto_de_lei_ordinaria",
-  "projeto de lei legislativo" = "projeto_de_lei_ordinaria",
-  "projeto de lei ordinária do legislativo" = "projeto_de_lei_ordinaria",
-  "projeto de lei ordinária legislativo" = "projeto_de_lei_ordinaria",
-  "projeto de lei ordinária origem legislativa" = "projeto_de_lei_ordinaria",
-  "projeto de lei ordinária (poder legislativo)" = "projeto_de_lei_ordinaria",
-  "projeto de lei de vereador" = "projeto_de_lei_ordinaria",
+  "projeto de lei" = "projeto de lei ordinaria",
+  "projeto de lei ordinária" = "projeto de lei ordinaria",
+  "projeto de lei ordinario" = "projeto de lei ordinaria",
+  "projeto de lei ordinário" = "projeto de lei ordinaria",
+  "projeto de lei ordinária da câmara" = "projeto de lei ordinaria",
+  "projeto de lei (câmara)" = "projeto de lei ordinaria",
+  "projeto de lei (legislativo)" = "projeto de lei ordinaria",
+  "projeto de lei do legislativo" = "projeto de lei ordinaria",
+  "projeto de lei legislativo" = "projeto de lei ordinaria",
+  "projeto de lei ordinária do legislativo" = "projeto de lei ordinaria",
+  "projeto de lei ordinária legislativo" = "projeto de lei ordinaria",
+  "projeto de lei ordinária origem legislativa" = "projeto de lei ordinaria",
+  "projeto de lei ordinária (poder legislativo)" = "projeto de lei ordinaria",
+  "projeto de lei de vereador" = "projeto de lei ordinaria",
   
   # Projetos de Lei do Executivo
-  "projeto de lei - executivo" = "projeto_de_lei_executivo",
-  "projeto de lei do executivo" = "projeto_de_lei_executivo",
-  "projeto de lei executivo" = "projeto_de_lei_executivo",
-  "projeto executivo municipal" = "projeto_de_lei_executivo",
-  "projeto de lei ordinária do executivo" = "projeto_de_lei_executivo",
-  "projeto de lei ordinária executivo" = "projeto_de_lei_executivo",
-  "projeto de lei (executivo)" = "projeto_de_lei_executivo",
-  "projeto de lei ordinária (poder executivo)" = "projeto_de_lei_executivo",
-  "projeto de lei (prefeitura)" = "projeto_de_lei_executivo",
+  "projeto de lei - executivo" = "projeto de lei executivo",
+  "projeto de lei do executivo" = "projeto de lei executivo",
+  "projeto de lei executivo" = "projeto de lei executivo",
+  "projeto executivo municipal" = "projeto de lei executivo",
+  "projeto de lei ordinária do executivo" = "projeto de lei executivo",
+  "projeto de lei ordinária executivo" = "projeto de lei executivo",
+  "projeto de lei (executivo)" = "projeto de lei executivo",
+  "projeto de lei ordinária (poder executivo)" = "projeto de lei executivo",
+  "projeto de lei (prefeitura)" = "projeto de lei executivo",
   
   # Projetos de Lei Complementar
-  "projeto de lei complementar" = "projeto_de_lei_complementar",
-  "projeto de lei complementar legislativo municipal" = "projeto_de_lei_complementar",
-  "projeto de lei complementar do executivo" = "projeto_de_lei_complementar",
-  "projeto de lei complementar - executivo" = "projeto_de_lei_complementar",
-  "projeto de lei complementar (executivo)" = "projeto_de_lei_complementar",
-  "projeto de lei complementar substitutivo" = "projeto_de_lei_complementar",
+  "projeto de lei complementar" = "projeto de lei complementar",
+  "projeto de lei complementar legislativo municipal" = "projeto de lei complementar",
+  "projeto de lei complementar do executivo" = "projeto de lei complementar",
+  "projeto de lei complementar - executivo" = "projeto de lei complementar",
+  "projeto de lei complementar (executivo)" = "projeto de lei complementar",
+  "projeto de lei complementar substitutivo" = "projeto de lei complementar",
   
   # Anteprojetos
-  "anteprojeto de lei" = "anteprojeto_de_lei",
-  "anteprojeto de lei ordinaria" = "anteprojeto_de_lei",
-  "ante projeto de lei" = "anteprojeto_de_lei",
+  "anteprojeto de lei" = "anteprojeto de lei",
+  "anteprojeto de lei ordinaria" = "anteprojeto de lei",
+  "ante projeto de lei" = "anteprojeto de lei",
   
   # Requerimentos
   "requerimento" = "requerimento",
@@ -174,23 +174,23 @@ mapping_dict <- c(
   "requerimento presidência" = "requerimento",
   
   # Requerimentos Específicos
-  "requerimento de informações" = "requerimento_de_informacoes",
-  "requerimento informações" = "requerimento_de_informacoes",
-  "pedido de informações" = "requerimento_de_informacoes",
-  "pedido de informação" = "requerimento_de_informacoes",
+  "requerimento de informações" = "requerimento de informacoes",
+  "requerimento informações" = "requerimento de informacoes",
+  "pedido de informações" = "requerimento de informacoes",
+  "pedido de informação" = "requerimento de informacoes",
   
   # Moções
   "moção" = "mocao",
-  "moção de aplausos" = "mocao_de_aplausos",
-  "moção aplausos" = "mocao_de_aplausos",
-  "moção de aplauso" = "mocao_de_aplausos",
-  "moção aplauso" = "mocao_de_aplausos",
-  "moção de congratulações" = "mocao_de_congratulacoes",
-  "moção de congratulação" = "mocao_de_congratulacoes",
+  "moção de aplausos" = "mocao de aplausos",
+  "moção aplausos" = "mocao de aplausos",
+  "moção de aplauso" = "mocao de aplausos",
+  "moção aplauso" = "mocao de aplausos",
+  "moção de congratulações" = "mocao de congratulacoes",
+  "moção de congratulação" = "mocao de congratulacoes",
   "projeto de moção" = "mocao",
-  "moção especial de louvor" = "mocao_de_louvor",
-  "moção de apelo" = "mocao_de_apelo",
-  "moção de reconhecimento" = "mocao_de_reconhecimento",
+  "moção especial de louvor" = "mocao de louvor",
+  "moção de apelo" = "mocao de apelo",
+  "moção de reconhecimento" = "mocao de reconhecimento",
   
   # Indicações
   "indicação" = "indicacao",
@@ -221,7 +221,7 @@ mapping_dict <- c(
   "ofício" = "oficio",
   "ofício pmc" = "oficio",
   "ofício expedido" = "oficio",
-  "ofício gab_ver" = "oficio",
+  "ofício gab ver" = "oficio",
   "ofício legislativo" = "oficio",
   "ofício da administração municipal" = "oficio",
   "ofício do executivo" = "oficio",
@@ -232,18 +232,18 @@ mapping_dict <- c(
   
   # Emendas
   "emenda" = "emenda",
-  "emenda orçamentária" = "emenda_orcamentaria",
-  "emenda ao projeto de lei" = "emenda_projeto_lei",
-  "emenda à loa" = "emenda_loa",
-  "emenda à loa (lei orçamentária anual)" = "emenda_loa",
-  "emenda impositiva" = "emenda_impositiva",
-  "emenda parlamentar orçamentária impositiva" = "emenda_impositiva",
-  "emenda impositiva ao orçamento" = "emenda_impositiva",
-  "emenda parlamentar impositiva à loa" = "emenda_impositiva",
-  "emenda à ldo (lei de diretrizes orçamentárias)" = "emenda_ldo",
-  "emenda ao ppa" = "emenda_ppa",
-  "emenda modificativa" = "emenda_modificativa",
-  "emenda aditiva" = "emenda_aditiva",
+  "emenda orçamentária" = "emenda orcamentaria",
+  "emenda ao projeto de lei" = "emenda projeto lei",
+  "emenda à loa" = "emenda loa",
+  "emenda à loa (lei orçamentária anual)" = "emenda loa",
+  "emenda impositiva" = "emenda impositiva",
+  "emenda parlamentar orçamentária impositiva" = "emenda impositiva",
+  "emenda impositiva ao orçamento" = "emenda impositiva",
+  "emenda parlamentar impositiva à loa" = "emenda impositiva",
+  "emenda à ldo (lei de diretrizes orçamentárias)" = "emenda ldo",
+  "emenda ao ppa" = "emenda ppa",
+  "emenda modificativa" = "emenda modificativa",
+  "emenda aditiva" = "emenda aditiva",
   
   # Vetos
   "veto" = "veto",
@@ -253,43 +253,45 @@ mapping_dict <- c(
   "mensagem de veto a projeto de lei" = "veto",
   
   # Pedidos de Providência
-  "pedido de providências" = "pedido_de_providencia",
-  "pedido de providência" = "pedido_de_providencia",
-  "pedido de providência " = "pedido_de_providencia",
-  "pedido de providências " = "pedido_de_providencia",
+  "pedido de providências" = "pedido de providencia",
+  "pedido de providência" = "pedido de providencia",
+  "pedido de providência " = "pedido de providencia",
+  "pedido de providências " = "pedido de providencia",
   
   # Outros
   "decreto" = "decreto",
   "decretos" = "decreto",
-  "decreto de calamidade publica" = "decreto_calamidade_publica",
-  "projeto de decreto legislativo" = "projeto_decreto_legislativo",
-  "projeto de resolução" = "projeto_resolucao",
-  "projeto de resolução legislativa" = "projeto_resolucao",
+  "decreto de calamidade publica" = "decreto calamidade publica",
+  "projeto de decreto legislativo" = "projeto decreto legislativo",
+  "projeto de resolução" = "projeto resolucao",
+  "projeto de resolução legislativa" = "projeto resolucao",
   "substitutivo" = "substitutivo",
   "substitutivo projeto de lei" = "substitutivo",
   "substitutivo ao projeto de lei" = "substitutivo",
   "projeto substitutivo" = "substitutivo",
-  "lei ordinaria" = "lei_ordinaria",
-  "lei ordinária municipal" = "lei_ordinaria",
+  "lei ordinaria" = "lei ordinaria",
+  "lei ordinária municipal" = "lei ordinaria",
   "lei" = "lei",
   "leis" = "lei",
-  "autografo de lei" = "autografo_lei",
-  "autógrafos" = "autografo_lei",
-  "medida provisória" = "medida_provisoria",
+  "autografo de lei" = "autografo lei",
+  "autógrafos" = "autografo lei",
+  "medida provisória" = "medida provisoria",
   "protocolo" = "protocolo",
   "protocolo da casa" = "protocolo",
   "processo" = "processo",
   "portaria" = "portaria",
   "portarias" = "portaria",
-  "redação final" = "redacao_final",
-  "projeto de redação final" = "redacao_final"
+  "redação final" = "redacao final",
+  "projeto de redação final" = "redacao final"
 )
 
 # Aplicar mapeamento
-CidadesAL[, Tipo := fcase(
-  tolower(Tipo_Projeto) %in% names(mapping_dict), mapping_dict[tolower(Tipo_Projeto)],
-  default = Tipo_Projeto
-)] 
+CidadesAL[, Tipo := {
+  idx <- match(tolower(get("Tipo_Projeto")), names(mapping_dict))
+  ifelse(!is.na(idx), mapping_dict[idx], get("Tipo_Projeto"))
+}]
+
+rm(mapping_dict)
 ```
 
 Agora, irei adicionar à base um registro dos termos relacionados às políticas climáticas que serão utilizados na análise, para classificar os projetos a partir de suas ementas.
@@ -429,6 +431,7 @@ CidadesAL13_23 <- CidadesAL %>%
 
 saveRDS(CidadesAL13_23, here("Dados/CidadesAL13_23.RDS"))
 
+rm(CidadesAL)
 ```
 
 ## 1.5 Projetos climáticos
