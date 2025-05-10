@@ -3,6 +3,38 @@ title: "2. Análise descritiva dos bancos de dados"
 output: html_notebook
 ---
 
+# 2. Análise descritiva dos bancos de dados
+
+(Certifique-se de ter completado o arquivo "1. Carregando e limpando as bases de dados"
+
+Agora que já criamos a base de dados, podemos fazer uma primeira análise descritiva dela. Vamos por categorias:
+
+```{r}
+#Carregando os pacotes que serão utilizados
+library(dplyr)
+library(ggplot2)
+```
+
+```{r}
+#Carregando a base de dados
+df <- readRDS(here("Dados/df_agendaclima_municipal.RDS"))
+```
+
+## 2.1 Municípios analisados
+
+Para começar, faremos uma lista e um mapa dos municípios que serão analisados.
+
+```{r}
+#Lista de municípios analisados
+lista_municipios <- df %>% 
+  select(Cod_IBGE_Mun, )
+```
+
+## Variável dependente: Projetos
+
+A seguir, vamos analisar as características da base de projetos.
+
+### 2.1.1 Linha do tempo da 
 
 ```{r}
 plot(cars)
