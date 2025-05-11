@@ -9,7 +9,7 @@ output: html_notebook
 
 Agora que já criamos a base de dados, podemos fazer uma primeira análise descritiva dela. Vamos por categorias:
 
-```{r}
+```{r, 'instalar_pacotes'}
 #Instalando pacotes (não utilizados nos anteriores):
 #install.packages("sf")
 #install.packages("geobr")
@@ -36,7 +36,7 @@ df <- df %>%
 saveRDS(df, here("Dados/df_agendaclima_municipal.RDS"))
 ```
 
-## 2.1 Municípios analisados
+# 2.1 Municípios analisados
 
 Para começar, faremos uma lista e um mapa dos municípios que serão analisados.
 
@@ -261,7 +261,7 @@ tiproj_n <- tiproj %>%
   theme(legend.position = "none")+
   scale_fill_manual(values = paleta_proposituras$Cores, limits = paleta_proposituras$Tipo)
 
-ggsave(here("Figuras/2.1.1N_Proposituras_Tipo.png"), tiproj_n)
+ggsave(here("Figuras/2.2.1N_Proposituras_Tipo.png"), tiproj_n)
   
 rm(tiproj_n)
 ```
@@ -281,7 +281,7 @@ tiproj_ano <- tiproj %>%
   theme(legend.position = "bottom")+
   scale_fill_manual(values = paleta_proposituras$Cores, limits = paleta_proposituras$Tipo)
 
-ggsave(here("Figuras/2.1.2N_Proposituras_Ano.png"), tiproj_ano)
+ggsave(here("Figuras/2.2.2N_Proposituras_Ano.png"), tiproj_ano)
   
 rm(tiproj_ano)
 
@@ -343,13 +343,12 @@ ptipano <- tiproj %>%
 
 ggsave(here("Figuras/2.2.4P_Tipos_Prop_Ano.png"), ptipano)
 
-rm(ptipano)
+rm(ptipano, tiproj)
 ```
 
-### 2.2.5. Presença de termos climáticos #PAREI AQUI
+### 2.2.5. Presença de termos climáticos 
 
 ```{r}
-library(tidyr)
 #Termos clima presentes
 
 climatermos <- df %>% 
@@ -358,115 +357,302 @@ climatermos <- df %>%
   pivot_longer(starts_with("clima_"), names_to = "clima_names", names_prefix = "clima_", values_to = "clima_termos") %>% 
   filter(!is.na(clima_termos)) %>% 
   group_by(Ano, Tipo, clima_termos) %>% 
-  summarise(n = n())
+  summarise(n = n()) %>% 
+  mutate(Categoria = case_when( #Adicionando categorias
+  #Chuvas:
+  clima_termos %in% c(" pluvial", " pluviais", " chuva", " fortes chuvas",  " chuvoso") ~ "Chuvas",
+  #Alagamentos e Inundações:
+  clima_termos %in% c(" alagamento",  " inundação", " inundações", " enxurrada", " enchente") ~ "Alagamentos e Inundações",
+  #Movimentos de Massa:
+  clima_termos %in% c(" deslizamento", " soterramento", " desabamento", " erosão") ~ "Movimentos de Massa",
+  #Secas:
+  clima_termos %in% c(" seca", " estiagem", " estiagens" ) ~ "Secas",
+  #Clima:
+  clima_termos %in% c(" clima", " adaptação climática", " aquecimento global", " mitigação", " eventos climáticos extremos", " descarbonização", " transição energética", " carbono", " efeito estufa") ~ "Clima",
+  #Ventos:
+  clima_termos == " vento" ~ "Ventos",
+  #Incêndios:
+  clima_termos == " incêndio" ~ "Incêndios",
+    #Defesa Civil
+    clima_termos == " defesa civil" ~ "Defesa Civil")) %>% 
+  ungroup()
+
+paleta_climatermos <- climatermos %>%
+  select(Categoria) %>% 
+  unique() %>% 
+  mutate(Cores = case_when(
+    Categoria == "Chuvas" ~ "#24D7FF",
+    Categoria == "Alagamentos e Inundações" ~ "#242BFF",
+    Categoria == "Movimentos de Massa" ~ "#FF7424",
+    Categoria == "Secas" ~ "#F4FF24",
+    Categoria == "Clima" ~ "#8A24FF",
+    Categoria == "Ventos" ~ "#FF24BA",
+    Categoria == "Incêndios" ~ "#FF2424",
+    Categoria == "Defesa Civil" ~ "#45FF24"))
+  
+
 ```
 
-## 2.3 Variável explicativa: Desastres
+### 2.2.6 Contagem termos climáticos
 
 ```{r}
-df <- readRDS(here("Dados/df.RDS"))
-```
+#Gráfico contagem:
 
-```{r, n_biomas}
-df_desastres <- df %>% 
-  filter(TDesastre == TRUE)  
-
-p_df <- df_desastres %>%  
-  group_by(Desastre, Bioma) %>%
-  summarise(n = n()) %>% 
-  group_by(Bioma) %>% 
-  mutate(p_des = n / sum(n))%>% 
-  mutate(Desastre = ifelse(p_des < 0.09, "Outros", Desastre))
-
-
-graf1 <- p_df%>% 
-  ggplot(aes( x = Bioma, y = p_des, fill =Desastre)) + 
-  geom_bar(stat = "identity", position = "fill")+ 
-  theme_linedraw()+
-  labs(title = "Gráfico 1 - Distribuição dos tipos de desastre no 'Atlas', por Bioma")+
-  scale_fill_brewer(palette = "Dark2")+
-   ylab(label = "Percentual")+
-  theme(legend.position="bottom",
-        legend.title = element_blank())
-
-ggsave(graf1, file = (here("Gráficos/graf1.png")), width = 20, height = 12, units = "cm")
-
-plot(graf1)
-```
-
-```{r, 'n_ocorrencias'}
-
-fig1 <- Desastres %>% 
-  count(Desastre) %>% 
-  data.frame() %>% 
-  arrange(desc(n)) %>% 
-  rename("Nº de ocorrências" = n) %>% 
-  ggplot(aes(x = `Nº de ocorrências`, y = reorder(Desastre, `Nº de ocorrências`))) +
+n_ct <- climatermos %>%
+  group_by(clima_termos, Categoria) %>% 
+  summarise(n = sum(n)) %>% 
+  ggplot(aes(y = reorder(clima_termos, n), x = n, fill = Categoria)) +
   geom_col() +
-  theme_linedraw()+ 
-  xlab(label = "Número de ocorrências") +
-  ylab(label = "Tipo de desastre") +
-  labs(title = "Figura 1- Número de ocorrências no 'Atlas' (1991-2022)")+
-  theme(axis.text.x = element_text(angle = 60, vjust = 1, hjust=1)) +
-  theme(legend.position="none", text=element_text(size=10))+ 
-  scale_fill_brewer(palette = "Dark2")
+  labs(
+    title = "Número de menções a termos climáticos nas proposituras",
+    x = "Número de menções",
+    y = "Termos climáticos",
+    fill = "Categorias"
+  ) +
+  theme_classic() +
+  theme(legend.position = "bottom")+
+  scale_fill_manual(values = paleta_climatermos$Cores, limits = paleta_climatermos$Categoria)
 
-plot(fig1)
+ggsave(here("Figuras/2.2.5N_climatermos.png"), n_ct)
+  
+rm(n_ct)
 ```
 
-```{r, 'Cronologia_Desastres'}
+### 2.2.7 Contagem termos climáticos, por ano
+
+```{r}
+
+ct_nano <- climatermos %>%
+  ggplot(aes(y = n, x = Ano, fill = Categoria)) +
+  geom_col() +
+  labs(
+    title = "Número de menções a termos climáticos nas proposituras, por ano",
+    x = "Ano",
+    y = "Número de menções",
+    fill = "Categorias de Termos"
+  ) +
+  theme_classic() +
+  theme(legend.position = "bottom")+
+  scale_fill_manual(values = paleta_climatermos$Cores, limits = paleta_climatermos$Categoria)
+
+ggsave(here("Figuras/2.2.6N_climatermos_ano.png"), ct_nano)
+  
+rm(ct_nano)
+```
+
+### 2.2.8 Percentual de proposituras climáticas, por ano e tipo
+
+```{r}
+#Percentual de proposituras climáticas, por tipo
+
+ct_pano <- climatermos %>% 
+  group_by(Categoria, Ano) %>%
+  summarise(n_al = n()) %>% 
+  group_by(Ano) %>% 
+  mutate(p_al = n_al/sum(n_al)) %>% 
+  ggplot(aes( x = `Ano`, y = p_al, fill = Categoria)) + 
+  geom_bar(stat = "identity")+ 
+  theme_classic()+
+  labs(title = "Distribuição das ocorrências dos termos climáticos, por ano", 
+       y = 'Percentual dos termos')+
+  scale_y_continuous(labels = label_percent(accuracy = 1)) +
+  theme(legend.position = "bottom")+
+  scale_fill_manual(values = paleta_climatermos$Cores, limits = paleta_climatermos$Categoria)
+
+
+ggsave(here("Figuras/2.2.7P_Categorias_Termos_ano.png"), ct_pano)
+
+rm(ct_pano, climatermos)
+```
+
+### 2.2.9 Tipos de propositura x Termos climáticos
+
+Agora, vamos cruzar as duas informações para compreender como elas se relacionam.
+
+```{r}
+
+tiproj_termosclima <- climatermos %>%
+  mutate(Tipo = ifelse(Tipo %in% paleta_proposituras$Tipo, Tipo, "outros")) %>% 
+  group_by(Tipo) %>%
+  mutate(p_al = n / sum(n)) %>% 
+  group_by(Tipo, Categoria) %>%
+  summarise(p_al = sum(p_al),
+            n_al = sum(n)) %>% 
+  ggplot(aes( y = reorder(`Tipo`, n_al), x = p_al, fill = Categoria)) + 
+  geom_bar(stat = "identity")+ 
+  theme_classic()+
+  labs(title = "Distribuição dos termos climáticas, por tipo de propositura", 
+       x = 'Percentual', 
+       y = "Tipos de proposituras")+
+  scale_x_continuous(labels = label_percent(accuracy = 1)) +
+  theme(legend.position = "bottom")+
+  scale_fill_manual(values = paleta_climatermos$Cores, limits = paleta_climatermos$Categoria)
+
+ggsave(here("Figuras/2.2.6P_Tipos_Proposituras_Termos_Climáticos.png"), tiproj_termosclima)
+
+rm(tiproj_termosclima, climatermos)
+```
+
+## 2.3 Variáveis explicativas: 
+
+## 2.3.1 Desastres
+
+### Linha do tempo desastres na base analisada (números absolutos)
+
+Ocorrências
+
+```{r}
+#Recuperar base Desastres
 Desastres <- readRDS(here("Dados/Desastres.RDS"))
+#Tipos de projetos mais comuns
 
-pDesastres <- Desastres %>%
+dfdesastres <- Desastres %>%
+  filter(Cod_IBGE_Mun %in% lista_municipios$Cod_IBGE_Mun) %>% 
   group_by(Desastre, Ano) %>% 
-  summarise(n_al = n()) %>%
-  group_by(Ano) %>%
-  mutate(p_al = n_al / sum(n_al))
+  summarise(n = n(),
+            DH_MORTOS = sum(DH_MORTOS)) %>% 
+  data.table()
 
-ggDesastres <- merge(Desastres, pDesastres, by = c('Desastre', 'Ano'), all.x = T) %>% 
-  mutate(p_al = ifelse(is.na(p_al), 0, p_al))%>% 
-  mutate(Desastre = ifelse(p_al < 0.06, "Outros", Desastre))
+#Criando paleta de cores para os projetos mais comuns
+paleta_desastres <- data.table(Tipo = c("Estiagem e Seca", "Enxurradas", "Chuvas Intensas", "Inundações",  "Vendavais e Ciclones", "Movimento de Massa", "Alagamentos", "Granizo", "Incêndio Florestal", "Erosão", "Onda de Calor e Baixa Umidade", "Onda de Frio", "Tornado"),
+                    Cores = c("#E9D200", "#00E89F", "#009BE8", "#001BE8",  "#C500E8", "#D46600", "#00C213", "#2AEEF5", "#B00000", "#6D2AF5", "#C5F52A", "#4AABD1", "#71CEF3"))
 
-fig2 <- ggDesastres%>% 
-  group_by(Ano, Desastre) %>% 
-  summarise("Ocorrências" = n()) %>% 
-  arrange(Ano) %>% 
-  ggplot(aes(x = Ano, y = Ocorrências , fill = Desastre)) +
-  geom_bar(stat="identity") +
-  theme_linedraw()+
-  xlab(label = "Ano") +
-  ylab(label = "Número de ocorrências") +
-  labs(title = "Figura 2 - Número de ocorrências no 'Atlas' (1991-2022)")+
-  theme(axis.text.x = element_text(angle = 60, vjust = 1, hjust=1),
-        legend.position="bottom", text=element_text(size=10))+
-  theme(legend.title = element_blank())+
-  scale_fill_brewer(palette = "Dark2")
-    
-
-plot(fig2)
 ```
 
-```{r, 'Decis populacionais'}
+```{r, anos_desastres}
 
-df_desastres <- readRDS(here("Dados/df.RDS")) %>% 
-  filter(TDesastre == TRUE)  
+ndes_ano <- dfdesastres %>%
+  ggplot(aes(y = n, x = Ano, fill = Desastre)) +
+  geom_col() +
+  labs(
+    title = "Número de desastres na seleção, por categoria de desastres e anos",
+    y = "Número de desastres",
+    x = "Ano",
+    fill = "Categorias de Desastres"
+  ) +
+  theme_linedraw() +
+  theme(legend.position = "bottom")+
+  scale_fill_manual(values = paleta_desastres$Cores, limits = paleta_desastres$Tipo)
 
-p_df <- df_desastres %>%  
-  group_by(Desastre, `Decil populacional`) %>%
-  summarise(n = n()) %>% 
-  group_by(`Decil populacional`) %>% 
-  mutate(p_des = n / sum(n))%>% 
-  mutate(Desastre = ifelse(p_des < 0.065, "Outros", Desastre))
 
-
-fig3 <- p_df%>% 
-  ggplot(aes( x = `Decil populacional`, y = p_des, fill =Desastre)) + 
-  geom_bar(stat = "identity", position = "fill")+ 
-  theme_linedraw()+
-  labs(title = "Figura 3 - Distribuição dos tipos de desastre, por decil populacional")+
-  scale_fill_brewer(palette = "Dark2")+
-   ylab(label = "Percentual")+
-  theme(legend.position="bottom",
-        legend.title = element_blank())
-plot(fig3)
+ggsave(here("Figuras/2.3.1N_Desastres_Anos.png"), ndes_ano)
+  
+rm(ndes_ano)
 ```
+
+Letalidade
+
+```{r}
+
+  
+nlet_ano <- dfdesastres %>%
+  ggplot(aes(y = DH_MORTOS, x = Ano, fill = Desastre)) +
+  geom_col() +
+  labs(
+    title = "Número de óbitos registrados nos municípios selecionados, por categoria de desastres e anos",
+    y = "Número de óbitos",
+    x = "Ano",
+    fill = "Categorias de Desastres"
+  ) +
+  theme_linedraw() +
+  theme(legend.position = "bottom")+
+  scale_fill_manual(values = paleta_desastres$Cores, limits = paleta_desastres$Tipo)
+
+
+ggsave(here("Figuras/2.3.2N_Des_Letalidade_Anos.png"), nlet_ano)
+  
+rm(nlet_ano )
+```
+
+### Comparação do percentual de desastres na base e no Brasil (percentuais)
+
+Ocorrências
+
+```{r}
+#Adicionando informações do resto do Brasil
+
+totalDes <- Desastres %>%
+  group_by(Desastre, Ano) %>% 
+  summarise(n_Brasil = n(),
+            DH_MORTOS = sum(DH_MORTOS)) %>% 
+  group_by(Ano) %>% 
+  mutate(p_Brasil = n_Brasil/sum(n_Brasil),
+         pc_obitos_Brasil = DH_MORTOS/sum(DH_MORTOS)) %>%
+  rename("obitos_Brasil" = DH_MORTOS) %>% 
+  data.table()
+
+#Novo Desastres  
+dfdesastres <- dfdesastres %>% 
+  rename("n_selecao" = n, 
+         "obitos_selecao" = DH_MORTOS) %>% 
+  group_by(Ano) %>% 
+  mutate(p_selecao = n_selecao/sum(n_selecao), 
+         pc_obitos_selecao = obitos_selecao/sum(obitos_selecao)) %>% 
+    merge(totalDes, by = c("Desastre", "Ano"), all= T) %>% 
+  replace(is.na(.), 0)
+
+
+
+```
+
+```{r}
+p_des_ano_cat <- dfdesastres %>% 
+  pivot_longer(cols = starts_with("p_"), names_prefix = "p_", names_to = "origem", values_to = "Percentual") %>% 
+  ggplot(aes( x = `Desastre`, y = Percentual, fill = Desastre, group = Desastre)) + 
+  geom_bar(stat = "identity")+ 
+  theme_classic()+
+  labs(title = "Percentual das ocorrências de desastres, por ano e categoria", 
+       y = 'Percentual de ocorrências', 
+       x = "Anos")+
+  scale_y_continuous(labels = label_percent(accuracy = 1)) +
+  theme(legend.position = "bottom")+
+  scale_fill_manual(values = paleta_desastres$Cores, limits = paleta_desastres$Tipo) + 
+  facet_wrap(~origem)
+
+
+ggsave(here("Figuras/2.3.3P_Categoria_Desastres_Ano.png"), p_des_ano_cat)
+
+rm(Desastres, totalDes, p_des_ano_cat)
+```
+
+Letalidade
+
+```{r}
+
+```
+
+## 2.3.2 Riscos Climáticos
+
+### Histogramas de riscos climáticos por área
+
+```{r}
+
+```
+
+### Histograma de riscos climáticos por componentes
+
+```{r}
+
+```
+
+## 2.3.3 Presença de OCSs nos Municípios
+
+### Histograma da distribuição de OSCs: base vs Brasil
+
+## 2.3.4 Orçamento dos municípios
+
+### Histograma do orçamento dos municípios vs Brasil
+
+# 2.4 Cruzando as variáveis
+
+## 2.4.1 Proposituras x Desastres
+
+### 2.4.1.1 Nº Proposituras x Dias após Desastre
+
+### 2.4.1.2 Tipo de Proposituras x Dias após Desastre
+
+## 2.4.2 % Proposituras Município x Risco Climático
+
+## 2.4.3 % Proposituras Município x Nº de OSCs  
+
+## 2.4.4  %Proposituras climáticas x Orçamento municipal

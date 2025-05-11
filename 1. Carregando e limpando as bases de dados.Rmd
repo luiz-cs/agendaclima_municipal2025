@@ -300,7 +300,7 @@ Agora, irei adicionar à base um registro dos termos relacionados às políticas
 
 ```{r, 'termos_clima'}
 #Lista de termos relacionados às políticas climáticas
-termos_clima <- c(" clima", " adaptação climática", " defesa civil", " alagamento",  " inundação", " inundações", " deslizamento", " aquecimento global", " mitigação", " chuva", " fortes chuvas", " vento", " deslizamento", " soterramento", " desabamento", " incêndio", " enxurrada", " eventos climáticos extremos"," seca", " estiagem", " estiagens" , " pluvial", " pluviais", " enchente", " chuvoso", " erosão", " descarbonização", " transição energética", " carbono", " efeito estufa")
+termos_clima <- c(" clima", " adaptação climática", " defesa civil", " alagamento",  " inundação", " inundações", " aquecimento global", " mitigação", " chuva", " fortes chuvas", " vento", " deslizamento", " soterramento", " desabamento", " incêndio", " enxurrada", " eventos climáticos extremos"," seca", " estiagem", " estiagens" , " pluvial", " pluviais", " enchente", " chuvoso", " erosão", " descarbonização", " transição energética", " carbono", " efeito estufa")
   
 # Criando coluna para inserir termos sobre clima
 CidadesAL$clima_termos <- NA_character_
