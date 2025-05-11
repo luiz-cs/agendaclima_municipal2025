@@ -346,7 +346,7 @@ ggsave(here("Figuras/2.2.4P_Tipos_Prop_Ano.png"), ptipano)
 rm(ptipano, tiproj)
 ```
 
-### 2.2.5. Presença de termos climáticos 
+### 2.2.5. Presença de termos climáticos
 
 ```{r}
 #Termos clima presentes
@@ -493,7 +493,7 @@ ggsave(here("Figuras/2.2.6P_Tipos_Proposituras_Termos_Climáticos.png"), tiproj_
 rm(tiproj_termosclima, climatermos)
 ```
 
-## 2.3 Variáveis explicativas: 
+## 2.3 Variáveis explicativas:
 
 ## 2.3.1 Desastres
 
@@ -596,9 +596,10 @@ dfdesastres <- dfdesastres %>%
 ```
 
 ```{r}
+
 p_des_ano_cat <- dfdesastres %>% 
   pivot_longer(cols = starts_with("p_"), names_prefix = "p_", names_to = "origem", values_to = "Percentual") %>% 
-  ggplot(aes( x = `Desastre`, y = Percentual, fill = Desastre, group = Desastre)) + 
+  ggplot(aes( x = `Ano`, y = Percentual, fill = Desastre, group = Desastre)) + 
   geom_bar(stat = "identity")+ 
   theme_classic()+
   labs(title = "Percentual das ocorrências de desastres, por ano e categoria", 
@@ -609,7 +610,7 @@ p_des_ano_cat <- dfdesastres %>%
   scale_fill_manual(values = paleta_desastres$Cores, limits = paleta_desastres$Tipo) + 
   facet_wrap(~origem)
 
-
+p_des_ano_cat
 ggsave(here("Figuras/2.3.3P_Categoria_Desastres_Ano.png"), p_des_ano_cat)
 
 rm(Desastres, totalDes, p_des_ano_cat)
@@ -653,6 +654,6 @@ Letalidade
 
 ## 2.4.2 % Proposituras Município x Risco Climático
 
-## 2.4.3 % Proposituras Município x Nº de OSCs  
+## 2.4.3 % Proposituras Município x Nº de OSCs
 
-## 2.4.4  %Proposituras climáticas x Orçamento municipal
+## 2.4.4 %Proposituras climáticas x Orçamento municipal
