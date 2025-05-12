@@ -30,10 +30,6 @@ library(formattable)
 #Carregando a base de dados
 df <- readRDS(here("Dados/df_agendaclima_municipal.RDS"))
 
-df <- df %>% 
-  mutate(Tipo = ifelse(Tipo == "requerimento (regimento antigo)", "requerimento", Tipo))
-
-saveRDS(df, here("Dados/df_agendaclima_municipal.RDS"))
 ```
 
 # 2.1 Municípios analisados
@@ -51,7 +47,7 @@ write.csv(lista_municipios, here("Dados/lista_municipios.csv"))
 
 ### 2.1.1 Mapa dos municípios selecionados
 
-```{r}
+```{r, 'criando_mapa'}
 library(sf)
 library(geobr)
 #Listando os municípios presentes na seleção:
@@ -82,7 +78,7 @@ Todas as figuras salvas podem ser vistas na pasta "Figuras"
 
 Agora vamos fazer uma contagem do número de municípios por UF, e compará-la com o número de municípios que existem em cada estado
 
-```{r}
+```{r, 'base_uf'}
 #Criando base com número de municípios por UF
 uf <- lista_municipios %>% 
   group_by(UF) %>% 
@@ -124,7 +120,7 @@ paleta_regiao <- setNames(uf$Cores, uf$Regiao)
 rm(AB_UF, regioes, cores)
 ```
 
-```{r}
+```{r, 'graficos_uf'}
 #Plotando os gráficos
 library(scales)
 
@@ -151,7 +147,7 @@ ggsave(here("Figuras/2.1.2N_Municipios_UF.png"), uf_num)
 rm(uf_num)
 ```
 
-```{r}
+```{r, 'percentual_uf'}
 #Percentual de municípios por UF
 
 uf_percent <- uf %>%
@@ -173,7 +169,7 @@ ggsave(here("Figuras/2.1.2P_Municipios_UF.png"), uf_percent)
 rm(uf_percent)
 ```
 
-```{r}
+```{r 'n_regiao'}
 #Reduzindo apenas para região
 regiao <- uf %>% 
   group_by(Regiao, Cores) %>% 
@@ -203,7 +199,7 @@ ggsave(here("Figuras/2.1.2N_Municipios_Regiao.png"), regiao_num)
 rm(regiao_num)
 ```
 
-```{r}
+```{r, 'percentual_regiao'}
 #Percentual por região
 
 regiao_percent <- regiao %>%
@@ -231,7 +227,7 @@ A seguir, vamos analisar as características da base de projetos:
 
 ### 2.2.1 Número total de projetos climáticos, por tipo
 
-```{r}
+```{r 'base_tipos_projetos'}
 #Tipos de projetos mais comuns
 
 tiproj <- df %>%
@@ -289,7 +285,7 @@ rm(tiproj_ano)
 
 ### 2.2.3 Percentual dos tipos de proposituras na lista de projetos climáticos, por ano
 
-```{r}
+```{r, 'percentual_tiproj'}
 
 #Percentual de proposituras climáticas, por tipo
 tiproj <- tiproj  %>% 
@@ -316,7 +312,7 @@ rm(tiproj_pano)
 
 ### 2.2.4. Proporção dos tipos de proposituras climáticas em relação ao total de projetos deste tipo, por ano
 
-```{r}
+```{r, 'proporcao_tiproj'}
 #Percentual em relação ao total de proposituras
 
 tiproj <- df %>% 
@@ -348,7 +344,8 @@ rm(ptipano, tiproj)
 
 ### 2.2.5. Presença de termos climáticos
 
-```{r}
+```{r, 'base_termos_clima'}
+library(tidyr)
 #Termos clima presentes
 
 climatermos <- df %>% 
@@ -391,11 +388,12 @@ paleta_climatermos <- climatermos %>%
     Categoria == "Defesa Civil" ~ "#45FF24"))
   
 
+rm(df)
 ```
 
 ### 2.2.6 Contagem termos climáticos
 
-```{r}
+```{r, 'contagem_termos_clima'}
 #Gráfico contagem:
 
 n_ct <- climatermos %>%
@@ -420,7 +418,7 @@ rm(n_ct)
 
 ### 2.2.7 Contagem termos climáticos, por ano
 
-```{r}
+```{r, contagem_termos_ano}
 
 ct_nano <- climatermos %>%
   ggplot(aes(y = n, x = Ano, fill = Categoria)) +
@@ -442,7 +440,7 @@ rm(ct_nano)
 
 ### 2.2.8 Percentual de proposituras climáticas, por ano e tipo
 
-```{r}
+```{r, 'percentual_tipo_Clima'}
 #Percentual de proposituras climáticas, por tipo
 
 ct_pano <- climatermos %>% 
@@ -462,14 +460,14 @@ ct_pano <- climatermos %>%
 
 ggsave(here("Figuras/2.2.7P_Categorias_Termos_ano.png"), ct_pano)
 
-rm(ct_pano, climatermos)
+rm(ct_pano)
 ```
 
 ### 2.2.9 Tipos de propositura x Termos climáticos
 
 Agora, vamos cruzar as duas informações para compreender como elas se relacionam.
 
-```{r}
+```{r, 'propositura_Clima'}
 
 tiproj_termosclima <- climatermos %>%
   mutate(Tipo = ifelse(Tipo %in% paleta_proposituras$Tipo, Tipo, "outros")) %>% 
@@ -501,7 +499,7 @@ rm(tiproj_termosclima, climatermos)
 
 Ocorrências
 
-```{r}
+```{r, 'base_desastres'}
 #Recuperar base Desastres
 Desastres <- readRDS(here("Dados/Desastres.RDS"))
 #Tipos de projetos mais comuns
@@ -534,15 +532,15 @@ ndes_ano <- dfdesastres %>%
   theme(legend.position = "bottom")+
   scale_fill_manual(values = paleta_desastres$Cores, limits = paleta_desastres$Tipo)
 
-
-ggsave(here("Figuras/2.3.1N_Desastres_Anos.png"), ndes_ano)
+ndes_ano
+ggsave(here("Figuras/2.3.1.1N_Desastres_Anos.png"), ndes_ano)
   
 rm(ndes_ano)
 ```
 
 Letalidade
 
-```{r}
+```{r, 'letalidade_desastres'}
 
   
 nlet_ano <- dfdesastres %>%
@@ -557,9 +555,9 @@ nlet_ano <- dfdesastres %>%
   theme_linedraw() +
   theme(legend.position = "bottom")+
   scale_fill_manual(values = paleta_desastres$Cores, limits = paleta_desastres$Tipo)
+nlet_ano
 
-
-ggsave(here("Figuras/2.3.2N_Des_Letalidade_Anos.png"), nlet_ano)
+ggsave(here("Figuras/2.3.1.2N_Des_Letalidade_Anos.png"), nlet_ano)
   
 rm(nlet_ano )
 ```
@@ -568,7 +566,7 @@ rm(nlet_ano )
 
 Ocorrências
 
-```{r}
+```{r, 'comparacao_brasil'}
 #Adicionando informações do resto do Brasil
 
 totalDes <- Desastres %>%
@@ -595,11 +593,11 @@ dfdesastres <- dfdesastres %>%
 
 ```
 
-```{r}
-
+```{r, 'graf_comparacao_brasil'}
+#Gráfico com comparação entre percentual por ano nos municípios selecionados e no brasil
 p_des_ano_cat <- dfdesastres %>% 
   pivot_longer(cols = starts_with("p_"), names_prefix = "p_", names_to = "origem", values_to = "Percentual") %>% 
-  ggplot(aes( x = `Ano`, y = Percentual, fill = Desastre, group = Desastre)) + 
+  ggplot(aes( x = `Ano`, y = Percentual, fill = Desastre)) + 
   geom_bar(stat = "identity")+ 
   theme_classic()+
   labs(title = "Percentual das ocorrências de desastres, por ano e categoria", 
@@ -608,47 +606,423 @@ p_des_ano_cat <- dfdesastres %>%
   scale_y_continuous(labels = label_percent(accuracy = 1)) +
   theme(legend.position = "bottom")+
   scale_fill_manual(values = paleta_desastres$Cores, limits = paleta_desastres$Tipo) + 
-  facet_wrap(~origem)
+  facet_grid(Desastre ~ origem)
 
 p_des_ano_cat
-ggsave(here("Figuras/2.3.3P_Categoria_Desastres_Ano.png"), p_des_ano_cat)
+
+ggsave(here("Figuras/2.3.1.3P_Categoria_Desastres_Ano.png"), p_des_ano_cat, width = 10, height = 15)
 
 rm(Desastres, totalDes, p_des_ano_cat)
 ```
 
 Letalidade
 
-```{r}
+```{r, 'comparacao_letalidade'}
+p_des_ano_obitos <- dfdesastres %>% 
+  filter(obitos_selecao != 0, 
+         obitos_Brasil != 0) %>% 
+  pivot_longer(cols = starts_with("pc_obitos_"), names_prefix = "pc_obitos_", names_to = "origem", values_to = "Percentual") %>% 
+  ggplot(aes( x = `Ano`, y = Percentual, fill = Desastre, group = Desastre)) + 
+  geom_bar(stat = "identity")+ 
+  theme_classic()+
+  labs(title = "Percentual de óbitos por tipo de desastres, por ano", 
+       y = 'Percentual de ocorrências', 
+       x = "Anos")+
+  scale_y_continuous(labels = label_percent(accuracy = 1)) +
+  theme(legend.position = "bottom")+
+  scale_fill_manual(values = paleta_desastres$Cores, limits = paleta_desastres$Tipo) + 
+  facet_grid(Desastre ~ origem)
 
+p_des_ano_obitos
+
+ggsave(here("Figuras/2.3.1.4P_Categoria_Desastres_Obitos.png"), p_des_ano_obitos, width = 10, height = 15)
+
+rm(p_des_ano_obitos, dfdesastres)
 ```
 
 ## 2.3.2 Riscos Climáticos
 
-### Histogramas de riscos climáticos por área
+### Base de Dados Riscos Climáticos
+
+```{r}
+library(stringr)
+#Subindo a base do Sistema "AdaptaBrasil" e simplificando dados com "Pivot_Longer"
+AdaptaBrasil <- readRDS(here("Dados/AdaptaBrasil.RDS")) %>% 
+  pivot_longer(cols = !c("Cod_IBGE_Mun", "Municipio_UF"), names_prefix = "AB", names_to = "Indicador", values_to = "Indice_Risco") %>%
+  mutate(
+    Indice_Risco = as.numeric(Indice_Risco),
+    parts = str_split(Indicador, "_"),
+    Nivel = sapply(parts, function(x) x[1]),
+    Dimensao_Risco = sapply(parts, function(x) paste(x[2:3], collapse = " ")),
+    Risco_Climatico = sapply(parts, function(x) if(length(x) >= 4) paste(x[4:length(x)], collapse = " ") else NA_character_)
+  ) %>%
+  select(-parts) %>% 
+  mutate(origem = ifelse(Cod_IBGE_Mun %in% lista_municipios$Cod_IBGE_Mun, "Municipios Selecionados", "Brasil")) %>%
+  filter(!is.na(Indice_Risco)) %>% 
+  data.table()
+  
+
+```
+
+### Distribuição de riscos climáticos por área
 
 ```{r}
 
+#Tabela
+sumABselecao <- AdaptaBrasil %>% 
+  filter(Nivel == 2, 
+         origem == "Municipios Selecionados") %>% 
+  group_by(Risco_Climatico) %>% 
+  summarise(Media_selecionados = mean(Indice_Risco), 
+            Mediana_selecionados = median(Indice_Risco), 
+            DesvPad_selecionados = sd(Indice_Risco))
+
+AdaptaBrasil %>% 
+  filter(Nivel == 2) %>% 
+  group_by(Risco_Climatico) %>% 
+  summarise(Media_Brasil = mean(Indice_Risco), 
+            Mediana_Brasil = median(Indice_Risco), 
+            DesvPad_Brasil = sd(Indice_Risco)) %>% 
+  merge(sumABselecao, by = "Risco_Climatico") %>% 
+  mutate(Diferenca_Media = Media_selecionados - Media_Brasil, 
+         Diferenca_Mediana = Mediana_selecionados - Mediana_Brasil, 
+         Diferenca_DesvPad = DesvPad_selecionados - DesvPad_Brasil) %>% 
+  select(Risco_Climatico, Media_selecionados, Media_Brasil, Diferenca_Media, Mediana_selecionados, Mediana_Brasil, Diferenca_Mediana, DesvPad_selecionados, DesvPad_Brasil, Diferenca_DesvPad)
+```
+
+```{r}
+#Gráficos da distribuição
+dist_AB <- AdaptaBrasil %>%
+  filter(origem == "Municipios Selecionados") %>% 
+  mutate(origem = "Brasil") %>% 
+  bind_rows(AdaptaBrasil) %>% 
+  filter(Nivel == 2) %>% 
+  ggplot(aes(x = Indice_Risco,  fill = origem)) +
+  geom_density() +
+  labs(
+    title = "Distribuição da frequência de níveis de risco nos municípios selecionados",
+    y = "Frequência",
+    x = "Nível de Risco",
+    fill = "Categorias de Desastres"
+  ) +
+  scale_y_continuous(labels = label_percent(accuracy = 1)) +
+  theme_linedraw()+
+  theme(legend.position = "bottom")+
+    facet_wrap(origem ~ Risco_Climatico, ncol = 4)
+
+dist_AB
+ggsave(here("Figuras/2.3.2.1Distribuicao_Risco_Climatico.png"), dist_AB)
+  
+rm(dist_AB, sumABselecao)
 ```
 
 ### Histograma de riscos climáticos por componentes
 
 ```{r}
 
+#Tabela
+
+sumABselecao <- AdaptaBrasil %>% 
+  filter(Nivel == 3, 
+         origem == "Municipios Selecionados") %>% 
+  group_by(Indicador) %>% 
+  summarise(Media_selecionados = mean(Indice_Risco), 
+            Mediana_selecionados = median(Indice_Risco), 
+            DesvPad_selecionados = sd(Indice_Risco))
+
+AdaptaBrasil %>% 
+  filter(Nivel == 3) %>%  
+  group_by(Indicador) %>% 
+  summarise(Media_Brasil = mean(Indice_Risco), 
+            Mediana_Brasil = median(Indice_Risco), 
+            DesvPad_Brasil = sd(Indice_Risco)) %>% 
+  merge(sumABselecao, by = "Indicador") %>% 
+  mutate(Diferenca_Media = Media_selecionados - Media_Brasil, 
+         Diferenca_Mediana = Mediana_selecionados - Mediana_Brasil, 
+         Diferenca_DesvPad = DesvPad_selecionados - DesvPad_Brasil) %>% 
+  select(Indicador, Media_selecionados, Media_Brasil, Diferenca_Media, Mediana_selecionados, Mediana_Brasil, Diferenca_Mediana, DesvPad_selecionados, DesvPad_Brasil, Diferenca_DesvPad)
+```
+
+```{r}
+dist_AB_componentes <- AdaptaBrasil %>%
+  filter(origem == "Municipios Selecionados") %>% 
+  mutate(origem = "Brasil") %>% 
+  bind_rows(AdaptaBrasil) %>% 
+  filter(Nivel == 3) %>% 
+  ggplot(aes(x = Indice_Risco,  fill = origem)) +
+  geom_density() +
+  labs(
+    title = "Distribuição da frequência de níveis de risco nos municípios selecionados, por componente",
+    y = "Frequência",
+    x = "Nível de Risco",
+    fill = "Origem"
+  ) +
+  theme_linedraw()+
+  theme(legend.position = "bottom")+
+  scale_y_continuous(labels = label_percent(accuracy = 1)) +
+    facet_wrap(Indicador ~ origem, ncol = 2)
+
+dist_AB_componentes
+
+ggsave(here("Figuras/2.3.2.2Distribuicao_Componentes_Climaticos.png"), dist_AB_componentes, width = 10, height = 15)
+  
+rm(dist_AB_componentes, sumAB, sumABselecao, AdaptaBrasil)
 ```
 
 ## 2.3.3 Presença de OCSs nos Municípios
 
-### Histograma da distribuição de OSCs: base vs Brasil
+```{r, 'base_oscs'}
+
+#Criando bases OSCs
+OSCs <- readRDS(here("Dados/OSCsClima.RDS")) %>% 
+  mutate(Ano = year(Data)) %>% 
+  group_by(Ano, Cod_IBGE_Mun) %>% 
+  summarise(n_OSCs = max(n_OSCs)) %>% 
+  mutate(origem = ifelse(Cod_IBGE_Mun %in% lista_municipios$Cod_IBGE_Mun, "Selecionados", "Brasil"))
+
+```
+
+### Média do número de OSCs: base vs Brasil
+
+```{r}
+#Gráfico
+osc_ano <- OSCs %>%
+  filter(origem == "Selecionados") %>% 
+  mutate(origem = "Brasil") %>% 
+  bind_rows(OSCs) %>% 
+  group_by(Ano, origem) %>% 
+  summarise(Media = mean(n_OSCs), 
+            DesvPad = sd(n_OSCs)) %>% 
+  ggplot(aes(x = Ano, y = Media,  color = origem)) +
+  geom_line(size = 1.5) +
+  geom_point(size = 3)+
+  labs(
+    title = "Número médio de OSCs, por ano",
+    y = "Média de OSCs por município",
+    x = "Ano",
+    fill = "Origem"
+  ) +
+  ylim(0,200)+
+  scale_x_continuous(n.breaks = 10)+
+  theme_bw()+
+  theme(legend.position = "bottom")
+
+osc_ano
+
+ggsave(here("Figuras/2.3.3.1.Média de OSCs por município e ano.png"), osc_ano)
+  
+rm(osc_ano)
+```
+
+### Distribuição do número de OSCs no Brasil em 2023
+
+```{r, 'distribuicao_oscs_2023'}
+#Gráfico
+osc_dist <- OSCs %>%
+  filter(origem == "Selecionados") %>% 
+  mutate(origem = "Brasil") %>% 
+  bind_rows(OSCs) %>% 
+  filter(Ano == 2023) %>% 
+  ggplot(aes(x = n_OSCs, fill = origem)) +
+  geom_density()+
+  labs(
+    title = "Distribuição da quantidade de OSCs nos municípios, em 2023",
+    y = "Frequência",
+    x = "Média",
+    fill = "Origem"
+  ) +
+  xlim(0,500)+
+  scale_y_continuous(labels = label_percent(accuracy = 1)) +
+  theme_bw()+
+  theme(legend.position = "bottom")+
+  facet_wrap(~ origem)
+
+osc_dist
+
+ggsave(here("Figuras/2.3.3.2.Distribuição de OSCs em 2023.png"), osc_dist)
+  
+rm(osc_dist, OSCs)
+```
 
 ## 2.3.4 Orçamento dos municípios
 
-### Histograma do orçamento dos municípios vs Brasil
+### Série temporal do orçamento dos municípios
+
+```{r}
+#Resfatando base do orçamento
+orcamento <- readRDS(here("Dados/orcamento2013_2023.RDS"))%>% 
+  mutate(origem = ifelse(Cod_IBGE_Mun %in% lista_municipios$Cod_IBGE_Mun, "Selecionados", "Brasil"))
+
+#Gráfico série temporal
+
+orcamento_ano <- orcamento %>%
+  filter(origem == "Selecionados") %>% 
+  mutate(origem = "Brasil") %>% 
+  bind_rows(orcamento) %>% 
+  group_by(Ano, origem) %>% 
+  summarise(Media = mean(Receitas_Mun)) %>% 
+  ggplot(aes(x = Ano, y = Media,  color = origem)) +
+  geom_line(size = 1.5) +
+  geom_point(size = 3)+
+  labs(
+    title = "Valor médio das receitas municipais, por ano",
+    y = "Total de Receitas (em R$)",
+    x = "Ano",
+    fill = "Origem"
+  ) +
+  scale_x_continuous(n.breaks = 10)+
+  scale_y_continuous(labels = scales::comma)+
+  theme_bw()+
+  theme(legend.position = "bottom")
+
+orcamento_ano
+
+ggsave(here("Figuras/2.3.4.1.Média de Receitas por ano.png"), orcamento_ano)
+  
+rm(orcamento_ano)
+  
+```
+
+### Histograma do orçamento dos municípios: selecionados vs Brasil
+
+```{r, 'distribuicao_orcamento'}
+#Gráfico
+orcamento_dist <- orcamento %>%
+  filter(origem == "Selecionados") %>% 
+  mutate(origem = "Brasil") %>% 
+  bind_rows(orcamento) %>% 
+  filter(Ano == 2023) %>% 
+  ggplot(aes(x = Receitas_Mun, fill = origem)) +
+  geom_density()+
+  labs(
+    title = "Distribuição da Receita dos municípios, em 2023",
+    y = "Frequência",
+    x = "Média",
+    fill = "Origem"
+  ) +
+  scale_y_continuous(labels = label_percent()) +
+  scale_x_continuous(labels = scales::comma, limits = c(0, 1000000000))+
+  theme_bw()+
+  theme(legend.position = "bottom")+
+  facet_wrap(~ origem)
+
+orcamento_dist
+
+ggsave(here("Figuras/2.3.3.2.Distribuição de Receitas em 2023.png"), orcamento_dist)
+  
+rm(orcamento_dist, orcamento)
+```
 
 # 2.4 Cruzando as variáveis
+
+Agora, podemos começar a análisar a relação entre as variáveis.
+
+```{r}
+df <- readRDS(here("Dados/df_agendaclima_municipal.RDS"))
+```
 
 ## 2.4.1 Proposituras x Desastres
 
 ### 2.4.1.1 Nº Proposituras x Dias após Desastre
+
+```{r}
+prop_desastres <- df %>% 
+  filter(!is.na(dias_desastre_anterior)) %>% 
+  group_by(dias_desastre_anterior, Cod_IBGE_Mun) %>% 
+  summarise(n = n(), 
+            proj_dia = sum(total_tipo_proj_dia)) %>% 
+  group_by(dias_desastre_anterior) %>% 
+  summarise(n = mean(n), 
+            proj_dia = mean(proj_dia),
+            Percentual = n/proj_dia) %>% 
+  data.table() %>% 
+  ggplot(aes(x = dias_desastre_anterior, y = n)) +
+  geom_line()+
+  xlim(0,30)+
+  ylim(0,15)+
+  theme_bw()
+prop_desastres
+```
+
+```{r}
+df %>% 
+  filter(!is.na(dias_desastre_anterior), 
+         !is.na(dias_desastre_proximo)) %>%
+  pivot_longer(starts_with("dias_desastre_"), names_prefix = "dias_desastre_", names_to = "Relacao_Desastre", values_to = "Dias_desastre") %>% 
+  group_by(Dias_desastre) %>% 
+  summarise(n = n()) %>% 
+  data.table() %>% 
+  ggplot(aes(x = Dias_desastre, y = n)) +
+  geom_line()+
+  geom_vline(xintercept = 0, linetype = "dashed")+
+  theme_bw()+
+  xlim(-730,730)
+```
+
+```{r}
+df %>% 
+  ggplot(aes(x = dias_desastre_anterior, fill = T)) +
+  geom_histogram(binwidth = 30)+ #Cada um representa 3 meses
+  theme_bw()+
+  xlim(0,730)
+```
+
+```{r}
+df %>% 
+  group_by(dias_desastre_anterior, Cod_IBGE_Mun, desastre_proximo) %>% 
+  summarise(n = n(), 
+            proj_dia = sum(total_tipo_proj_dia)) %>% 
+  group_by(dias_desastre_anterior, desastre_proximo) %>% 
+  summarise(n = mean(n), 
+            proj_dia = mean(proj_dia),
+            Percentual = n/proj_dia) %>% 
+  data.table() %>% 
+  ggplot(aes(x = dias_desastre_anterior, y = Percentual)) +
+  geom_line()+
+  xlim(0,365)+
+  theme_bw()+
+  facet_wrap(~ desastre_proximo)
+```
+
+```{r}
+df %>% 
+  filter(!is.na(dias_desastre_anterior), 
+         !is.na(dias_desastre_proximo)) %>%
+  pivot_longer(starts_with("dias_desastre_"), names_prefix = "dias_desastre_", names_to = "Relacao_Desastre", values_to = "Dias_desastre") %>% 
+  group_by(Dias_desastre) %>% 
+  summarise(n = n()) %>% 
+  data.table() %>% 
+  ggplot(aes(x = Dias_desastre, fill = T)) +
+  geom_density()+
+  geom_vline(xintercept = 0, linetype = "dashed")+
+  theme_bw()+
+  theme(legend.position = "none")
+```
+
+```{r}
+df %>% 
+  filter(!is.na(dias_desastre_anterior), 
+         !is.na(dias_desastre_proximo)) %>%
+  pivot_longer(starts_with("dias_desastre_"), names_prefix = "dias_desastre_", names_to = "Relacao_Desastre", values_to = "Dias_desastre") %>% 
+  group_by(Dias_desastre, desastre_anterior) %>% 
+  summarise(n = n()) %>% 
+  data.table() %>% 
+  ggplot(aes(x = Dias_desastre, fill = desastre_anterior)) +
+  geom_density()+
+  theme_bw()+
+  theme(legend.position = "none")+
+  facet_wrap(~desastre_anterior)+
+  xlim(-730,730)
+```
+
+```{r}
+df %>% 
+  ggplot(aes(x = dias_desastre_proximo, fill = T)) +
+  geom_density()+
+  theme_bw()+
+  theme(legend.position = "none")+
+  xlim(-730, 0)
+```
 
 ### 2.4.1.2 Tipo de Proposituras x Dias após Desastre
 
