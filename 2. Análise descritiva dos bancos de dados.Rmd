@@ -926,105 +926,308 @@ df <- readRDS(here("Dados/df_agendaclima_municipal.RDS"))
 ### 2.4.1.1 Nº Proposituras x Dias após Desastre
 
 ```{r}
-prop_desastres <- df %>% 
-  filter(!is.na(dias_desastre_anterior)) %>% 
-  group_by(dias_desastre_anterior, Cod_IBGE_Mun) %>% 
-  summarise(n = n(), 
-            proj_dia = sum(total_tipo_proj_dia)) %>% 
-  group_by(dias_desastre_anterior) %>% 
-  summarise(n = mean(n), 
-            proj_dia = mean(proj_dia),
-            Percentual = n/proj_dia) %>% 
-  data.table() %>% 
-  ggplot(aes(x = dias_desastre_anterior, y = n)) +
-  geom_line()+
-  xlim(0,30)+
-  ylim(0,15)+
-  theme_bw()
-prop_desastres
+
+#Tabela quartis em relação a declaração de desastre
+
+
+sum_dd <- summary(df$dias_desastre_anterior)
+sum_dd[5]
 ```
 
 ```{r}
-df %>% 
-  filter(!is.na(dias_desastre_anterior), 
-         !is.na(dias_desastre_proximo)) %>%
-  pivot_longer(starts_with("dias_desastre_"), names_prefix = "dias_desastre_", names_to = "Relacao_Desastre", values_to = "Dias_desastre") %>% 
-  group_by(Dias_desastre) %>% 
-  summarise(n = n()) %>% 
-  data.table() %>% 
-  ggplot(aes(x = Dias_desastre, y = n)) +
-  geom_line()+
-  geom_vline(xintercept = 0, linetype = "dashed")+
-  theme_bw()+
-  xlim(-730,730)
-```
-
-```{r}
-df %>% 
+prop_dias_desastres <- df %>% 
   ggplot(aes(x = dias_desastre_anterior, fill = T)) +
-  geom_histogram(binwidth = 30)+ #Cada um representa 3 meses
-  theme_bw()+
-  xlim(0,730)
-```
-
-```{r}
-df %>% 
-  group_by(dias_desastre_anterior, Cod_IBGE_Mun, desastre_proximo) %>% 
-  summarise(n = n(), 
-            proj_dia = sum(total_tipo_proj_dia)) %>% 
-  group_by(dias_desastre_anterior, desastre_proximo) %>% 
-  summarise(n = mean(n), 
-            proj_dia = mean(proj_dia),
-            Percentual = n/proj_dia) %>% 
-  data.table() %>% 
-  ggplot(aes(x = dias_desastre_anterior, y = Percentual)) +
-  geom_line()+
-  xlim(0,365)+
-  theme_bw()+
-  facet_wrap(~ desastre_proximo)
-```
-
-```{r}
-df %>% 
-  filter(!is.na(dias_desastre_anterior), 
-         !is.na(dias_desastre_proximo)) %>%
-  pivot_longer(starts_with("dias_desastre_"), names_prefix = "dias_desastre_", names_to = "Relacao_Desastre", values_to = "Dias_desastre") %>% 
-  group_by(Dias_desastre) %>% 
-  summarise(n = n()) %>% 
-  data.table() %>% 
-  ggplot(aes(x = Dias_desastre, fill = T)) +
-  geom_density()+
-  geom_vline(xintercept = 0, linetype = "dashed")+
-  theme_bw()+
-  theme(legend.position = "none")
-```
-
-```{r}
-df %>% 
-  filter(!is.na(dias_desastre_anterior), 
-         !is.na(dias_desastre_proximo)) %>%
-  pivot_longer(starts_with("dias_desastre_"), names_prefix = "dias_desastre_", names_to = "Relacao_Desastre", values_to = "Dias_desastre") %>% 
-  group_by(Dias_desastre, desastre_anterior) %>% 
-  summarise(n = n()) %>% 
-  data.table() %>% 
-  ggplot(aes(x = Dias_desastre, fill = desastre_anterior)) +
-  geom_density()+
+  geom_histogram(binwidth = 30)+ #Cada um representa aproximadamente 1 mês
+  geom_vline(xintercept = 0)+
+  geom_vline(xintercept = sum_dd[2], linetype = "dashed")+
+  geom_vline(xintercept = sum_dd[3], linetype = "dashed")+
+  geom_vline(xintercept = sum_dd[5], linetype = "dashed")+
+  labs(title = "Histograma: apresentação de proposituras climáticas desde o desastre mais recente no município", 
+       y = "Número de Proposituras",
+       x = "Dias desde o desastre mais recente")+
   theme_bw()+
   theme(legend.position = "none")+
-  facet_wrap(~desastre_anterior)+
-  xlim(-730,730)
+  xlim(0,1600)
+
+prop_dias_desastres
+
+ggsave(here("Figuras/2.4.1.1.1 Histograma proposituras desde última desastre.png"), prop_dias_desastres)
+
+rm(prop_dias_desastres)
 ```
 
 ```{r}
-df %>% 
-  ggplot(aes(x = dias_desastre_proximo, fill = T)) +
-  geom_density()+
+prop_dias_tipos_desastres <- df %>% 
+  filter(!is.na(dias_desastre_anterior), 
+         !is.na(desastre_anterior)) %>% 
+  ggplot(aes(x = dias_desastre_anterior, fill = desastre_anterior)) +
+  geom_density()+ #Cada um representa aproximadamente 1 mês
+  geom_vline(xintercept = 0)+
+  labs(title = "Densidade da distribuição das proposituras climáticas desde o desastre mais recente no município", 
+       y = "Percentual de Proposituras",
+       x = "Dias desde o desastre mais recente")+
+  geom_vline(xintercept = sum_dd[2], linetype = "dashed")+
+  geom_vline(xintercept = sum_dd[3], linetype = "dashed")+
+  geom_vline(xintercept = sum_dd[5], linetype = "dashed")+
   theme_bw()+
   theme(legend.position = "none")+
-  xlim(-730, 0)
+  xlim(0,1600)+
+  scale_fill_manual(values = paleta_desastres$Cores, limits = paleta_desastres$Tipo)+
+  facet_wrap(~ desastre_anterior, scales = "free_y")+
+  scale_y_continuous(labels = label_percent())
+
+prop_dias_tipos_desastres
+
+ggsave(here("Figuras/2.4.1.1.2Densidade_proposituras_desastre.png"), prop_dias_tipos_desastres)
+
+rm(prop_dias_tipos_desastres)
+
 ```
 
 ### 2.4.1.2 Tipo de Proposituras x Dias após Desastre
+
+```{r, warning=FALSE}
+tiproj_dias_desastres <- df %>% 
+  mutate(Tipo = ifelse(Tipo %in% paleta_proposituras$Tipo, Tipo, "outros")) %>% 
+  filter(!is.na(desastre_anterior)) %>% 
+  ggplot(aes(x = dias_desastre_anterior, fill = Tipo)) +
+  geom_density()+ #Cada um representa aproximadamente 1 mês
+  geom_vline(xintercept = 0)+
+  labs(title = "Proposituras climáticas por dia desde o desastre mais recente no município e tipo de propositura", 
+       y = "Percentual de Proposituras",
+       x = "Dias desde o desastre mais recente")+
+  geom_vline(xintercept = sum_dd[2], linetype = "dashed")+
+  geom_vline(xintercept = sum_dd[3], linetype = "dashed")+
+  geom_vline(xintercept = sum_dd[5], linetype = "dashed")+
+  theme_bw()+
+  theme(legend.position = "none")+
+  xlim(0,1600)+
+  scale_fill_manual(values = paleta_proposituras$Cores, limits = paleta_proposituras$Tipo)+
+  facet_wrap(~ Tipo)+
+  scale_y_continuous(labels = label_percent())
+
+
+tiproj_dias_desastres
+
+ggsave(here("Figuras/2.4.1.2.1 Densidade_tipos_proposituras_dias_desastre.png"), tiproj_dias_desastres)
+
+rm(tiproj_dias_desastres)
+```
+
+```{r, warning=FALSE}
+tiproj_dias_desastres <- df %>% 
+  mutate(Tipo = ifelse(Tipo %in% paleta_proposituras$Tipo, Tipo, "outros")) %>% 
+  filter(!is.na(desastre_anterior)) %>% 
+  ggplot(aes(x = dias_desastre_anterior, fill = Tipo)) +
+  geom_density()+ #Cada um representa aproximadamente 1 mês
+  geom_vline(xintercept = 0)+
+  labs(title = "Proposituras climáticas desde o desastre mais recente, por tipo de propositura e desastre", 
+       y = "Percentual de Proposituras",
+       x = "Dias desde o desastre mais recente")+
+  geom_vline(xintercept = sum_dd[2], linetype = "dashed")+
+  geom_vline(xintercept = sum_dd[3], linetype = "dashed")+
+  geom_vline(xintercept = sum_dd[5], linetype = "dashed")+
+  theme_bw()+
+  theme(legend.position = "none")+
+  xlim(0,1600)+
+  scale_fill_manual(values = paleta_proposituras$Cores, limits = paleta_proposituras$Tipo)+
+  facet_grid(desastre_anterior ~ Tipo, scales = "free_y")+
+  scale_y_continuous(labels = label_percent())
+
+
+tiproj_dias_desastres
+
+ggsave(here("Figuras/2.4.1.2.2 Densidade_tipos_proposituras_e_desastre.png"), tiproj_dias_desastres, width = 15, height = 30)
+
+rm(tiproj_dias_desastres)
+```
+
+```{r, warning= FALSE}
+
+tiproj_120_dias <- df %>%   
+  filter(dias_desastre_anterior <= 120) %>% 
+  mutate(Tipo = ifelse(Tipo %in% paleta_proposituras$Tipo, Tipo, "outros")) %>% 
+  group_by(Tipo, dias_desastre_anterior) %>% 
+  summarise(n_al = n()) %>%
+  group_by(dias_desastre_anterior) %>% 
+  mutate(Percentual = n_al/ sum(n_al)) %>% 
+  ggplot(aes( x = `dias_desastre_anterior`, y = Percentual, fill = Tipo)) + 
+  geom_bar(stat = "identity", width = 1.1)+ 
+  theme_classic()+
+  labs(title = "Distribuição dos tipos de proposituras climáticas, por dias após o desastre", 
+       y = 'Percentual de proposituras', 
+       x = "Dias desde o último desastre")+
+  scale_y_continuous(labels = label_percent(accuracy = 1)) +
+  theme(legend.position = "bottom")+
+  scale_fill_manual(values = paleta_proposituras$Cores, limits = paleta_proposituras$Tipo)
+
+tiproj_120_dias
+
+ggsave(here("Figuras/2.4.1.2.3Tipos_proposituras_120_dias_tipos_desastre.png"), tiproj_120_dias)
+
+rm(tiproj_120_dias)
+```
+
+```{r, warning=FALSE}
+tiproj_deastres_120_dias <- df %>%   
+  filter(dias_desastre_anterior <= 120,
+         !(desastre_anterior %in% c('Onda de Calor e Baixa Umidade', 'Onda de Frio', 'Tornado'))) %>% 
+  mutate(Tipo = ifelse(Tipo %in% paleta_proposituras$Tipo, Tipo, "outros")) %>% 
+  group_by(Tipo, dias_desastre_anterior, desastre_anterior) %>% 
+  summarise(n_al = n()) %>%
+  group_by(dias_desastre_anterior, desastre_anterior) %>% 
+  mutate(Percentual = n_al/ sum(n_al)) %>% 
+  ggplot(aes( x = `dias_desastre_anterior`, y = Percentual, fill = Tipo)) + 
+  geom_bar(stat = "identity", width = 1.1)+ 
+  theme_classic()+
+  labs(title = "Distribuição dos tipos de proposituras climáticas, por dias após o desastre", 
+       y = 'Percentual de proposituras', 
+       x = "Dias desde o último desastre")+
+  scale_y_continuous(labels = label_percent(accuracy = 1)) +
+  theme(legend.position = "bottom")+
+  scale_fill_manual(values = paleta_proposituras$Cores, limits = paleta_proposituras$Tipo)+
+  facet_wrap(~desastre_anterior)
+
+tiproj_deastres_120_dias
+
+ggsave(here("Figuras/2.4.1.2.4Tipos_proposituras_120_dias_apos_desastre.png"), tiproj_deastres_120_dias)
+
+rm(tiproj_deastres_120_dias)
+```
+
+# 2.4.1.3 Termos sobre clima x Dias após Desastre
+
+```{r}
+#Recriando base com termos climáticos separados
+
+dftermos <- df %>% 
+  separate(clima_termos, c("clima_1", "clima_2", "clima_3", "clima_4", "clima_5", "clima_6", "clima_7"), sep = ", ", fill = "right") %>% 
+  pivot_longer(starts_with("clima_"), names_to = "clima_names", names_prefix = "clima_", values_to = "clima_termos") %>% 
+  filter(!is.na(clima_termos)) %>% 
+  mutate(Categoria_Termos_Clima = case_when( #Adicionando categorias
+  #Chuvas:
+  clima_termos %in% c(" pluvial", " pluviais", " chuva", " fortes chuvas",  " chuvoso") ~ "Chuvas",
+  #Alagamentos e Inundações:
+  clima_termos %in% c(" alagamento",  " inundação", " inundações", " enxurrada", " enchente") ~ "Alagamentos e Inundações",
+  #Movimentos de Massa:
+  clima_termos %in% c(" deslizamento", " soterramento", " desabamento", " erosão") ~ "Movimentos de Massa",
+  #Secas:
+  clima_termos %in% c(" seca", " estiagem", " estiagens" ) ~ "Secas",
+  #Clima:
+  clima_termos %in% c(" clima", " adaptação climática", " aquecimento global", " mitigação", " eventos climáticos extremos", " descarbonização", " transição energética", " carbono", " efeito estufa") ~ "Clima",
+  #Ventos:
+  clima_termos == " vento" ~ "Ventos",
+  #Incêndios:
+  clima_termos == " incêndio" ~ "Incêndios",
+    #Defesa Civil
+    clima_termos == " defesa civil" ~ "Defesa Civil"))
+```
+
+```{r, warning=FALSE}
+termos_dias_desastres <- dftermos %>% 
+  filter(!is.na(desastre_anterior)) %>% 
+  ggplot(aes(x = dias_desastre_anterior, fill = Categoria_Termos_Clima)) +
+  geom_density()+ 
+  geom_vline(xintercept = 0)+
+  labs(title = "Menções aos termos relacionados ao clima em proposituras por dia desde o desastre mais recente no município", 
+       y = "Percentual de menções",
+       x = "Dias desde o desastre mais recente")+
+  geom_vline(xintercept = sum_dd[2], linetype = "dashed")+
+  geom_vline(xintercept = sum_dd[3], linetype = "dashed")+
+  geom_vline(xintercept = sum_dd[5], linetype = "dashed")+
+  theme_bw()+
+  theme(legend.position = "none")+
+  xlim(0,1600)+
+  scale_fill_manual(values = paleta_climatermos$Cores, limits = paleta_climatermos$Categoria)+
+  facet_wrap(~ Categoria_Termos_Clima)+
+  scale_y_continuous(labels = label_percent())
+
+
+termos_dias_desastres
+
+ggsave(here("Figuras/2.4.1.3.1 Densidade_termos_dias_desastre.png"), tiproj_dias_desastres)
+
+rm(tiproj_dias_desastres)
+```
+
+```{r, warning=FALSE}
+termos_dias_tipo_desastres <- dftermos %>% 
+  filter(!is.na(desastre_anterior),
+         !(desastre_anterior %in% c('Onda de Calor e Baixa Umidade', 'Onda de Frio', 'Tornado', 'Granizo'))) %>% 
+  ggplot(aes(x = dias_desastre_anterior, fill = desastre_anterior)) +
+  geom_density()+ #Cada um representa aproximadamente 1 mês
+  geom_vline(xintercept = 0)+
+  labs(title = "Proposituras climáticas desde o desastre mais recente, por tipo de propositura e desastre", 
+       y = "Percentual de Proposituras",
+       x = "Dias desde o desastre mais recente")+
+  geom_vline(xintercept = sum_dd[2], linetype = "dashed")+
+  geom_vline(xintercept = sum_dd[3], linetype = "dashed")+
+  geom_vline(xintercept = sum_dd[5], linetype = "dashed")+
+  theme_bw()+
+  theme(legend.position = "none")+
+  xlim(0,1600)+
+  scale_fill_manual(values = paleta_desastres$Cores, limits = paleta_desastres$Tipo)+
+  facet_grid(desastre_anterior ~ Categoria_Termos_Clima, scales = "free_y")+
+  scale_y_continuous(labels = label_percent())
+
+
+termos_dias_tipo_desastres
+
+ggsave(here("Figuras/2.4.1.3.2 Densidade_termos_e_desastre.png"), termos_dias_tipo_desastres, width = 15, height = 30)
+
+rm(termos_dias_tipo_desastres)
+```
+
+```{r, warning= FALSE}
+
+termos_120_dias <- dftermos %>%   
+  filter(dias_desastre_anterior <= 120) %>% 
+  group_by(Categoria_Termos_Clima, dias_desastre_anterior) %>% 
+  summarise(n_al = n()) %>%
+  group_by(dias_desastre_anterior) %>% 
+  mutate(Percentual = n_al/ sum(n_al)) %>% 
+  ggplot(aes( x = `dias_desastre_anterior`, y = Percentual, fill = Categoria_Termos_Clima)) + 
+  geom_bar(stat = "identity", width = 1.1)+ 
+  theme_classic()+
+  labs(title = "Distribuição das menções aos termos climáticos, por dias após o desastre", 
+       y = 'Percentual de menções aos termos', 
+       x = "Dias desde o último desastre")+
+  scale_y_continuous(labels = label_percent(accuracy = 1)) +
+  theme(legend.position = "bottom")+
+  scale_fill_manual(values = paleta_climatermos$Cores, limits = paleta_climatermos$Tipo)
+
+termos_120_dias
+
+ggsave(here("Figuras/2.4.1.3.3Termos_proposituras_120_dias_tipos_desastre.png"), termos_120_dias)
+
+rm(termos_120_dias)
+```
+
+```{r, warning=FALSE}
+termos_deastres_120_dias <- dftermos %>%   
+  filter(dias_desastre_anterior <= 120,
+         !(desastre_anterior %in% c('Onda de Calor e Baixa Umidade', 'Onda de Frio', 'Tornado'))) %>% 
+  group_by(Categoria_Termos_Clima, dias_desastre_anterior, desastre_anterior) %>% 
+  summarise(n_al = n()) %>%
+  group_by(dias_desastre_anterior, desastre_anterior) %>% 
+  mutate(Percentual = n_al/ sum(n_al)) %>% 
+  ggplot(aes( x = `dias_desastre_anterior`, y = Percentual, fill = Categoria_Termos_Clima)) + 
+  geom_bar(stat = "identity", width = 1.1)+ 
+  theme_classic()+
+  labs(title = "Distribuição das menções a termos climáticos, por dias após o desastre", 
+       y = 'Percentual de menções aos termos', 
+       x = "Dias desde o último desastre")+
+  scale_y_continuous(labels = label_percent(accuracy = 1)) +
+  theme(legend.position = "bottom")+
+  scale_fill_manual(values = paleta_climatermos$Cores, limits = paleta_climatermos$Categoria)+
+  facet_wrap(Categoria_Termos_Clima~desastre_anterior, ncol = 10)
+
+termos_deastres_120_dias
+
+ggsave(here("Figuras/2.4.1.3.4Termos_120_dias_por_desastre.png"), termos_deastres_120_dias, width = 15, height = 20)
+
+rm(termos_deastres_120_dias)
+```
 
 ## 2.4.2 % Proposituras Município x Risco Climático
 
