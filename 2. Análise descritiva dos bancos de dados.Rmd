@@ -1173,7 +1173,7 @@ termos_dias_tipo_desastres <- dftermos %>%
 
 termos_dias_tipo_desastres
 
-ggsave(here("Figuras/2.4.1.3.2 Densidade_termos_e_desastre.png"), termos_dias_tipo_desastres, width = 15, height = 30)
+ggsave(here("Figuras/2.4.1.3.2 Densidade_termos_e_desastre.png"), termos_dias_tipo_desastres, width = 15, height = 20)
 
 rm(termos_dias_tipo_desastres)
 ```
@@ -1226,14 +1226,15 @@ termos_deastres_120_dias
 
 ggsave(here("Figuras/2.4.1.3.4Termos_120_dias_por_desastre.png"), termos_deastres_120_dias, width = 15, height = 20)
 
-rm(termos_deastres_120_dias, sum_dd)
+rm(termos_deastres_120_dias, sum_dd, dftermos)
 ```
 
 ## 2.4.2 % Proposituras Município x Risco Climático
 
 ```{r}
+
 #Criando data.table para usar nas análises seguintes
-Risco <- df %>%
+dfrisco <- df %>%
   pivot_longer(cols = starts_with("AB"), names_prefix = "AB", names_to = "Indicador", values_to = "Indice_Risco") %>%
   mutate(
     Indice_Risco = as.numeric(Indice_Risco),
@@ -1249,8 +1250,9 @@ Risco <- df %>%
 ```
 
 ```{r}
+library(scales)
 #Percentual de Proposituras apresentadas x Dimensão de Risco
-Risco %>% 
+prop_dimensao_risco <- dfrisco %>% 
   mutate(Tipo = ifelse(Tipo %in% paleta_proposituras$Tipo, Tipo, "outros")) %>% 
   group_by(Dimensao_Risco, Indice_Risco, Tipo) %>% 
   summarise(n = n(),
@@ -1258,46 +1260,280 @@ Risco %>%
   ggplot(aes(y = Percentual, x = Indice_Risco, color = Tipo))+
   geom_point()+
   theme_bw()+
+  scale_y_continuous(labels = label_percent(accuracy = 1)) +
+  scale_color_manual(values = paleta_proposituras$Cores, limits = paleta_proposituras$Tipo)+
+  labs(title = "Percentual de proposituras apresentadas x Indicador de Dimensão de Risco", 
+       x = "Índice de Risco",
+       y = "Percentual de proposituras por dia")+
   theme(legend.position = "bottom")+
-  facet_wrap(~Dimensao_Risco)
+  facet_wrap(~Dimensao_Risco, nrow = 3)
+
+prop_dimensao_risco
+
+ggsave(here("Figuras/2.4.2.1.Proposituras_Dimensao_Risco.png"), prop_dimensao_risco)
+
+rm(prop_dimensao_risco)
 ```
 
 ```{r}
 #Percentual de Projetos Indicados x Indicador
-Risco %>% 
+prop_indicador_risco <- dfrisco %>% 
   filter(Nivel > 2) %>% 
   group_by(Indicador, Indice_Risco) %>% 
   summarise(n = n(),
             Percentual = n/sum(total_tipo_proj_dia)) %>% 
+  mutate(Indicador = str_replace_all(Indicador, "_", " ")) %>% 
   ggplot(aes(y = Percentual, x = Indice_Risco))+
   geom_point()+
   stat_smooth(method = "lm",
               formula = y ~ x,
               geom = "smooth")+
+  scale_y_continuous(labels = label_percent(accuracy = 1)) +
+  labs(title = "Percentual de proposituras apresentadas x Indicador de Risco", 
+       x = "Índice de Risco",
+       y = "Percentual de proposituras por dia")+
   theme_bw()+
   theme(legend.position = "bottom")+
-  facet_wrap(~Indicador)
+  facet_wrap(~Indicador, ncol = 3)
+
+prop_indicador_risco 
+
+ggsave(here("Figuras/2.4.2.2.Proposituras_Indicador_Risco.png"), prop_indicador_risco, width = 15, height = 20)
+
+rm(prop_indicador_risco)
 ```
 
 ```{r}
 #Fazer loop de regressões por indicadores
-r1 <- Risco %>% 
-  filter(Indicador == "4_Desastres_Hidrológicos_Sensibilidade") %>% 
+
+library(purrr)
+library(broom)
+
+# 1. Rodando regressões:
+risco_lms <- dfrisco %>% 
   group_by(Indicador, Indice_Risco) %>% 
   summarise(n = n(),
-            Percentual = n/sum(total_tipo_proj_dia)) 
+            Percentual = n / sum(total_tipo_proj_dia), .groups = "drop")  %>%
+  group_split(Indicador) %>% #Agrupa por Indicador para regressões
+  set_names(map_chr(., ~ unique(.x$Indicador))) %>% #Estabelece os nomes de cada regressão salva
+  map(~ lm(Percentual ~ Indice_Risco, data = .x))  %>% #Roda todas as regressões em ação vetorizada
+  map_dfr(tidy, .id = "Indicador") #Sumariza tabelas
 
-l1 <- lm(Percentual ~ Indice_Risco, r1)
 
-summary(l1)
 ```
 
 ### FAZER RISCO CLIMÁTICO X N DESASTRES
 
+```{r}
+#Desastres x Risco Climático
+
+DesastresN <- readRDS(here("Dados/Desastres.RDS")) %>% 
+  filter(Cod_IBGE_Mun %in% lista_municipios$Cod_IBGE_Mun) %>% 
+  group_by(Cod_IBGE_Mun, Desastre, DH_MORTOS) %>% 
+  summarise(N_Desastre = n(),
+            obitos = sum(DH_MORTOS))
+
+climaXdesastres <- dfrisco %>% 
+  group_by(Cod_IBGE_Mun, Dimensao_Risco, Indice_Risco) %>% 
+  summarise(n = n(),
+            Percentual = n/sum(total_tipo_proj_dia)) %>% 
+    merge(DesastresN, by = c("Cod_IBGE_Mun"), all = T) %>% 
+  filter(!is.na(Desastre),
+         !Desastre %in% c('Onda de Calor e Baixa Umidade', 'Onda de Frio', 'Tornado')) %>% 
+  ggplot(aes(x = Percentual, y = N_Desastre, color = Desastre)) +
+  geom_point()+
+  stat_smooth(method = "lm",
+              formula = y ~ x,
+              geom = "smooth")+
+  labs(title = "Número de Desastres x Índice de Risco", 
+       x = "Índice de Risco",
+       y = "Número de desastres")+
+  scale_color_manual(values = paleta_desastres$Cores, limits = paleta_desastres$Tipo)+
+  theme_bw()+
+  theme(legend.position = "bottom")+
+  facet_grid(Dimensao_Risco~Desastre)
+
+climaXdesastres
+
+ggsave(here("Figuras/2.4.2.3.Desastres_Indicador_Risco.png"), climaXdesastres, width = 10, height = 10)
+
+rm(climaXdesastres)
+```
+
+```{r}
+#Óbitos em Desastres x Níveis de Risco
+climaXobitos <- dfrisco %>% 
+  group_by(Cod_IBGE_Mun, Dimensao_Risco, Indice_Risco) %>% 
+  summarise(n = n(),
+            Percentual = n/sum(total_tipo_proj_dia)) %>% 
+    merge(DesastresN, by = c("Cod_IBGE_Mun"), all = T) %>% 
+  filter(!is.na(Desastre),
+         !Desastre %in% c('Onda de Calor e Baixa Umidade', 'Onda de Frio', 'Tornado')) %>% 
+  ggplot(aes(x = Percentual, y = obitos, color = Desastre)) +
+  geom_point()+
+  stat_smooth(method = "lm",
+              formula = y ~ x,
+              geom = "smooth")+
+  labs(title = "Número de Desastres x Índice de Risco", 
+       x = "Índice de Risco",
+       y = "Número de mortos em desastres")+
+  scale_color_manual(values = paleta_desastres$Cores, limits = paleta_desastres$Tipo)+
+  theme_bw()+
+  theme(legend.position = "bottom")+
+  ylim(0,50)+
+  facet_grid(Dimensao_Risco~Desastre, scales = "free_y")
+
+climaXobitos
+
+ggsave(here("Figuras/2.4.2.4.Obitos_Indicador_Risco.png"), climaXobitos, width = 15, height = 20)
+
+rm(climaXobitos, DesastresN, dfrisco)
+```
+
 ## 2.4.3 % Proposituras Município x Nº de OSCs
+
+```{r}
+proposituras_oscs <- df %>% 
+  filter(Ano == 2023) %>% 
+  mutate(Tipo = ifelse(Tipo %in% paleta_proposituras$Tipo, Tipo, "outros")) %>% 
+  group_by(Cod_IBGE_Mun, Tipo) %>% 
+  summarize(n = n(),
+            n_OSCs = max(n_OSCs),
+            Percentual = n/sum(total_tipo_proj_dia)) %>% 
+  ggplot(aes(x = n_OSCs, y = Percentual, color = Tipo)) +
+  geom_point()+
+  stat_smooth(method = "lm",
+              formula = y ~ x,
+              geom = "smooth",
+              aes(color = NA))+
+  labs(title = "Percentual de proposituras apresentadas x Número de OSCs no município em 2023", 
+       x = "Número de OSCs",
+       y = "Percentual de proposituras no ano")+
+  theme_bw()+
+  scale_y_continuous(labels = label_percent(accuracy = 1)) +
+  xlim(0,1000)+
+  scale_color_manual(values = paleta_proposituras$Cores, limits = paleta_proposituras$Tipo)+
+  theme(legend.position = "bottom")
+
+proposituras_oscs
+
+ggsave(here("Figuras/2.4.3.1.Proposituras_OSCs.png"),proposituras_oscs)
+
+rm(proposituras_oscs)
+```
+
+```{r}
+tipos_proposituras_oscs <- df %>% 
+  filter(Ano == 2023) %>% 
+  mutate(Tipo = ifelse(Tipo %in% paleta_proposituras$Tipo, Tipo, "outros")) %>% 
+  group_by(Cod_IBGE_Mun, Tipo) %>% 
+  summarize(n = n(),
+            n_OSCs = max(n_OSCs),
+            Percentual = n/sum(total_tipo_proj_dia)) %>% 
+  ggplot(aes(x = n_OSCs, y = Percentual, color = Tipo)) +
+  geom_point()+
+  stat_smooth(method = "lm",
+              formula = y ~ x,
+              geom = "smooth")+
+  labs(title = "Percentual de proposituras apresentadas x Número de OSCs no município em 2023", 
+       x = "Número de OSCs",
+       y = "Percentual de proposituras no ano")+
+  theme_bw()+
+  scale_y_continuous(labels = label_percent(accuracy = 1)) +
+  xlim(0,1000)+
+  theme(legend.position = "bottom")+
+  scale_color_manual(values = paleta_proposituras$Cores, limits = paleta_proposituras$Tipo)+
+  facet_wrap(~Tipo)
+
+tipos_proposituras_oscs
+
+ggsave(here("Figuras/2.4.3.2.Tipos_Proposituras_OSCs.png"),tipos_proposituras_oscs)
+
+rm(tipos_proposituras_oscs)
+```
 
 ## 2.4.4 %Proposituras climáticas x Orçamento municipal
 
 ```{r}
+proposituras_orcamento <- df %>% 
+  filter(Ano == 2023) %>% 
+  mutate(Tipo = ifelse(Tipo %in% paleta_proposituras$Tipo, Tipo, "outros")) %>% 
+  group_by(Cod_IBGE_Mun, Tipo, Receitas_Mun) %>% 
+  summarize(n = n(),
+            Percentual = n/sum(total_tipo_proj_dia)) %>% 
+  ggplot(aes(x = Receitas_Mun, y = Percentual, color = Tipo)) +
+  geom_point()+
+  stat_smooth(method = "lm",
+              formula = y ~ x,
+              geom = "smooth",
+              aes(color = NA))+
+  labs(title = "Percentual de proposituras apresentadas x Receita dos municípios em 2023", 
+       x = "Receita do governo municipal em 2023",
+       y = "Percentual de proposituras no ano")+
+  theme_bw()+
+  scale_y_continuous(labels = label_percent(accuracy = 1)) +
+  scale_x_continuous(labels = label_dollar())+
+  scale_color_manual(values = paleta_proposituras$Cores, limits = paleta_proposituras$Tipo)+
+  theme(legend.position = "bottom")
 
+proposituras_orcamento
+
+ggsave(here("Figuras/2.4.4.1.Proposituras_Orcamento.png"),proposituras_orcamento)
+
+rm(proposituras_orcamento)
+```
+
+```{r}
+tipos_proposituras_orcamento <- df %>% 
+  filter(Ano == 2023) %>% 
+  mutate(Tipo = ifelse(Tipo %in% paleta_proposituras$Tipo, Tipo, "outros")) %>% 
+  group_by(Cod_IBGE_Mun, Tipo, Receitas_Mun) %>% 
+  summarize(n = n(),
+            Percentual = n/sum(total_tipo_proj_dia)) %>% 
+  ggplot(aes(x = Receitas_Mun, y = Percentual, color = Tipo)) +
+  geom_point()+
+  stat_smooth(method = "lm",
+              formula = y ~ x,
+              geom = "smooth")+
+  labs(title = "Percentual de proposituras apresentadas x Receita dos municípios em 2023", 
+       x = "Receita do governo municipal em 2023",
+       y = "Percentual de proposituras no ano")+
+  theme_bw()+
+  scale_y_continuous(labels = label_percent(accuracy = 1)) +
+  scale_x_continuous(labels = label_dollar())+
+  theme(legend.position = "bottom")+
+  scale_color_manual(values = paleta_proposituras$Cores, limits = paleta_proposituras$Tipo)+
+  facet_wrap(~Tipo)
+
+tipos_proposituras_orcamento
+
+ggsave(here("Figuras/2.4.4.2.Tipos_proposituras_Orcamento.png"),tipos_proposituras_orcamento)
+
+rm(tipos_proposituras_orcamento)
+```
+
+## Escolhendo cidade
+
+```{r}
+Desastres<- readRDS(here("Dados/Desastres.RDS"))
+  
+desastres_caso <- Desastres %>%
+  filter(Cod_IBGE_Mun %in% lista_municipios$Cod_IBGE_Mun,
+         DH_MORTOS > 0) %>%  
+  group_by(Cod_IBGE_Mun, Nome_Municipio) %>% 
+  summarise(n = n(),
+            DH_MORTOS = sum(DH_MORTOS)) %>% 
+  filter(n > 2)
+
+desastres_caso <- Desastres %>% 
+  filter(Cod_IBGE_Mun %in% desastres_caso$Cod_IBGE_Mun, 
+         )
+
+desastres_caso %>% 
+  ggplot(aes(y = DH_total_danos_humanos, x = Data_Evento, fill = Desastre))+
+  geom_col()+
+  theme_bw()+
+  theme(legend.position = "bottom")+
+  scale_fill_manual(values = paleta_desastres$Cores, limits = paleta_desastres$Tipo)+
+  facet_wrap(~Nome_Municipio, scales = "free_y")
 ```
