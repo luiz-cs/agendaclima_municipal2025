@@ -67,6 +67,8 @@ mapa_sapl <- ggplot() +
        caption='Fonte: Elaboração própria', size=8)+
   theme_linedraw()
 
+mapa_sapl
+
 ggsave(here("Figuras/2.1.1 MapaMunicipios.png"), mapa_sapl)
 
 rm(mapa_brasil, mapa_munic, mapa_sapl)
@@ -142,6 +144,8 @@ uf_num <- uf %>%
   theme_classic() +
   theme(legend.position = "bottom")
 
+uf_num
+
 ggsave(here("Figuras/2.1.2N_Municipios_UF.png"), uf_num)
 
 rm(uf_num)
@@ -163,6 +167,8 @@ uf_percent <- uf %>%
   ) +
   theme_classic() +
   theme(legend.position = "bottom")
+
+uf_percent
 
 ggsave(here("Figuras/2.1.2P_Municipios_UF.png"), uf_percent)
 
@@ -193,6 +199,7 @@ regiao_num <- regiao %>%
   theme_classic() +
   theme(legend.position = "bottom")
 
+regiao_num
 
 ggsave(here("Figuras/2.1.2N_Municipios_Regiao.png"), regiao_num)
 
@@ -216,9 +223,45 @@ regiao_percent <- regiao %>%
   theme_linedraw() +
   theme(legend.position = "bottom")
 
+regiao_percent
+
 ggsave(here("Figuras/2.1.2P_Municipios_Regiao.png"), regiao_percent)
 
 rm(regiao_percent, uf, regiao)
+```
+
+### 2.1.3 População
+
+Agora, vamos analisar a população dos municípios selecionados em comparação à população dos municípios brasileiros.
+
+```{r}
+Populacao <- readRDS(here("Dados/Populacao.RDS")) %>% 
+  mutate(origem = ifelse(Cod_IBGE_Mun %in% lista_municipios$Cod_IBGE_Mun, "Selecionados", "Brasil"))
+
+#Gráfico
+popgg <- Populacao %>%
+  filter(origem == "Selecionados") %>% 
+  mutate(origem = "Brasil") %>% 
+  bind_rows(Populacao) %>% 
+  filter(Ano == 2024) %>% 
+  ggplot(aes(x = Populacao, fill = origem)) +
+  geom_density()+
+  labs(
+    title = "Distribuição da população dos municípios, em 2024",
+    y = "Frequência",
+    x = "População",
+    fill = "Origem"
+  ) +
+  scale_y_continuous(labels = label_percent(accuracy = 1)) +
+  theme_bw()+
+  theme(legend.position = "bottom")+
+  facet_wrap(~ origem)
+
+popgg
+
+ggsave(here("Figuras/2.1.3.Distribuição da População.png"), popgg)
+  
+rm(popgg, Populacao)
 ```
 
 ## 2.2 Variável dependente: Projetos
@@ -797,7 +840,7 @@ osc_ano <- OSCs %>%
   geom_line(size = 1.5) +
   geom_point(size = 3)+
   labs(
-    title = "Número médio de OSCs, por ano",
+    title = "Média de OSCs por município, por ano",
     y = "Média de OSCs por município",
     x = "Ano",
     fill = "Origem"
@@ -850,7 +893,7 @@ rm(osc_dist, OSCs)
 
 ```{r}
 #Resfatando base do orçamento
-orcamento <- readRDS(here("Dados/orcamento2013_2023.RDS"))%>% 
+orcamento <- readRDS(here("Dados/orcamento2013_2024.RDS"))%>% 
   mutate(origem = ifelse(Cod_IBGE_Mun %in% lista_municipios$Cod_IBGE_Mun, "Selecionados", "Brasil"))
 
 #Gráfico série temporal
@@ -1510,30 +1553,4 @@ tipos_proposituras_orcamento
 ggsave(here("Figuras/2.4.4.2.Tipos_proposituras_Orcamento.png"),tipos_proposituras_orcamento)
 
 rm(tipos_proposituras_orcamento)
-```
-
-## Escolhendo cidade
-
-```{r}
-Desastres<- readRDS(here("Dados/Desastres.RDS"))
-  
-desastres_caso <- Desastres %>%
-  filter(Cod_IBGE_Mun %in% lista_municipios$Cod_IBGE_Mun,
-         DH_MORTOS > 0) %>%  
-  group_by(Cod_IBGE_Mun, Nome_Municipio) %>% 
-  summarise(n = n(),
-            DH_MORTOS = sum(DH_MORTOS)) %>% 
-  filter(n > 2)
-
-desastres_caso <- Desastres %>% 
-  filter(Cod_IBGE_Mun %in% desastres_caso$Cod_IBGE_Mun, 
-         )
-
-desastres_caso %>% 
-  ggplot(aes(y = DH_total_danos_humanos, x = Data_Evento, fill = Desastre))+
-  geom_col()+
-  theme_bw()+
-  theme(legend.position = "bottom")+
-  scale_fill_manual(values = paleta_desastres$Cores, limits = paleta_desastres$Tipo)+
-  facet_wrap(~Nome_Municipio, scales = "free_y")
 ```

@@ -2,11 +2,131 @@
 title: "5. Analisando casos selecionados"
 output: html_notebook
 ---
-
-
+## Escolhendo cidade
 
 ```{r}
-plot(cars)
+Desastres<- readRDS(here("Dados/Desastres.RDS"))
+  
+desastres_caso <- Desastres %>%
+  filter(Cod_IBGE_Mun %in% lista_municipios$Cod_IBGE_Mun,
+         DH_MORTOS > 0) %>%  
+  group_by(Cod_IBGE_Mun, Nome_Municipio) %>% 
+  summarise(n = n(),
+            DH_MORTOS = sum(DH_MORTOS)) %>% 
+  filter(n > 2)
+
+desastres_caso <- Desastres %>% 
+  filter(Cod_IBGE_Mun %in% desastres_caso$Cod_IBGE_Mun)%>% 
+  mutate(Data_Evento = as.Date(Data_Evento, format = "%d/%m/%Y" ))
+
+rm(Desastres)
+
+desastres_caso %>% 
+  ggplot(aes(y = DH_MORTOS, x = Data_Evento, fill = Desastre))+
+  geom_col(width = 100, )+
+  theme_bw()+
+  theme(legend.position = "bottom")+
+  scale_fill_manual(values = paleta_desastres$Cores, limits = paleta_desastres$Tipo)+
+  facet_wrap(~Nome_Municipio, scales = "free_y")
 ```
 
+```{r}
+#Caso selecionado: Itabuna
+DesItabuna <- desastres_caso %>% 
+  filter(Cod_IBGE_Mun == "2914802")
 
+Itabuna <- df %>% 
+  filter(Cod_IBGE_Mun == "2914802") %>% 
+  merge(DesItabuna, by = c("Nome_Municipio", "UF", "Data", "Ano"), all = T) %>% 
+  select(Data, Data_Evento, Nome_Propositura, ementa, API_URL, Desastre, Status, DH_Descricao, DH_MORTOS, DH_DESAPARECIDOS, DH_total_danos_humanos)
+
+Itabuna %>% 
+  group_by(Data, DH_MORTOS, Desastre) %>% 
+  summarise(n = n()) %>% 
+  ggplot(aes(y = DH_MORTOS, x = Data, fill = Desastre))+
+  geom_col(width = 100)+
+  geom_col(aes(x = Data, y = n, fill = "grey"))+
+  theme_bw()+
+  theme(legend.position = "bottom")+
+  scale_fill_manual(values = paleta_desastres$Cores, limits = paleta_desastres$Tipo)
+```
+
+```{r}
+CidadesAL <- readRDS(here("Dados/CidadesAL.RDS"))
+
+ItabunaAL <- CidadesAL %>% 
+  filter(Municipio_UF == "itabuna_BA")
+```
+
+```{r}
+desastres_caso <- Desastres %>%
+  filter(Cod_IBGE_Mun %in% lista_municipios$Cod_IBGE_Mun,
+         DH_MORTOS > 0) %>%  
+  group_by(Cod_IBGE_Mun, Nome_Municipio) %>% 
+  summarise(n = n(),
+            DH_MORTOS = sum(DH_MORTOS)) %>% 
+  filter(DH_MORTOS > 0)
+
+NovaFriburgo <- df %>% 
+  filter(Cod_IBGE_Mun == "3303401")
+```
+
+```{r}
+Desastres %>%
+  group_by(Desastre, Ano) %>% 
+  summarise(n = n()) %>% 
+  ggplot(aes(y = n, x = Ano, fill = Desastre)) +
+  geom_col() +
+  labs(
+    title = "Número de desastres no Brasil, por categoria de desastres e anos",
+    y = "Número de desastres",
+    x = "Ano",
+    fill = "Categorias de Desastres"
+  ) +
+  theme_linedraw() +
+  theme(legend.position = "bottom")+
+  scale_fill_manual(values = paleta_desastres$Cores, limits = paleta_desastres$Tipo)
+
+```
+
+```{r}
+library(sf)
+library(geobr)
+library(tidyr)
+library(stringr)
+
+#Listando os municípios presentes na seleção:
+AdaptaBrasil <- readRDS(here("Dados/AdaptaBrasil.RDS")) %>% 
+  select(Cod_IBGE_Mun, AB2_Desastres_Hidrológicos_Inundações_enxurradas_e_alagamentos, AB2_Desastres_Hidrológicos_Deslizamento_de_terra, AB2_Recursos_Hídricos_Seca) %>% 
+  pivot_longer(cols = starts_with("AB2_"), names_prefix = "AB2_", names_to = "Indicador", values_to = "Índice") %>% 
+  rename(code_muni = Cod_IBGE_Mun) %>% 
+  mutate(Indicador = str_replace_all(Indicador, "_", " "), 
+         Indicador = str_replace_all(Indicador, "Desastres Hidrológicos ", " "), )
+
+
+# Lê todos os municípios de 2023 apenas uma vez
+mapa_brasil <- read_municipality(year = 2023) %>% 
+  merge(AdaptaBrasil, by = c("code_muni"), all = T)
+
+
+ggplot() +
+  geom_sf(data = mapa_brasil, 
+          fill = "#666666", 
+          color = NA, 
+          alpha = 0.5, 
+          size = 0.15) +
+  geom_sf(data = mapa_brasil, 
+          aes(fill = Índice), 
+          color = NA, 
+          size = 0.15) +
+  scale_fill_gradient(name = "Índice", 
+                      low = "green", 
+                      high = "red", 
+                      na.value = "transparent") +
+  labs(title = "Índice de Risco Climático dos municípios brasileiros, por Indicador",
+       caption = "Fonte dos dados: Sistema AdaptaBrasil (MCTI). Elaboração própria") +
+  theme_linedraw() +
+  theme(legend.position = "bottom")+
+  facet_wrap(~Indicador, nrow = 1)
+
+```

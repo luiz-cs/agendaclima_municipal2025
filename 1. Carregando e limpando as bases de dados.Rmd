@@ -43,17 +43,19 @@ Os dados sobre a ocorrência de desastres foram levantados a partir do "Atlas Di
 
 Eles podem ser baixados aqui: <http://atlasdigital.mdr.gov.br/paginas/downloads.xhtml>
 
-A versão que utilizo é a publicada em 29 de abril de 2024, que inclui dados de 1991 a 2023
+A versão que utilizo é a publicada em 14 de abril de 2025, que inclui dados de 1991 a 2024
 
 ```{r, 'Baixando_desastres', warning=FALSE}
 # Coloque a base de dados extraída do site do Atlas Digital de Desastres na pasta "Dados"
-Desastres <- read_csv2(file = here("Dados/BD_Atlas_1991_2023_v1.0_2024.04.29.csv"), locale = locale(encoding = "Latin1")) #Baixa a base de dados de Desastres
+
+
+Desastres <- read_csv2(file = here("Dados/BD_Atlas_1991_2024_v1.0_2025.04.14_Consolidado.csv"), locale = locale(encoding = "Latin1")) #Baixa a base de dados de Desastres
 ```
 
 ```{r, 'Limpando_desastres'}
 
 Desastres <- Desastres  %>% 
-  select(Cod_IBGE_Mun,Nome_Municipio,Sigla_UF,regiao,Data_Evento,tipologia, descricao_tipologia, grupo_de_desastre, Status, DH_Descricao, DH_MORTOS, DH_DESAPARECIDOS, DH_total_danos_humanos, DM_Descricao, DM_total_danos_materiais) %>% #Seleciona as colunas de interesse
+  select(Cod_IBGE_Mun,Nome_Municipio,Sigla_UF,regiao,Data_Evento,tipologia, descricao_tipologia, grupo_de_desastre, Status, DH_Descricao, DH_MORTOS, DH_DESAPARECIDOS, DH_total_danos_humanos_diretos, DM_Descricao, DM_total_danos_materiais) %>% #Seleciona as colunas de interesse
   rename("UF" = "Sigla_UF",
          "Desastre" = "descricao_tipologia",
          "Grupo_Desastre" = "grupo_de_desastre") %>% #Simplifica o nome de algumas colunas
@@ -84,33 +86,51 @@ A lista de municípios participantes pode ser encontrada em: <https://www.senado
 #Verifique que o documento com os dados raspados das Câmaras Municipais já está na pasta "Dados"
 #ATENÇÃO: Este arquivo é muito pesado. Certifique-se de que seu computador tem memória para tratá-lo
 
-CidadesAL <- read_csv(file= here("Dados/ProjCidades.csv"))
+CidadesAL <- read_csv(file= here("Dados/ProjCidades.csv")) %>% 
+  data.table()
 ```
 
 ```{r, 'Reduzindo_base'}
 library(stringi)
 
-#Removendo entradas duplicadas:
-CidadesAL <- CidadesAL[!duplicated(CidadesAL[c('data_apresentacao', 'City', 'ementa')]),]
+# 1. Remove duplicadas com base em 3 colunas
+CidadesAL <- CidadesAL[!duplicated(CidadesAL[, .(data_apresentacao, City, ementa)])]
 
-CidadesAL <- CidadesAL%>% 
-  select(id, data_apresentacao, ano, City, numero, `__str__`, ementa, API_URL)%>% #selecionando colunas de interesse
-  mutate(Data = as.Date(data_apresentacao), #Atualiza coluna para formato de Data
-         Mês = month(Data), #Separa o mês
-         Tipo_Projeto = tolower(sub(" nº.*", "", `__str__`)), #Separa o tipo de projeto
-         ementa = tolower(sub("\\*.*?\\*", "", ementa)), #Uniformiza as ementas
-         UF = substring(gsub(".*\\.([^.]+)\\.[^.]+\\..*", "\\1", API_URL), 1, 2)) %>% #Separa a UF a partir do link
-  group_by(City) %>%  #Agrupa dados por cidade, para que a base indique qual o primeiro ano com dados
-  mutate(prim.ano = min(ano), #Separa o primeiro ano que o município tem um registro
-         prim.data = min(Data), #Separa primeira data que o município tem um registro
-         UF = toupper(UF),#Coloca UF em maiúscula
-         Municipio_UF = stri_trans_general(paste(City, UF, sep = "_"), "Latin-ASCII")) %>% #Cria coluna com municipio e UF, para facilitar junção às outras bases
-  rename("Nome_Propositura" = "__str__",
-         "Municipio" = "City",
-         "Ano" = "ano") %>% #Renomeia colunas
-  ungroup() %>% 
-  data.table()
+# 2. Seleciona colunas de interesse
+CidadesAL <- CidadesAL[, .(id, data_apresentacao, ano, City, numero, `__str__`, ementa, API_URL)]
 
+
+# 3. Cria colunas transformadas
+CidadesAL[, `:=`(
+  Data = as.IDate(data_apresentacao),
+  
+  Tipo_Projeto = stri_trans_tolower(
+    stri_replace_first_regex(`__str__`, " nº.*", "")
+  ),
+  
+  ementa = stri_trans_tolower(
+    stri_replace_first_regex(ementa, "\\*.*?\\*", "")
+  ),
+  
+  UF = stri_trans_toupper(
+    stri_sub(stri_match_first_regex(API_URL, ".*\\.([^.]+)\\.[^.]+\\..*")[,2], 1, 2)
+  )
+)]
+
+# 4. Agrupa por City para calcular prim.data e prim.ano
+CidadesAL[, `:=`(
+  Mês = month(Data),
+  prim.ano = min(ano, na.rm = TRUE),
+  prim.data = min(Data, na.rm = TRUE)
+), by = City]
+
+# 5. Cria coluna Municipio_UF
+CidadesAL[, Municipio_UF := stri_trans_general(
+  stri_paste(City, UF, sep = "_"),
+  "Latin-ASCII")]
+
+# 6. Renomeia colunas
+setnames(CidadesAL, old = c("__str__", "City", "ano"), new = c("Nome_Propositura", "Municipio", "Ano"))
 
 ```
 
@@ -298,30 +318,27 @@ rm(mapping_dict)
 
 Agora, irei adicionar à base um registro dos termos relacionados às políticas climáticas que serão utilizados na análise, para classificar os projetos a partir de suas ementas.
 
-```{r, 'termos_clima'}
-#Lista de termos relacionados às políticas climáticas
+```{r}
+
+# Lista de termos
 termos_clima <- c(" clima", " adaptação climática", " defesa civil", " alagamento",  " inundação", " inundações", " aquecimento global", " mitigação", " chuva", " fortes chuvas", " vento", " deslizamento", " soterramento", " desabamento", " incêndio", " enxurrada", " eventos climáticos extremos"," seca", " estiagem", " estiagens" , " pluvial", " pluviais", " enchente", " chuvoso", " erosão", " descarbonização", " transição energética", " carbono", " efeito estufa")
-  
-# Criando coluna para inserir termos sobre clima
-CidadesAL$clima_termos <- NA_character_
 
-# Criando dummy sobre se o projeto é do Clima ou não
-CidadesAL$projetoclima <- FALSE
+# 1. Vetorize: cria matriz lógica [linha x termo] de quais termos aparecem
+match_matrix <- sapply(termos_clima, function(t) grepl(t, CidadesAL$ementa, ignore.case = TRUE))
 
-# Loop checando se é um termo relacionado ao Clima.
-for (termo in termos_clima) {
-  # Checando se o termo aparece na Ementa
-  termo_found <- grepl(termo, CidadesAL$ementa, ignore.case = TRUE)
-  
-  # Adicionando as respectivas colunas em "clima_termos"
-  CidadesAL$clima_termos[termo_found] <- ifelse(is.na(CidadesAL$clima_termos[termo_found]), termo, paste(CidadesAL$clima_termos[termo_found], termo, sep = ", "))
-  
-  # Atualizando coluna "projetoclima
-  CidadesAL$projetoclima <- CidadesAL$projetoclima | termo_found
-}
+# 2. Cria a flag projetoclima
+CidadesAL[, projetoclima := rowSums(match_matrix) > 0]
 
+# 3. Cria coluna com termos encontrados (colapsando os que bateram)
+CidadesAL[, clima_termos := apply(match_matrix, 1, function(row) {
+  paste(termos_clima[row], collapse = ", ")
+})]
 
-rm(termo, termo_found, termos_clima) #Removendo lista de termos
+# 4. Para linhas sem nenhum termo, substitui por NA
+CidadesAL[clima_termos == "", clima_termos := NA_character_]
+
+rm(match_matrix, termos_clima)
+
 ```
 
 Por fim, vamos salvar a base de Atividade Legislativa das Cidades
@@ -344,8 +361,6 @@ Uma vez que já limpamos a base de dados de projetos, podemos definir o recorte 
 Para utilizar um critério objetivo, será analisada a proporção de municípios presentes no SAPL que estão presentes em cada ano, o volume de produção legislativa em cada período, e a disponibilidade de dados.
 
 ```{r, 'Tabela_contagem_AL_tempo'}
-CidadesAL <- CidadesAL %>% 
-  data.table()
 
 # Conferir que os tipos estão corretos.
 CidadesAL[, Ano := as.integer(Ano)]
@@ -407,7 +422,7 @@ sapl_mun_years <- df_contagem %>%
         axis.title.y.left = element_text(color = "#1B9E77"))   # Cor do título do eixo Y à esquerda
 
 
-
+sapl_mun_years
 
 ggsave(here("Figuras/1. SAPL recorte temporal.png"), sapl_mun_years)
 
@@ -420,18 +435,18 @@ print(sapl_mun_years)
 rm(df_contagem, sapl_mun_years)
 ```
 
-A partir desta análise, foi escolhido o período de 2013 a 2023 como ponto de corte. Podemos salvar a lista de municípios presentes a partir deste ano com o seguinte código:
+A partir desta análise, foi escolhido o período de 2013 a 2024 como ponto de corte. Podemos salvar a lista de municípios presentes a partir deste ano com o seguinte código:
 
 ```{r}
 #Selecionando só os municípios presentes em todo o período selecionado
 
-CidadesAL13_23 <- CidadesAL %>% 
+CidadesAL13_24 <- CidadesAL %>% 
   filter(as.Date("2013-01-01") >= prim.data,
-         Data < as.Date("2023-12-31"),
+         Data < as.Date("2024-12-31"),
          Data > as.Date("2013-01-01")) %>% 
   data.table()
 
-saveRDS(CidadesAL13_23, here("Dados/CidadesAL13_23.RDS"))
+saveRDS(CidadesAL13_24, here("Dados/CidadesAL13_24.RDS"))
 
 rm(CidadesAL)
 ```
@@ -448,9 +463,9 @@ Primeiro, criamos uma contagem do número total de projetos no dia em cada munic
 
 ##Criando segunda base de dados sumarizando número de projetos por dia
 #Só por projeto e data:
-CidadesAL13_23 <- readRDS(here("Dados/CidadesAL13_23.RDS"))
+CidadesAL13_24 <- readRDS(here("Dados/CidadesAL13_24.RDS"))
 
-nproj_data <- CidadesAL13_23 %>% 
+nproj_data <- CidadesAL13_24 %>% 
   group_by(Data, Municipio_UF, Tipo) %>% 
   summarise(total_tipo_proj_dia = n(), .groups = "drop") %>% 
 data.table()
@@ -474,19 +489,20 @@ Agora, vamos filtrar só os projetos em que "projetoclima = T"
 ```{r}
 
 #Base só com projetos de Clima
-CidadesAL13_23 <- CidadesAL13_23 %>% 
+CidadesAL13_24 <- CidadesAL13_24 %>% 
   filter(projetoclima == T) %>% 
   select(!c(projetoclima, prim.data, prim.ano)) %>% 
-  mutate(Ano = year(Data))
+  mutate(Ano = year(as.Date(Data)))
+
 
 
 #Juntando as informações
-ALClima13_23 <- merge(CidadesAL13_23, nproj_data, by = c("Data", "Municipio_UF", "Tipo"), all.x  = T)
+ALClima13_24 <- merge(CidadesAL13_24, nproj_data, by = c("Data", "Municipio_UF", "Tipo"), all.x  = T)
 
 #Salvando (com um NOME DIFERENTE) a base com dados só de clima:
-saveRDS(ALClima13_23, file = here("Dados/ALClima13_23.RDS"))
+saveRDS(ALClima13_24, file = here("Dados/ALClima13_24.RDS"))
 
-rm(nproj_data, CidadesAL13_23, ALClima13_23) #Removendo baseS temporária
+rm(nproj_data, CidadesAL13_24, ALClima13_24) #Removendo baseS temporária
 ```
 
 ## 1.6 Adicionando as variáveis de controle
@@ -732,7 +748,7 @@ orcamento <- orcamento %>%
          "Receitas_Mun" = "Orcamento_Mun Receitas realizadas")
 ```
 
-E agora, adicionando os dados de 2022 e 2023:
+E agora, adicionando os dados de 2022 a 2024:
 
 ```{r}
 #Orçamento 2022
@@ -758,18 +774,33 @@ orcamento2023 <- orcamento2023 %>%
   mutate(Ano = 2023) %>% 
   select(Cod_IBGE_Mun, Ano, Receitas_Mun)
 
+#Orçamento 2024
+orcamento2024 <- read.csv2(here("Dados/finbra2024.csv"), skip = 3, sep = ";", encoding = "latin1")
+
+orcamento2024 <- orcamento2024 %>% 
+  filter(Conta == "RECEITAS (EXCETO INTRA-ORÇAMENTÁRIAS) (I)", 
+         Coluna == "Receitas Brutas Realizadas") %>% 
+  rename(Cod_IBGE_Mun = Cod.IBGE, 
+         "Receitas_Mun" = Valor) %>% 
+  mutate(Ano = 2024) %>% 
+  select(Cod_IBGE_Mun, Ano, Receitas_Mun)
+
+#Juntando as bases
+
 orcamento <- bind_rows(orcamento, orcamento2022)
 
 orcamento <- bind_rows(orcamento, orcamento2023)
 
-saveRDS(orcamento, here("Dados/orcamento2013_2023.RDS"))
+orcamento <- bind_rows(orcamento, orcamento2024)
 
-rm(orcamento, orcamento2022, orcamento2023)
+saveRDS(orcamento, here("Dados/orcamento2013_2024.RDS"))
+
+rm(orcamento, orcamento2022, orcamento2023, orcamento2024)
 ```
 
 ### 1.7.4 - Datas eleições TSE
 
-Por fim, outra variável relevante é a proximidade de eleições. Elas afetam o comportamento dos políticos e podem alterar o comportamento legislativo. Vamos criar uma base com as datas dos 1ºturnos das eleições municipais no período analisado, extraída do calendário do TSE: <https://www.tse.jus.br/eleicoes/eleicoes-anteriores?tab=ancora-3>
+Outra variável relevante é a proximidade de eleições. Elas afetam o comportamento dos políticos e podem alterar o comportamento legislativo. Vamos criar uma base com as datas dos 1ºturnos das eleições municipais no período analisado, extraída do calendário do TSE: [https://www.tse.jus.br/eleicoes/eleicoes-anteriores?tab=ancora-3](#0){.uri}
 
 <https://www.tse.jus.br/eleicoes/calendario-eleitoral/calendario-eleitoral>
 
@@ -779,6 +810,44 @@ eleicoes <- data.frame("eleicoes" = c("1992-10-03", "1996-10-03", "2000-10-01", 
 saveRDS(eleicoes, here("Dados/eleicoes.RDS"))
 
 rm(eleicoes)
+```
+
+### 1.7.5 - População
+
+Por fim, podemos adicionar a população dos municípios. As estimativas de população pelo IBGE podem ser encontradas em : <https://sidra.ibge.gov.br/Tabela/6579> e [https://sidra.ibge.gov.br/Tabela/](https://sidra.ibge.gov.br/Tabela/200){.uri}[4709](https://sidra.ibge.gov.br/tabela/4709) (para o Censo de 2022)
+
+Para o ano de 2023, foi utilizada a "Relação da População dos Municípios enviada ao TCU:" [https://www.ibge.gov.br/estatisticas/sociais/populacao/37734-relacao-da-populacao-dos-municipios-para-publicacao-no-tcu.htmlhttps://www.ibge.gov.br/estatisticas/sociais/populacao/37734-relacao-da-populacao-dos-municipios-para-publicacao-no-tcu.html](https://www.ibge.gov.br/estatisticas/sociais/populacao/37734-relacao-da-populacao-dos-municipios-para-publicacao-no-tcu.html){.uri}
+
+```{r}
+
+Pop2022 <- read_xlsx(here("Dados/tabela4709.xlsx"), skip = 3) %>% 
+  rename("Cod_IBGE_Mun" = 2,
+         "Nome_Municipio" = 3) %>% 
+  pivot_longer(cols = starts_with("20"), names_to = "Ano", values_to = "Populacao") %>% 
+  select(!1)
+
+
+Pop2023 <- read_excel((here("Dados/POP_TCU_2023_Municipios_POP2022_Malha2023.xls")), skip = 1) %>% 
+  mutate(Cod_IBGE_Mun = paste0(`COD. UF`, `COD. MUNIC`),
+         Ano = as.character(2023)) %>% 
+  rename("Nome_Municipio" = `NOME DO MUNICÍPIO`, 
+         "Populacao" = `POPULAÇÃO APURADA IBGE 
+- CENSO DEMOGRÁFICO 2022 E MALHA TERRITORIAL 2023 -`) %>% 
+  select(Cod_IBGE_Mun, Nome_Municipio, Ano, Populacao) %>% 
+  filter(!is.na(Populacao))
+
+Populacao <- read_xlsx(here("Dados/tabela6579.xlsx"), skip = 3)%>% 
+  rename("Cod_IBGE_Mun" = 2,
+         "Nome_Municipio" = 3) %>% 
+  pivot_longer(cols = starts_with("20"), names_to = "Ano", values_to = "Populacao") %>% 
+  select(!1) %>% 
+  bind_rows(Pop2022)%>% 
+  mutate(Populacao = as.character(Populacao)) %>% 
+  bind_rows(Pop2023)
+
+saveRDS(Populacao, here("Dados/Populacao.RDS"))
+
+rm(Pop2022, Pop2023, Populacao)
 ```
 
 ## 1.8 Juntando as bases de dados
@@ -791,14 +860,14 @@ Vamos começar adicionando as informações do AdaptaBrasil à nossa base de ALC
 
 ```{r}
 #Recuperando as duas bases
-ALClima13_23 <- readRDS(here("Dados/ALClima13_23.RDS")) 
+ALClima13_24 <- readRDS(here("Dados/ALClima13_24.RDS")) 
 
 AdaptaBrasil <- readRDS(here("Dados/AdaptaBrasil.RDS"))
 
 #Juntando as duas bases
-df <- merge(ALClima13_23, AdaptaBrasil, by = c("Municipio_UF"), all.x = T)
+df <- merge(ALClima13_24, AdaptaBrasil, by = c("Municipio_UF"), all.x = T)
 
-rm(AdaptaBrasil, ALClima13_23)
+rm(AdaptaBrasil, ALClima13_24)
 ```
 
 ### + Desastres
@@ -847,7 +916,7 @@ rm(df_prev, df_next, Desastres)
 ### +Orçamento Municipal
 
 ```{r}
-orcamento <- readRDS(here("Dados/orcamento2013_2023.RDS")) %>% 
+orcamento <- readRDS(here("Dados/orcamento2013_2024.RDS")) %>% 
   mutate(Cod_IBGE_Mun = as.character(Cod_IBGE_Mun)) 
 
 df <- merge(df, orcamento, by = c("Cod_IBGE_Mun", "Ano"), all.x = T)
@@ -863,7 +932,7 @@ eleicoes <- readRDS(here("Dados/eleicoes.RDS")) %>%
 
 # 1. Criando base de dados alinhando combinações de projetos e deastres que aconteceram antes deles
 eleicoes <- expand_grid(
-  Data = seq(as.Date("2013-01-01"), as.Date("2023-12-31"), by = "day"),
+  Data = seq(as.Date("2013-01-01"), as.Date("2024-12-31"), by = "day"),
   proxima_eleicao = eleicoes$eleicoes) %>%
   filter(proxima_eleicao >= Data) %>%
   group_by(Data) %>%
@@ -879,7 +948,7 @@ df <- merge(df, eleicoes, by = "Data", all.x = T)
 rm(eleicoes)
 ```
 
-### OSCs
+### +OSCs
 
 ```{r}
 OSCsClima <- readRDS(here("Dados/OSCsClima.RDS"))
@@ -887,6 +956,19 @@ OSCsClima <- readRDS(here("Dados/OSCsClima.RDS"))
 df <- merge(df, OSCsClima, by = c("Cod_IBGE_Mun", "Data"), all.x = T)
 
 rm(OSCsClima)
+```
+
+### +População
+
+```{r}
+Populacao <- readRDS(here("Dados/Populacao.RDS")) %>% 
+  select(Cod_IBGE_Mun, Ano, Populacao) %>% 
+  mutate(Cod_IBGE_Mun = as.character(Cod_IBGE_Mun),
+         Ano = as.integer(Ano))
+
+df <- merge(df, Populacao, by = c("Cod_IBGE_Mun", "Ano"), all.x = T)
+
+rm(Populacao)
 ```
 
 ### Salvando base de dados final
@@ -901,7 +983,7 @@ df<- df %>%
          clima_termos,
          data_desastre_anterior, desastre_anterior, obitos_desastre_anterior, dias_desastre_anterior,
          data_desastre_proximo, desastre_proximo, obitos_desastre_proximo, dias_desastre_proximo, 
-         Receitas_Mun, proxima_eleicao, dias_proxima_eleicao, n_OSCs, 
+         Receitas_Mun, Populacao, proxima_eleicao, dias_proxima_eleicao, n_OSCs, 
          AB2_Recursos_Hídricos_Seca, 
            AB3_Recursos_Hídricos_Ameaça_Climática,
            AB3_Recursos_Hídricos_Exposição,
