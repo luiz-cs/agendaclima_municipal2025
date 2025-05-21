@@ -52,8 +52,8 @@ library(sf)
 library(geobr)
 #Listando os municípios presentes na seleção:
 
-# Lê todos os municípios de 2023 apenas uma vez
-mapa_brasil <- read_municipality(year = 2023)
+# Lê todos os municípios de 2024 apenas uma vez
+mapa_brasil <- read_municipality(year = 2024)
 
 # Filtra apenas os municípios presentes na lista
 mapa_munic <- mapa_brasil %>%
@@ -236,32 +236,34 @@ Agora, vamos analisar a população dos municípios selecionados em comparação
 
 ```{r}
 Populacao <- readRDS(here("Dados/Populacao.RDS")) %>% 
-  mutate(origem = ifelse(Cod_IBGE_Mun %in% lista_municipios$Cod_IBGE_Mun, "Selecionados", "Brasil"))
+  mutate(origem = ifelse(Cod_IBGE_Mun %in% lista_municipios$Cod_IBGE_Mun, "Selecionados", "Brasil")) %>% 
+  filter(!is.na(Populacao)) %>% 
+  mutate(Populacao = as.integer(Populacao))
 
 #Gráfico
-popgg <- Populacao %>%
-  filter(origem == "Selecionados") %>% 
-  mutate(origem = "Brasil") %>% 
-  bind_rows(Populacao) %>% 
+pop_gg <- Populacao %>%
+  filter(origem == "Selecionados") %>%
+  mutate(origem = "Brasil") %>%
+  bind_rows(Populacao) %>%
   filter(Ano == 2024) %>% 
   ggplot(aes(x = Populacao, fill = origem)) +
-  geom_density()+
+  geom_density(alpha = 0.5) +
   labs(
     title = "Distribuição da população dos municípios, em 2024",
     y = "Frequência",
-    x = "População",
+    x = "População (escala log)",
     fill = "Origem"
   ) +
-  scale_y_continuous(labels = label_percent(accuracy = 1)) +
-  theme_bw()+
-  theme(legend.position = "bottom")+
-  facet_wrap(~ origem)
+  scale_y_continuous(labels = scales::label_percent()) +
+  scale_x_log10(labels = scales::label_number_si()) +
+  theme_bw() +
+  theme(legend.position = "bottom")
 
-popgg
+pop_gg
 
-ggsave(here("Figuras/2.1.3.Distribuição da População.png"), popgg)
+ggsave(here("Figuras/2.1.3.Distribuição da População.png"), pop_gg)
   
-rm(popgg, Populacao)
+rm(pop_gg, Populacao)
 ```
 
 ## 2.2 Variável dependente: Projetos
@@ -375,7 +377,8 @@ ptipano <- tiproj %>%
   labs(title = "Proporção dos tipos de proposituras climáticas em relação ao total de projetos deste tipo, por ano", 
        y = 'Percentual de proposituras', 
        x = "Ano")+
-  scale_y_continuous(labels = label_percent(accuracy = 1))+
+  scale_y_continuous(labels = label_percent(accuracy = 1))+ 
+  scale_x_continuous(labels = label_number(accuracy = 1))+
   theme(legend.position = "bottom")+
   scale_fill_manual(values = paleta_proposituras$Cores, limits = paleta_proposituras$Tipo)+
   facet_wrap(vars(Tipo))
@@ -450,6 +453,7 @@ n_ct <- climatermos %>%
     y = "Termos climáticos",
     fill = "Categorias"
   ) +
+  scale_x_continuous(breaks = 11)+
   theme_classic() +
   theme(legend.position = "bottom")+
   scale_fill_manual(values = paleta_climatermos$Cores, limits = paleta_climatermos$Categoria)
@@ -497,6 +501,7 @@ ct_pano <- climatermos %>%
   labs(title = "Distribuição das ocorrências dos termos climáticos, por ano", 
        y = 'Percentual dos termos')+
   scale_y_continuous(labels = label_percent(accuracy = 1)) +
+  scale_x_continuous(labels = label_number(accuracy = 1))+
   theme(legend.position = "bottom")+
   scale_fill_manual(values = paleta_climatermos$Cores, limits = paleta_climatermos$Categoria)
 
@@ -639,6 +644,7 @@ dfdesastres <- dfdesastres %>%
 ```{r, 'graf_comparacao_brasil'}
 #Gráfico com comparação entre percentual por ano nos municípios selecionados e no brasil
 p_des_ano_cat <- dfdesastres %>% 
+  filter(!(Desastre %in% c('Onda de Calor e Baixa Umidade', 'Onda de Frio', 'Tornado'))) %>% 
   pivot_longer(cols = starts_with("p_"), names_prefix = "p_", names_to = "origem", values_to = "Percentual") %>% 
   ggplot(aes( x = `Ano`, y = Percentual, fill = Desastre)) + 
   geom_bar(stat = "identity")+ 
@@ -653,7 +659,7 @@ p_des_ano_cat <- dfdesastres %>%
 
 p_des_ano_cat
 
-ggsave(here("Figuras/2.3.1.3P_Categoria_Desastres_Ano.png"), p_des_ano_cat, width = 10, height = 15)
+ggsave(here("Figuras/2.3.1.3P_Categoria_Desastres_Ano.png"), p_des_ano_cat, width = 6, height = 9)
 
 rm(Desastres, totalDes, p_des_ano_cat)
 ```
@@ -663,7 +669,8 @@ Letalidade
 ```{r, 'comparacao_letalidade'}
 p_des_ano_obitos <- dfdesastres %>% 
   filter(obitos_selecao != 0, 
-         obitos_Brasil != 0) %>% 
+         obitos_Brasil != 0,
+         !(Desastre %in% c('Onda de Calor e Baixa Umidade', 'Onda de Frio', 'Tornado'))) %>% 
   pivot_longer(cols = starts_with("pc_obitos_"), names_prefix = "pc_obitos_", names_to = "origem", values_to = "Percentual") %>% 
   ggplot(aes( x = `Ano`, y = Percentual, fill = Desastre, group = Desastre)) + 
   geom_bar(stat = "identity")+ 
@@ -672,13 +679,14 @@ p_des_ano_obitos <- dfdesastres %>%
        y = 'Percentual de ocorrências', 
        x = "Anos")+
   scale_y_continuous(labels = label_percent(accuracy = 1)) +
+  scale_x_continuous(labels = label_number(accuracy = 1))+
   theme(legend.position = "bottom")+
   scale_fill_manual(values = paleta_desastres$Cores, limits = paleta_desastres$Tipo) + 
   facet_grid(Desastre ~ origem)
 
 p_des_ano_obitos
 
-ggsave(here("Figuras/2.3.1.4P_Categoria_Desastres_Obitos.png"), p_des_ano_obitos, width = 10, height = 15)
+ggsave(here("Figuras/2.3.1.4P_Categoria_Desastres_Obitos.png"), p_des_ano_obitos, width = 6, height = 9)
 
 rm(p_des_ano_obitos, dfdesastres)
 ```
@@ -913,7 +921,7 @@ orcamento_ano <- orcamento %>%
     x = "Ano",
     fill = "Origem"
   ) +
-  scale_x_continuous(n.breaks = 10)+
+  scale_x_continuous(n.breaks = 11, limits = x(0, 600000000))+
   scale_y_continuous(labels = scales::comma)+
   theme_bw()+
   theme(legend.position = "bottom")
@@ -934,11 +942,11 @@ orcamento_dist <- orcamento %>%
   filter(origem == "Selecionados") %>% 
   mutate(origem = "Brasil") %>% 
   bind_rows(orcamento) %>% 
-  filter(Ano == 2023) %>% 
+  filter(Ano == 2024) %>% 
   ggplot(aes(x = Receitas_Mun, fill = origem)) +
   geom_density()+
   labs(
-    title = "Distribuição da Receita dos municípios, em 2023",
+    title = "Distribuição da Receita dos municípios, em 2024",
     y = "Frequência",
     x = "Média",
     fill = "Origem"
@@ -951,7 +959,7 @@ orcamento_dist <- orcamento %>%
 
 orcamento_dist
 
-ggsave(here("Figuras/2.3.3.2.Distribuição de Receitas em 2023.png"), orcamento_dist)
+ggsave(here("Figuras/2.3.3.3.Distribuição de Receitas em 2024.png"), orcamento_dist)
   
 rm(orcamento_dist, orcamento)
 ```
@@ -1080,7 +1088,7 @@ tiproj_dias_desastres <- df %>%
 
 tiproj_dias_desastres
 
-ggsave(here("Figuras/2.4.1.2.2 Densidade_tipos_proposituras_e_desastre.png"), tiproj_dias_desastres, width = 15, height = 30)
+ggsave(here("Figuras/2.4.1.2.2 Densidade_tipos_proposituras_e_desastre.png"), tiproj_dias_desastres, width = 15, height = 20)
 
 rm(tiproj_dias_desastres)
 ```
@@ -1216,7 +1224,7 @@ termos_dias_tipo_desastres <- dftermos %>%
 
 termos_dias_tipo_desastres
 
-ggsave(here("Figuras/2.4.1.3.2 Densidade_termos_e_desastre.png"), termos_dias_tipo_desastres, width = 15, height = 20)
+ggsave(here("Figuras/2.4.1.3.2 Densidade_termos_e_desastre.png"), termos_dias_tipo_desastres, width = 15, height = 18)
 
 rm(termos_dias_tipo_desastres)
 ```
@@ -1234,7 +1242,8 @@ termos_120_dias <- dftermos %>%
   theme_classic()+
   labs(title = "Distribuição das menções aos termos climáticos, por dias após o desastre", 
        y = 'Percentual de menções aos termos', 
-       x = "Dias desde o último desastre")+
+       x = "Dias desde o último desastre",
+       fill = "Termos Climáticos")+
   scale_y_continuous(labels = label_percent(accuracy = 1)) +
   theme(legend.position = "bottom")+
   scale_fill_manual(values = paleta_climatermos$Cores, limits = paleta_climatermos$Categoria)
@@ -1313,7 +1322,7 @@ prop_dimensao_risco <- dfrisco %>%
 
 prop_dimensao_risco
 
-ggsave(here("Figuras/2.4.2.1.Proposituras_Dimensao_Risco.png"), prop_dimensao_risco)
+ggsave(here("Figuras/2.4.2.1.Proposituras_Dimensao_Risco.png"), prop_dimensao_risco, width = 6, height = 9)
 
 rm(prop_dimensao_risco)
 ```
@@ -1364,8 +1373,6 @@ risco_lms <- dfrisco %>%
 
 
 ```
-
-### FAZER RISCO CLIMÁTICO X N DESASTRES
 
 ```{r}
 #Desastres x Risco Climático
@@ -1428,7 +1435,7 @@ climaXobitos <- dfrisco %>%
 
 climaXobitos
 
-ggsave(here("Figuras/2.4.2.4.Obitos_Indicador_Risco.png"), climaXobitos, width = 15, height = 20)
+ggsave(here("Figuras/2.4.2.4.Obitos_Indicador_Risco.png"), climaXobitos, width = 15, height = 15)
 
 rm(climaXobitos, DesastresN, dfrisco)
 ```
@@ -1499,7 +1506,7 @@ rm(tipos_proposituras_oscs)
 
 ```{r}
 proposituras_orcamento <- df %>% 
-  filter(Ano == 2023) %>% 
+  filter(Ano == 2024) %>% 
   mutate(Tipo = ifelse(Tipo %in% paleta_proposituras$Tipo, Tipo, "outros")) %>% 
   group_by(Cod_IBGE_Mun, Tipo, Receitas_Mun) %>% 
   summarize(n = n(),
@@ -1510,8 +1517,8 @@ proposituras_orcamento <- df %>%
               formula = y ~ x,
               geom = "smooth",
               aes(color = NA))+
-  labs(title = "Percentual de proposituras apresentadas x Receita dos municípios em 2023", 
-       x = "Receita do governo municipal em 2023",
+  labs(title = "Percentual de proposituras apresentadas x Receita dos municípios em 2024", 
+       x = "Receita do governo municipal em 2024",
        y = "Percentual de proposituras no ano")+
   theme_bw()+
   scale_y_continuous(labels = label_percent(accuracy = 1)) +
@@ -1528,7 +1535,7 @@ rm(proposituras_orcamento)
 
 ```{r}
 tipos_proposituras_orcamento <- df %>% 
-  filter(Ano == 2023) %>% 
+  filter(Ano == 2024) %>% 
   mutate(Tipo = ifelse(Tipo %in% paleta_proposituras$Tipo, Tipo, "outros")) %>% 
   group_by(Cod_IBGE_Mun, Tipo, Receitas_Mun) %>% 
   summarize(n = n(),
@@ -1538,8 +1545,8 @@ tipos_proposituras_orcamento <- df %>%
   stat_smooth(method = "lm",
               formula = y ~ x,
               geom = "smooth")+
-  labs(title = "Percentual de proposituras apresentadas x Receita dos municípios em 2023", 
-       x = "Receita do governo municipal em 2023",
+  labs(title = "Percentual de proposituras apresentadas x Receita dos municípios em 2024", 
+       x = "Receita do governo municipal em 2024",
        y = "Percentual de proposituras no ano")+
   theme_bw()+
   scale_y_continuous(labels = label_percent(accuracy = 1)) +
@@ -1553,4 +1560,16 @@ tipos_proposituras_orcamento
 ggsave(here("Figuras/2.4.4.2.Tipos_proposituras_Orcamento.png"),tipos_proposituras_orcamento)
 
 rm(tipos_proposituras_orcamento)
+```
+
+### Salvar paletas e remover demais
+
+```{r}
+paletas <- c(paleta_climatermos, paleta_desastres, paleta_proposituras, paleta_regiao)
+
+saveRDS(object = paletas, here("Dados/paletas.RDS"))
+
+saveRDS(risco_lms, here("Dados/riscl_lms.RDS"))
+
+rm(paletas, paleta_climatermos, paleta_desastres, paleta_proposituras, paleta_regiao, df, lista_municipios, risco_lms)
 ```

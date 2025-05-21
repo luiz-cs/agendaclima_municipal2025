@@ -927,6 +927,7 @@ rm(orcamento)
 ### + Data das Eleições
 
 ```{r}
+
 eleicoes <- readRDS(here("Dados/eleicoes.RDS")) %>% 
   data.table()
 
@@ -964,7 +965,9 @@ rm(OSCsClima)
 Populacao <- readRDS(here("Dados/Populacao.RDS")) %>% 
   select(Cod_IBGE_Mun, Ano, Populacao) %>% 
   mutate(Cod_IBGE_Mun = as.character(Cod_IBGE_Mun),
-         Ano = as.integer(Ano))
+         Ano = as.integer(Ano), 
+         Populacao = as.integer(Populacao)) %>% 
+  filter(!is.na(Populacao))
 
 df <- merge(df, Populacao, by = c("Cod_IBGE_Mun", "Ano"), all.x = T)
 
