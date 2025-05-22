@@ -111,12 +111,10 @@ cores <- data.table(Regiao = c("Norte", "Nordeste", "Centro-Oeste", "Sudeste", "
                     Cores = c("#45D14A", "#D17C46", "#D1D145", "#D14568", "#45C3D1"))
 
 
-regioes <- merge(regioes, cores, by = "Regiao")
+paleta_regiao <- merge(regioes, cores, by = "Regiao")
 
-uf <- merge(uf, regioes, by = "UF", all = T)
+uf <- merge(uf, paleta_regiao, by = "UF", all = T)
 
-
-paleta_regiao <- setNames(uf$Cores, uf$Regiao)
 
 
 rm(AB_UF, regioes, cores)
@@ -132,7 +130,7 @@ library(scales)
 uf_num <- uf %>%
   ggplot(aes(x = reorder(UF, n_selecionados), y = n_selecionados, fill = Regiao)) +
   geom_col() +
-  scale_fill_manual(values = paleta_regiao) +
+  scale_fill_manual(values = paleta_regiao$Cores, limits = paleta_regiao$UF) +
   geom_text(aes(label = n_selecionados), vjust = -0.1,
               position = position_dodge(width = 0.5)) +
   labs(
@@ -157,7 +155,7 @@ rm(uf_num)
 uf_percent <- uf %>%
   ggplot(aes(x = reorder(UF, Percentual_UF), y = Percentual_UF, fill = Regiao)) +
   geom_col() +
-  scale_fill_manual(values = paleta_regiao) +
+  scale_fill_manual(values = paleta_regiao$Cores, limits = paleta_regiao$UF) +
   scale_y_continuous(labels = label_percent(accuracy = 1)) +
   labs(
     title = "Percentual de municípios presentes na seleção, por UF",
@@ -187,7 +185,7 @@ regiao <- uf %>%
 regiao_num <- regiao %>%
   ggplot(aes(x = reorder(Regiao, n_selecionados), y = n_selecionados, fill = Regiao)) +
   geom_col() +
-  scale_fill_manual(values = paleta_regiao) +
+  scale_fill_manual(values = paleta_regiao$Cores, limits = paleta_regiao$Regiao) +
   geom_text(aes(label = n_selecionados), vjust = -0.1,
               position = position_dodge(width = 0.5)) +
   labs(
@@ -212,7 +210,7 @@ rm(regiao_num)
 regiao_percent <- regiao %>%
   ggplot(aes(x = reorder(Regiao, Percentual_UF), y = Percentual_UF, fill = Regiao)) +
   geom_col() +
-  scale_fill_manual(values = paleta_regiao) +
+  scale_fill_manual(values = paleta_regiao$Cores, limits = paleta_regiao$Regiao) +
   scale_y_continuous(labels = label_percent(accuracy = 1)) +
   labs(
     title = "Percentual de municípios presentes na seleção, por UF",
@@ -1565,9 +1563,12 @@ rm(tipos_proposituras_orcamento)
 ### Salvar paletas e remover demais
 
 ```{r}
-paletas <- c(paleta_climatermos, paleta_desastres, paleta_proposituras, paleta_regiao)
+paletas <- list(climatermos = paleta_climatermos,
+  desastres = paleta_desastres,
+  proposituras = paleta_proposituras,
+  regiao = paleta_regiao)
 
-saveRDS(object = paletas, here("Dados/paletas.RDS"))
+saveRDS(paletas, here("Dados/paletas.RDS"))
 
 saveRDS(risco_lms, here("Dados/riscl_lms.RDS"))
 

@@ -3,9 +3,337 @@ title: "3. Análise de conteúdo dos projetos com STM"
 output: html_notebook
 ---
 
+# 3. Análise de conteúdo dos projetos com Modelagem de Tópicos
 
 ```{r}
-plot(cars)
+#install.packages("dplyr")
+#install.packages("data.table")
+#install.packages("stm")
+#install.packages("tm")
+#install.packages("SnowballC")
+#install.packages("reshape2")
 ```
 
+```{r, warning = FALSE}
+library(dplyr)
+library(here)
+library(readr)
+library(data.table)
+library(stringr)
+library(tidytext)
+library(ggplot2)
+library(stm)
 
+```
+
+## 1. Preparando a base de dados
+
+```{r}
+df <- readRDS(here("Dados/df_agendaclima_municipal.RDS"))
+```
+
+```{r, 'adicionando_quartis'}
+sum_distancia <- summary(df$dias_desastre_anterior)
+
+quartil_1 <- sum_distancia[2]
+quartil_2 <- sum_distancia[3]
+quartil_3 <- sum_distancia[5]
+
+sum_distancia
+```
+
+```{r}
+
+paletas <- readRDS("Dados/paletas.RDS")
+plt_proposituras <- paletas$proposituras
+
+df %>% 
+  mutate(Tipo = ifelse(Tipo %in% plt_proposituras$Tipo, Tipo, "outros")) %>% 
+  ggplot(aes(x = dias_desastre_anterior, fill = Tipo))+
+  geom_histogram(bins=200)+
+  geom_vline(xintercept = quartil_1, linetype = "dashed")+
+  geom_vline(xintercept = quartil_2, linetype = "dashed")+
+  geom_vline(xintercept = quartil_3, linetype = "dashed")+
+  theme_linedraw()+
+  theme(legend.position = "bottom")+
+  scale_color_manual(values = plt_proposituras$Cores, limits = plt_proposituras$Tipo)+
+  xlim(0,2000)+
+  xlab("Dias desde o desastre anterior")+
+  ylab("Número de proposições")
+```
+
+```{r}
+df <- df %>% 
+  mutate(Quartil = case_when(dias_desastre_anterior <= quartil_1 ~ 1,
+                             dias_desastre_anterior > quartil_1 & dias_desastre_anterior <= quartil_2 ~ 2,
+                             dias_desastre_anterior > quartil_2 & dias_desastre_anterior <= quartil_3 ~ 3,
+                             dias_desastre_anterior > quartil_3 ~ 4,
+                             .default = NA),
+        ementa = as.factor(ementa))
+
+rm(quartil_1, quartil_2, quartil_3, sum_distancia)
+```
+
+## 2. Limpando texto das ementas
+
+Antes de analisar o texto das ementas, precisamos limpá-lo para excluir conectivos, pronomes, vocativos e nomes próprios, entre outras palavras que não interessam à análise.
+
+**Certifique-se que o arquivo "nomes_proprios_br.csv" está na pasta "Dados"**
+
+```{r,  warning=FALSE, 'listas_palavras_removidas'}
+
+#Limpando conectivos:
+palavras_remover <- data.frame(palavras_remover = c('de',  'a',  'o',  'que',  'e',  'do',  'da',  'em',  'um',  'para',  'é',  'com',  'não',  'uma',  'os',  'no',  'se',  'na',  'por',  'mais',  'as',  'dos',  'como',  'mas',  'foi',  'ao',  'ele',  'das',  'tem',  'à',  'seu',  'sua',  'ou',  'ser',  'quando',  'muito',  'há',  'nos',  'já',  'está',  'eu',  'também',  'só',  'pelo',  'pela',  'até',  'isso',  'ela',  'entre',  'era',  'depois',  'sem',  'mesmo',  'aos',  'ter',  'seus',  'quem',  'nas',  'me',  'esse',  'eles',  'estão',  'você',  'tinha',  'foram',  'essa',  'num',  'nem',  'suas',  'meu',  'às',  'minha',  'têm',  'numa',  'pelos',  'elas',  'havia',  'seja',  'qual',  'será',  'nós',  'tenho',  'lhe',  'deles',  'essas',  'esses',  'pelas',  'este',  'fosse',  'dele',  'tu',  'te',  'vocês',  'vos',  'lhes',  'meus',  'minhas',  'teu',  'tua',  'teus',  'tuas',  'nosso',  'nossa',  'nossos',  'nossas',  'dela',  'delas',  'esta',  'estes',  'estas',  'aquele',  'aquela',  'aqueles',  'aquelas',  'isto',  'aquilo',  'estou',  'está',  'estamos',  'estão',  'estive',  'esteve',  'estivemos',  'estiveram',  'estava',  'estávamos',  'estavam',  'estivera',  'estivéramos',  'esteja',  'estejamos',  'estejam',  'estivesse',  'estivéssemos',  'estivessem',  'estiver',  'estivermos',  'estiverem',  'hei',  'há',  'havemos',  'hão',  'houve',  'houvemos',  'houveram',  'houvera',  'houvéramos',  'haja',  'hajamos',  'hajam',  'houvesse',  'houvéssemos',  'houvessem',  'houver',  'houvermos',  'houverem',  'houverei',  'houverá',  'houveremos',  'houverão',  'houveria',  'houveríamos',  'houveriam',  'sou',  'somos',  'são',  'era',  'éramos',  'eram',  'fui',  'foi',  'fomos',  'foram',  'fora',  'fôramos',  'seja',  'sejamos',  'sejam',  'fosse',  'fôssemos',  'fossem',  'for',  'formos',  'forem',  'serei',  'será',  'seremos',  'serão',  'seria',  'seríamos',  'seriam',  'tenho',  'tem',  'temos',  'tém',  'tinha',  'tínhamos',  'tinham',  'tive',  'teve',  'tivemos',  'tiveram',  'tivera',  'tivéramos',  'tenha',  'tenhamos',  'tenham',  'tivesse',  'tivéssemos',  'tivessem',  'tiver',  'tivermos',  'tiverem',  'terei',  'terá',  'teremos',  'terão',  'teria',  'teríamos',  'teriam', "municipal", 'município', 'municipio', 'municípios', 'municipios', 'prefeito', 'prefeita', 'prefeitos', 'prefeitas', 'executivo', 'secretaria', 'secretarias', 'senhor', 'senhora', 'vereador', 'vereadora', 'vereadores', 'vereadoras', 'poder', 'sr', 'secretário', 'secretária', 'secretários', 'secretárias', 'excelentíssimo', 'excelentíssima', 'excelentíssimos', 'excelentíssimas', 'exmo', 'exma', 'prefeitura', 'prefeituras', 'excelência', 'vossa', 'presidente', 'presidentes', "secretarias", "nobres", 'ministério', 'plenário', 'josé', 'silva', 'joão', 'secadora', 'onety', 'elcione')) %>%  bind_rows((read_csv2(here("Dados/nomes_proprios_br.csv"), col_names = "palavras_remover")))
+
+palavras_remover <- palavras_remover$palavras_remover %>% 
+  str_replace_all("([\\^$.|?*+(){}])", "\\\\\\1") %>% 
+  str_trim()
+  
+
+palavras_remover <- paste0("\\b(", paste(palavras_remover, collapse = "|"), ")\\b")
+
+```
+
+```{r, 'add_ementa_pr'}
+
+df <- df %>%
+  mutate(ementa_pr = str_replace_all(ementa, regex(palavras_remover), "_"))
+  
+rm(palavras_remover)
+```
+
+```{r, 'palavras_predominantes_quartil'}
+
+#Cria tabela com palavras, por frequência em que aparecem
+palavras_freq <-df %>%
+  unnest_tokens(palavras, ementa_pr, drop = F) %>% 
+  group_by(palavras) %>% 
+  summarise(n = n()) %>% 
+  arrange(desc(n)) %>% 
+  top_n(30) %>% 
+  ggplot(aes(y = reorder(palavras, n), x = n)) +
+  geom_col() +
+  labs(
+    title = "Número de menções aos termos nas ementas",
+    x = "Número de menções",
+    y = "Palavras") +
+  theme_classic() +
+  theme(legend.position = "none")
+  
+palavras_freq
+
+rm(palavras_freq, tidy)
+```
+
+## 3 Fazendo análise com STM
+
+```{r, 'preparando_textos'}
+########Modelagem de topicos (Structural Topic Model)
+#processamento do texto e definição do valor K mais adequado
+
+#Selecionando só textos:
+textos <- df$ementa_pr
+
+#Processanto texto (removendo conjunções, separando metadata etc)
+prep_texts <- textProcessor(documents=textos, metadata=data.frame(docnumbers=1:length(textos)), language = "portuguese")
+
+#Preparanto o texto: Remove palavras com poucas aparições e ajusta os índices
+prep_texts <- prepDocuments(prep_texts$documents, prep_texts$vocab, prep_texts$meta)
+
+
+textos <- textos[c(prep_texts$meta$docnumbers)]
+
+
+```
+
+```{r, 'encontrando_k_ideal'}
+
+#Rodar só se necessário (leva muito tempo)
+#Valor k (número de tópicos em que dividir)
+#K <- 2:20
+
+## searchk procura o melhor número de tópicos
+#kresult <- searchK(prep_texts$documents, prep_texts$vocab, K, data=prep_texts$meta)
+#plot(kresult)
+
+#saveRDS(kresult, here("Dados/kresult.RDS"))
+
+#rm(K, kresult)
+```
+
+Escolhemos k = 9, para maximizar a Coerência Semântica
+
+```{r, 'modelagem_stm'}
+#modelagem dos tópicos (9 tópicos)
+stm_result <- stm(prep_texts$documents, prep_texts$vocab, 9, data=prep_texts$meta, verbose = F)
+
+saveRDS(stm_result, here("Dados/stm_result.RDS"))
+summary(stm_result)
+```
+
+```{r, 'thoughts'}
+#Localização dos textos mais representativos de determinado tópico
+thoughts <-findThoughts(stm_result, texts= textos, topics=c(1:8), n=10)
+
+thoughts_id <- data.frame(thoughts$index)
+
+thoughts_docs <- data.frame(thoughts$docs)
+
+for (i in 1:nrow(thoughts_id)){
+  for (j in 1:ncol(thoughts_id)){
+    thoughts_docs[i,j] <- as.character(df$ementa[thoughts_id[i,j]]) %>%
+      { ifelse(length(.) > 0, ., as.character(NA)) }
+  }
+}
+
+saveRDS(thoughts_docs, file = here("Dados/stmthoughts.RDS"))
+
+```
+
+```{r, 'adicionando_ao_df'}
+stm_tidy <- tidy(stm_result, matrix = "gamma") %>% 
+  pivot_wider(names_from = topic, values_from = gamma, names_prefix = "Tópico ")
+
+df <- bind_cols(df, stm_tidy)%>%
+  mutate(tópico_principal = colnames(select(., `Tópico 1`:`Tópico 9`))[max.col(select(., `Tópico 1`:`Tópico 9`), ties.method = "first")])
+
+saveRDS(df, file = here("Dados/df_STM.RDS"))
+
+rm(prep_texts, textos, stm_tidy, textos, tidyementas, i, j, thoughts_id, thoughts_docs)
+
+```
+
+```{r, 'percent_topicos'}
+percent_topicos <- df %>% 
+  group_by(tópico_principal) %>% 
+  summarise(n = n()) %>% 
+  mutate(porcent_n = n/sum(n))
+
+percent_topicos
+```
+
+## PAREI AQUI 4.3 - Cruzando as categorias com os tipos de projeto e desastre
+
+```{r, frequência_topicos}
+df <- readRDS(here("Dados SD/df_STM.RDS"))
+
+
+```
+
+### Gráfico Dias x Tipos
+
+```{r, 'graf_dias_tipo'}
+
+sum_distancia <- summary(df$dias_desastre_anterior)
+
+quartil_1 <- sum_distancia[2]
+quartil_2 <- sum_distancia[3]
+quartil_3 <- sum_distancia[5]
+
+graf3 <- df %>% 
+  group_by(dias_desastre_anterior, tópico_principal) %>% 
+  summarise(n = n()) %>% 
+  filter(dias_desastre_anterior <= 1300)
+  
+graf3 %>% 
+  ggplot(aes( x = `dias_desastre_anterior`, y = n, fill = tópico_principal)) +
+  geom_bar(stat = "identity")+
+  geom_vline(xintercept = quartil_1, linetype = "dashed")+
+  geom_vline(xintercept = quartil_2, linetype = "dashed")+
+  geom_vline(xintercept = quartil_3, linetype = "dashed")+
+  theme_linedraw()+
+  labs(title = "Tópicos dos projetos, por dias após desastre")+
+  scale_fill_brewer(palette = "Dark2")+
+  ylab('Número de documentos')+
+  xlab('Dias desde o desastre anterior')+
+  xlim(0,1400)+
+  labs(fill = 'Tópico Principal')+
+  theme(legend.position = "bottom")+
+  facet_wrap(~tópico_principal, scales = "free", ncol = 2)
+```
+
+```{r, 'Por Quartil'}
+graf3 <- df %>% 
+  group_by(Quartil, tópico_principal) %>% 
+  summarise(n = n()) %>%
+  group_by(Quartil) %>% 
+  mutate(porcent_al = n/ sum(n))
+  
+graf3 %>% 
+  ggplot(aes( x = `Quartil`, y = porcent_al, fill = tópico_principal)) + 
+  geom_bar(stat = "identity")+ 
+  theme_linedraw()+
+  labs(title = "Tópicos dos projetos, por quartil em relação ao desastre")+
+  scale_fill_brewer(palette = "Dark2")+
+  ylab('Percentual de documentos')+
+  xlab('Quartil em relação ao desastre')+
+  labs(fill = "Tópico Principal")
+```
+
+```{r}
+
+graf4 <- df %>% 
+  filter(Tipo %in% c('Indicacao', 'Mocao', 'Pedido de providencias', 'Projeto de decreto legislativo', 'Projeto de lei ordinaria', 'Projeto executivo municipal', 'Requerimento', 'Emendas orçamentárias')) %>% 
+  group_by(Tipo, Quartil, tópico_principal) %>% 
+  summarise(n = n()) %>%
+  group_by(Quartil, Tipo) %>% 
+  mutate(porcent_al = n/ sum(n))
+  
+graf4 %>% 
+  ggplot(aes( x = `Quartil`, y = porcent_al, fill = tópico_principal)) + 
+  geom_bar(stat = "identity")+ 
+  theme_linedraw()+
+  labs(title = "Tópicos dos projetos, por quartil em relação ao desastre (em percentual)")+
+  scale_fill_brewer(palette = "Dark2")+
+  ylab('Percentual de documentos')+
+  xlab('Quartil em relação ao desastre')+
+  theme(legend.position = "bottom")+
+  labs(fill = 'Tópico Principal')+
+  facet_wrap(~Tipo, ncol = 4)
+```
+
+### Gráfico Tipos por Desastre
+
+```{r}
+graf4 <- df %>% 
+  
+  filter(!(desastre_anterior %in% c('Onda de Calor e Baixa Umidade', 'Onda de Frio', 'Tornado', 'Granizo')),
+           Tipo %in% c('Indicacao', 'Mocao', 'Pedido de providencias', 'Projeto de decreto legislativo', 'Projeto de lei ordinaria', 'Projeto executivo municipal', 'Requerimento', 'Oficio')) %>% 
+  group_by(desastre_anterior, Quartil, tópico_principal) %>% 
+  summarise(n = n()) %>%
+  group_by(Quartil, desastre_anterior) %>% 
+  mutate(porcent_al = n/ sum(n))
+
+graf4 %>% 
+  ggplot(aes( x = `Quartil`, y = porcent_al, fill = tópico_principal)) + 
+  geom_bar(stat = "identity")+ 
+  theme_linedraw()+
+  labs(title = "Tópicos dos projetos, por quartil em relação ao desastre  e tipo de desastre")+
+  scale_fill_brewer(palette = "Dark2")+
+  ylab('Percentual de documentos')+
+  xlab('Quartil em relação ao desastre')+
+  theme(legend.position = "bottom")+
+  labs(fill = 'Tópico Principal')+
+  facet_wrap(~desastre_anterior, ncol = 3)
+```
+
+```{r, 'topico_ano'}
+A_Tipos <- df %>% 
+  group_by(tópico_principal, Ano) %>% 
+  summarise(n_al = n()) %>%
+  group_by(Ano) %>% 
+  mutate(porcent_al = n_al/ sum(n_al)) 
+
+A_Tipos %>% 
+  ggplot(aes( x = `Ano`, y = porcent_al, fill = tópico_principal)) + 
+  geom_bar(stat = "identity")+ 
+  theme_linedraw()+
+  labs(title = "Tópicos das proposituras, por Ano")+
+  scale_fill_brewer(palette = "Dark2")+
+  labs(fill = 'Tópico Principal')+
+  ylab('Percentual de documentos')
+```
+
+```{r}
+view(df)
+```

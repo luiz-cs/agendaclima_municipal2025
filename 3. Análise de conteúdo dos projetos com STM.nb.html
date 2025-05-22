@@ -1753,16 +1753,476 @@ STM</h1>
 
 
 <!-- rnb-text-begin -->
+<div id="análise-de-conteúdo-dos-projetos-com-modelagem-de-tópicos" class="section level1">
+<h1>3. Análise de conteúdo dos projetos com Modelagem de Tópicos</h1>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxucGxvdChjYXJzKVxuYGBgIn0= -->
-<pre class="r"><code>plot(cars)</code></pre>
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuI2luc3RhbGwucGFja2FnZXMoXCJkcGx5clwiKVxuI2luc3RhbGwucGFja2FnZXMoXCJkYXRhLnRhYmxlXCIpXG4jaW5zdGFsbC5wYWNrYWdlcyhcInN0bVwiKVxuI2luc3RhbGwucGFja2FnZXMoXCJ0bVwiKVxuI2luc3RhbGwucGFja2FnZXMoXCJTbm93YmFsbENcIilcbmluc3RhbGwucGFja2FnZXMoXCJyZXNoYXBlMlwiKVxuXG5gYGAifQ== -->
+<pre class="r"><code>#install.packages(&quot;dplyr&quot;)
+#install.packages(&quot;data.table&quot;)
+#install.packages(&quot;stm&quot;)
+#install.packages(&quot;tm&quot;)
+#install.packages(&quot;SnowballC&quot;)
+install.packages(&quot;reshape2&quot;)
+</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-output-begin eyJkYXRhIjoiXHUwMDFiRzI7XHUwMDFiSDI7V0FSTklOR1x1MDAxYmg6IFJ0b29scyBpcyByZXF1aXJlZCB0byBidWlsZCBSIHBhY2thZ2VzIGJ1dCBpcyBub3QgY3VycmVudGx5IGluc3RhbGxlZC4gUGxlYXNlIGRvd25sb2FkIGFuZCBpbnN0YWxsIHRoZSBhcHByb3ByaWF0ZSB2ZXJzaW9uIG9mIFJ0b29scyBiZWZvcmUgcHJvY2VlZGluZzpcblxuaHR0cHM6Ly9jcmFuLnJzdHVkaW8uY29tL2Jpbi93aW5kb3dzL1J0b29scy9cblx1MDAxYmdcdTAwMWJHMztJbnN0YWxsaW5nIHBhY2thZ2UgaW50byDigJhDOi9Vc2Vycy81NTExOS9BcHBEYXRhL0xvY2FsL1Ivd2luLWxpYnJhcnkvNC4y4oCZXG4oYXMg4oCYbGli4oCZIGlzIHVuc3BlY2lmaWVkKVxuXHUwMDFiZ3RlbnRhbmRvIGEgVVJMICdodHRwczovL2NyYW4ucnN0dWRpby5jb20vYmluL3dpbmRvd3MvY29udHJpYi80LjIvcmVzaGFwZTJfMS40LjQuemlwJ1xuQ29udGVudCB0eXBlICdhcHBsaWNhdGlvbi96aXAnIGxlbmd0aCA0NDY1NTQgYnl0ZXMgKDQzNiBLQilcbmRvd25sb2FkZWQgNDM2IEtCXG4ifQ== -->
+<pre><code>G2;H2;WARNINGh: Rtools is required to build R packages but is not currently installed. Please download and install the appropriate version of Rtools before proceeding:
+
+https://cran.rstudio.com/bin/windows/Rtools/
+gG3;Installing package into ‘C:/Users/55119/AppData/Local/R/win-library/4.2’
+(as ‘lib’ is unspecified)
+gtentando a URL &#39;https://cran.rstudio.com/bin/windows/contrib/4.2/reshape2_1.4.4.zip&#39;
+Content type &#39;application/zip&#39; length 446554 bytes (436 KB)
+downloaded 436 KB</code></pre>
+<!-- rnb-output-end -->
+<!-- rnb-output-begin eyJkYXRhIjoicGFja2FnZSDigJhyZXNoYXBlMuKAmSBzdWNjZXNzZnVsbHkgdW5wYWNrZWQgYW5kIE1ENSBzdW1zIGNoZWNrZWRcblxuVGhlIGRvd25sb2FkZWQgYmluYXJ5IHBhY2thZ2VzIGFyZSBpblxuXHRDOlxcVXNlcnNcXDU1MTE5XFxBcHBEYXRhXFxMb2NhbFxcVGVtcFxcUnRtcElIMnFwdlxcZG93bmxvYWRlZF9wYWNrYWdlc1xuIn0= -->
+<pre><code>package ‘reshape2’ successfully unpacked and MD5 sums checked
+
+The downloaded binary packages are in
+    C:\Users\55119\AppData\Local\Temp\RtmpIH2qpv\downloaded_packages</code></pre>
+<!-- rnb-output-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuI2luc3RhbGwucGFja2FnZXMoXCJkcGx5clwiKVxuI2luc3RhbGwucGFja2FnZXMoXCJkYXRhLnRhYmxlXCIpXG4jaW5zdGFsbC5wYWNrYWdlcyhcInN0bVwiKVxuaW5zdGFsbC5wYWNrYWdlcyhcInRtXCIpXG5cbmBgYCJ9 -->
+<pre class="r"><code>#install.packages(&quot;dplyr&quot;)
+#install.packages(&quot;data.table&quot;)
+#install.packages(&quot;stm&quot;)
+install.packages(&quot;tm&quot;)
+</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-output-begin eyJkYXRhIjoiXHUwMDFiRzI7XHUwMDFiSDI7V0FSTklOR1x1MDAxYmg6IFJ0b29scyBpcyByZXF1aXJlZCB0byBidWlsZCBSIHBhY2thZ2VzIGJ1dCBpcyBub3QgY3VycmVudGx5IGluc3RhbGxlZC4gUGxlYXNlIGRvd25sb2FkIGFuZCBpbnN0YWxsIHRoZSBhcHByb3ByaWF0ZSB2ZXJzaW9uIG9mIFJ0b29scyBiZWZvcmUgcHJvY2VlZGluZzpcblxuaHR0cHM6Ly9jcmFuLnJzdHVkaW8uY29tL2Jpbi93aW5kb3dzL1J0b29scy9cblx1MDAxYmdcdTAwMWJHMztJbnN0YWxsaW5nIHBhY2thZ2UgaW50byDigJhDOi9Vc2Vycy81NTExOS9BcHBEYXRhL0xvY2FsL1Ivd2luLWxpYnJhcnkvNC4y4oCZXG4oYXMg4oCYbGli4oCZIGlzIHVuc3BlY2lmaWVkKVxuXHUwMDFiZ1x1MDAxYkczO2Fsc28gaW5zdGFsbGluZyB0aGUgZGVwZW5kZW5jaWVzIOKAmE5MUOKAmSwg4oCYQkjigJlcblxuXHUwMDFiZ1xuIn0= -->
+<pre><code>G2;H2;WARNINGh: Rtools is required to build R packages but is not currently installed. Please download and install the appropriate version of Rtools before proceeding:
+
+https://cran.rstudio.com/bin/windows/Rtools/
+gG3;Installing package into ‘C:/Users/55119/AppData/Local/R/win-library/4.2’
+(as ‘lib’ is unspecified)
+gG3;also installing the dependencies ‘NLP’, ‘BH’
+
+g</code></pre>
+<!-- rnb-output-end -->
+<!-- rnb-frame-begin eyJtZXRhZGF0YSI6eyJjbGFzc2VzIjpbImRhdGEuZnJhbWUiXSwibnJvdyI6MywibmNvbCI6Mywic3VtbWFyeSI6eyJEZXNjcmlwdGlvbiI6WyJkZiBbMyDDlyAzXSJdfX0sInJkZiI6Ikg0c0lBQUFBQUFBQUJtMlEyMDZFTUJDR0IxalFKZkVVbjZNTkxNYmRhMk9NRjhZWW84bmVtUzdVdFJGYVVvcUhsMThkc0Uya1NsTDZ6MHkvNmZTL3Yxd1g2VG9GZ0FobUlmNWpsQkEvUGx5UkZZd1pDR0FHODJIL3dQTHBlQkxnK0ljWUMzRkdGeVMzd1g1T1YyYzBJNW1OazR3dVNWNzhSUXF5K0lVc0Vja255RG1xMU43bXZzQWJLWmFzNFozWE85a0l5ZlNuaXpyVjY1TGI2RVJ5WG5WUHBXcGFVVE1qbFBRNnpyVjZwLzkxalc1djdxd01MNjZkTW8wL1VWbXp6ckV1bVZiTU1QcXNzUzFHT3cvWlUrMHdDRUxoNEc3aXdZSDJFa2U5SEFhc1NQblN5MWQwY1ZxT1dybTExZ1YySGRnOW11cGhpdkRMNG9uemk4dXRrTTZ2dUdZYlhydk9GWCt6OGhCdEdsMmlyUmJTdUhkaXRxTkdHZWFRdEZTMXk0d3ZoOTAzSU9sTjhISUNBQUE9In0= -->
+<div data-pagedtable="false">
+<script data-pagedtable-source type="application/json">
+{"columns":[{"label":[""],"name":["_rn_"],"type":[""],"align":["left"]},{"label":["binary"],"name":[1],"type":["chr"],"align":["left"]},{"label":["source"],"name":[2],"type":["chr"],"align":["left"]},{"label":["needs_compilation"],"name":[3],"type":["lgl"],"align":["right"]}],"data":[{"1":"0.2-1","2":"0.3-2","3":"FALSE","_rn_":"NLP"},{"1":"1.84.0-0","2":"1.87.0-1","3":"FALSE","_rn_":"BH"},{"1":"0.7-13","2":"0.7-16","3":"TRUE","_rn_":"tm"}],"options":{"columns":{"min":{},"max":[10],"total":[3]},"rows":{"min":[10],"max":[10],"total":[3]},"pages":{}}}
+  </script>
+</div>
+<!-- rnb-frame-end -->
+<!-- rnb-output-begin eyJkYXRhIjoiXG4gIFRoZXJlIGFyZSBiaW5hcnkgdmVyc2lvbnMgYXZhaWxhYmxlIGJ1dCB0aGUgc291cmNlIHZlcnNpb25zIGFyZSBsYXRlcjpcblxuICBCaW5hcmllcyB3aWxsIGJlIGluc3RhbGxlZFxuIn0= -->
+<pre><code>
+  There are binary versions available but the source versions are later:
+
+  Binaries will be installed</code></pre>
+<!-- rnb-output-end -->
+<!-- rnb-output-begin eyJkYXRhIjoidGVudGFuZG8gYSBVUkwgJ2h0dHBzOi8vY3Jhbi5yc3R1ZGlvLmNvbS9iaW4vd2luZG93cy9jb250cmliLzQuMi90bV8wLjctMTMuemlwJ1xuQ29udGVudCB0eXBlICdhcHBsaWNhdGlvbi96aXAnIGxlbmd0aCA5ODkyNTAgYnl0ZXMgKDk2NiBLQilcbmRvd25sb2FkZWQgOTY2IEtCXG4ifQ== -->
+<pre><code>tentando a URL &#39;https://cran.rstudio.com/bin/windows/contrib/4.2/tm_0.7-13.zip&#39;
+Content type &#39;application/zip&#39; length 989250 bytes (966 KB)
+downloaded 966 KB</code></pre>
+<!-- rnb-output-end -->
+<!-- rnb-output-begin eyJkYXRhIjoicGFja2FnZSDigJh0beKAmSBzdWNjZXNzZnVsbHkgdW5wYWNrZWQgYW5kIE1ENSBzdW1zIGNoZWNrZWRcblxuVGhlIGRvd25sb2FkZWQgYmluYXJ5IHBhY2thZ2VzIGFyZSBpblxuXHRDOlxcVXNlcnNcXDU1MTE5XFxBcHBEYXRhXFxMb2NhbFxcVGVtcFxcUnRtcElIMnFwdlxcZG93bmxvYWRlZF9wYWNrYWdlc1xuIn0= -->
+<pre><code>package ‘tm’ successfully unpacked and MD5 sums checked
+
+The downloaded binary packages are in
+    C:\Users\55119\AppData\Local\Temp\RtmpIH2qpv\downloaded_packages</code></pre>
+<!-- rnb-output-end -->
+<!-- rnb-output-begin eyJkYXRhIjoiXHUwMDFiRzM7aW5zdGFsbGluZyB0aGUgc291cmNlIHBhY2thZ2VzIOKAmE5MUOKAmSwg4oCYQkjigJlcblxuXHUwMDFiZ3RlbnRhbmRvIGEgVVJMICdodHRwczovL2NyYW4ucnN0dWRpby5jb20vc3JjL2NvbnRyaWIvTkxQXzAuMy0yLnRhci5neidcbkNvbnRlbnQgdHlwZSAnYXBwbGljYXRpb24veC1nemlwJyBsZW5ndGggMTQ4ODI0IGJ5dGVzICgxNDUgS0IpXG5kb3dubG9hZGVkIDE0NSBLQlxuXG50ZW50YW5kbyBhIFVSTCAnaHR0cHM6Ly9jcmFuLnJzdHVkaW8uY29tL3NyYy9jb250cmliL0JIXzEuODcuMC0xLnRhci5neidcbkNvbnRlbnQgdHlwZSAnYXBwbGljYXRpb24veC1nemlwJyBsZW5ndGggMTQzMzU1NDIgYnl0ZXMgKDEzLjcgTUIpXG5kb3dubG9hZGVkIDEzLjcgTUJcbiJ9 -->
+<pre><code>G3;installing the source packages ‘NLP’, ‘BH’
+
+gtentando a URL &#39;https://cran.rstudio.com/src/contrib/NLP_0.3-2.tar.gz&#39;
+Content type &#39;application/x-gzip&#39; length 148824 bytes (145 KB)
+downloaded 145 KB
+
+tentando a URL &#39;https://cran.rstudio.com/src/contrib/BH_1.87.0-1.tar.gz&#39;
+Content type &#39;application/x-gzip&#39; length 14335542 bytes (13.7 MB)
+downloaded 13.7 MB</code></pre>
+<!-- rnb-output-end -->
+<!-- rnb-output-begin eyJkYXRhIjoiKiBpbnN0YWxsaW5nICpzb3VyY2UqIHBhY2thZ2UgJ05MUCcgLi4uXG4qKiBwYWNrYWdlICdOTFAnIHN1Y2Nlc3NmdWxseSB1bnBhY2tlZCBhbmQgTUQ1IHN1bXMgY2hlY2tlZFxuKiogdXNpbmcgc3RhZ2VkIGluc3RhbGxhdGlvblxuKiogUlxuKiogaW5zdFxuKiogYnl0ZS1jb21waWxlIGFuZCBwcmVwYXJlIHBhY2thZ2UgZm9yIGxhenkgbG9hZGluZ1xuKiogaGVscFxuKioqIGluc3RhbGxpbmcgaGVscCBpbmRpY2VzXG4qKiBidWlsZGluZyBwYWNrYWdlIGluZGljZXNcbioqIHRlc3RpbmcgaWYgaW5zdGFsbGVkIHBhY2thZ2UgY2FuIGJlIGxvYWRlZCBmcm9tIHRlbXBvcmFyeSBsb2NhdGlvblxuKiogdGVzdGluZyBpZiBpbnN0YWxsZWQgcGFja2FnZSBjYW4gYmUgbG9hZGVkIGZyb20gZmluYWwgbG9jYXRpb25cbioqIHRlc3RpbmcgaWYgaW5zdGFsbGVkIHBhY2thZ2Uga2VlcHMgYSByZWNvcmQgb2YgdGVtcG9yYXJ5IGluc3RhbGxhdGlvbiBwYXRoXG4qIERPTkUgKE5MUClcbiogaW5zdGFsbGluZyAqc291cmNlKiBwYWNrYWdlICdCSCcgLi4uXG4qKiBwYWNrYWdlICdCSCcgc3VjY2Vzc2Z1bGx5IHVucGFja2VkIGFuZCBNRDUgc3VtcyBjaGVja2VkXG4qKiB1c2luZyBzdGFnZWQgaW5zdGFsbGF0aW9uXG4qKiBpbnN0XG4qKiBoZWxwXG4qKiogaW5zdGFsbGluZyBoZWxwIGluZGljZXNcbioqIGJ1aWxkaW5nIHBhY2thZ2UgaW5kaWNlc1xuKiogdGVzdGluZyBpZiBpbnN0YWxsZWQgcGFja2FnZSBjYW4gYmUgbG9hZGVkIGZyb20gdGVtcG9yYXJ5IGxvY2F0aW9uXG4qKiB0ZXN0aW5nIGlmIGluc3RhbGxlZCBwYWNrYWdlIGNhbiBiZSBsb2FkZWQgZnJvbSBmaW5hbCBsb2NhdGlvblxuKiogdGVzdGluZyBpZiBpbnN0YWxsZWQgcGFja2FnZSBrZWVwcyBhIHJlY29yZCBvZiB0ZW1wb3JhcnkgaW5zdGFsbGF0aW9uIHBhdGhcbiogRE9ORSAoQkgpXG4ifQ== -->
+<pre><code>* installing *source* package &#39;NLP&#39; ...
+** package &#39;NLP&#39; successfully unpacked and MD5 sums checked
+** using staged installation
+** R
+** inst
+** byte-compile and prepare package for lazy loading
+** help
+*** installing help indices
+** building package indices
+** testing if installed package can be loaded from temporary location
+** testing if installed package can be loaded from final location
+** testing if installed package keeps a record of temporary installation path
+* DONE (NLP)
+* installing *source* package &#39;BH&#39; ...
+** package &#39;BH&#39; successfully unpacked and MD5 sums checked
+** using staged installation
+** inst
+** help
+*** installing help indices
+** building package indices
+** testing if installed package can be loaded from temporary location
+** testing if installed package can be loaded from final location
+** testing if installed package keeps a record of temporary installation path
+* DONE (BH)</code></pre>
+<!-- rnb-output-end -->
+<!-- rnb-output-begin eyJkYXRhIjoiXG5UaGUgZG93bmxvYWRlZCBzb3VyY2UgcGFja2FnZXMgYXJlIGluXG5cdOKAmEM6XFxVc2Vyc1xcNTUxMTlcXEFwcERhdGFcXExvY2FsXFxUZW1wXFxSdG1wSUgycXB2XFxkb3dubG9hZGVkX3BhY2thZ2Vz4oCZXG4ifQ== -->
+<pre><code>
+The downloaded source packages are in
+    ‘C:\Users\55119\AppData\Local\Temp\RtmpIH2qpv\downloaded_packages’</code></pre>
+<!-- rnb-output-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+<div id="preparando-a-base-de-dados" class="section level2">
+<h2>1. Preparando a base de dados</h2>
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuZGYgPC0gcmVhZFJEUyhoZXJlKFwiRGFkb3MvZGZfYWdlbmRhY2xpbWFfbXVuaWNpcGFsLlJEU1wiKSlcbmBgYCJ9 -->
+<pre class="r"><code>df &lt;- readRDS(here(&quot;Dados/df_agendaclima_municipal.RDS&quot;))</code></pre>
 <!-- rnb-source-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 <!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuc3VtX2Rpc3RhbmNpYSA8LSBzdW1tYXJ5KGRmJGRpYXNfZGVzYXN0cmVfYW50ZXJpb3IpXG5cbnF1YXJ0aWxfMSA8LSBzdW1fZGlzdGFuY2lhWzJdXG5xdWFydGlsXzIgPC0gc3VtX2Rpc3RhbmNpYVszXVxucXVhcnRpbF8zIDwtIHN1bV9kaXN0YW5jaWFbNV1cblxuc3VtX2Rpc3RhbmNpYVxuYGBgIn0= -->
+<pre class="r"><code>sum_distancia &lt;- summary(df$dias_desastre_anterior)
 
-<div id="rmd-source-code">LS0tDQp0aXRsZTogIjMuIEFuw6FsaXNlIGRlIGNvbnRlw7pkbyBkb3MgcHJvamV0b3MgY29tIFNUTSINCm91dHB1dDogaHRtbF9ub3RlYm9vaw0KLS0tDQoNCg0KYGBge3J9DQpwbG90KGNhcnMpDQpgYGANCg0KDQo=</div>
+quartil_1 &lt;- sum_distancia[2]
+quartil_2 &lt;- sum_distancia[3]
+quartil_3 &lt;- sum_distancia[5]
+
+sum_distancia</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuc3VtX2Rpc3RhbmNpYSA8LSBzdW1tYXJ5KGRmJGRpYXNfZGVzYXN0cmVfYW50ZXJpb3IpXG5cbnF1YXJ0aWxfMSA8LSBzdW1fZGlzdGFuY2lhWzJdXG5xdWFydGlsXzIgPC0gc3VtX2Rpc3RhbmNpYVszXVxucXVhcnRpbF8zIDwtIHN1bV9kaXN0YW5jaWFbNV1cblxuc3VtX2Rpc3RhbmNpYVxuYGBgIn0= -->
+<pre class="r"><code>sum_distancia &lt;- summary(df$dias_desastre_anterior)
+
+quartil_1 &lt;- sum_distancia[2]
+quartil_2 &lt;- sum_distancia[3]
+quartil_3 &lt;- sum_distancia[5]
+
+sum_distancia</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-output-begin eyJkYXRhIjoiICAgTWluLiAxc3QgUXUuICBNZWRpYW4gICAgTWVhbiAzcmQgUXUuICAgIE1heC4gICAgTkEncyBcbiAgICAgIDEgICAgIDE1MSAgICAgNTkzICAgIDExNTcgICAgMTYxMiAgIDExOTkyICAgICA1NjcgXG4ifQ== -->
+<pre><code>   Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA&#39;s 
+      1     151     593    1157    1612   11992     567 </code></pre>
+<!-- rnb-output-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-plot-begin eyJoZWlnaHQiOjM5OC42NDAzLCJ3aWR0aCI6NjQ1LCJkcGkiOi0xLCJzaXplX2JlaGF2aW9yIjowLCJjb25kaXRpb25zIjpbWzEsIldhcm5pbmcgOlx1MDAxYlszODs1OzI1NW1SZW1vdmVkIDU4OTggcm93cyBjb250YWluaW5nIG5vbi1maW5pdGUgdmFsdWVzIChgc3RhdF9iaW4oKWApLlx1MDAxYlszOW1cbiJdLFsxLCJXYXJuaW5nIDpcdTAwMWJbMzg7NTsyNTVtUmVtb3ZlZCAxOCByb3dzIGNvbnRhaW5pbmcgbWlzc2luZyB2YWx1ZXMgKGBnZW9tX2JhcigpYCkuXHUwMDFiWzM5bVxuIl1dfQ== -->
+<p><img role="img" src="data:image/png;base64,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" /></p>
+<!-- rnb-plot-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+</div>
+<div id="limpando-texto-das-ementas" class="section level2">
+<h2>2. Limpando texto das ementas</h2>
+<p>Antes de analisar o texto das ementas, precisamos limpá-lo para
+excluir conectivos, pronomes, vocativos e nomes próprios, entre outras
+palavras que não interessam à análise.</p>
+<p><strong>Certifique-se que o arquivo “nomes_proprios_br.csv” está na
+pasta “Dados”</strong></p>
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuXG4jTGltcGFuZG8gY29uZWN0aXZvczpcbnBhbGF2cmFzX3JlbW92ZXIgPC0gZGF0YS5mcmFtZShwYWxhdnJhc19yZW1vdmVyID0gYygnZGUnLCAgJ2EnLCAgJ28nLCAgJ3F1ZScsICAnZScsICAnZG8nLCAgJ2RhJywgICdlbScsICAndW0nLCAgJ3BhcmEnLCAgJ8OpJywgICdjb20nLCAgJ27Do28nLCAgJ3VtYScsICAnb3MnLCAgJ25vJywgICdzZScsICAnbmEnLCAgJ3BvcicsICAnbWFpcycsICAnYXMnLCAgJ2RvcycsICAnY29tbycsICAnbWFzJywgICdmb2knLCAgJ2FvJywgICdlbGUnLCAgJ2RhcycsICAndGVtJywgICfDoCcsICAnc2V1JywgICdzdWEnLCAgJ291JywgICdzZXInLCAgJ3F1YW5kbycsICAnbXVpdG8nLCAgJ2jDoScsICAnbm9zJywgICdqw6EnLCAgJ2VzdMOhJywgICdldScsICAndGFtYsOpbScsICAnc8OzJywgICdwZWxvJywgICdwZWxhJywgICdhdMOpJywgICdpc3NvJywgICdlbGEnLCAgJ2VudHJlJywgICdlcmEnLCAgJ2RlcG9pcycsICAnc2VtJywgICdtZXNtbycsICAnYW9zJywgICd0ZXInLCAgJ3NldXMnLCAgJ3F1ZW0nLCAgJ25hcycsICAnbWUnLCAgJ2Vzc2UnLCAgJ2VsZXMnLCAgJ2VzdMOjbycsICAndm9jw6onLCAgJ3RpbmhhJywgICdmb3JhbScsICAnZXNzYScsICAnbnVtJywgICduZW0nLCAgJ3N1YXMnLCAgJ21ldScsICAnw6BzJywgICdtaW5oYScsICAndMOqbScsICAnbnVtYScsICAncGVsb3MnLCAgJ2VsYXMnLCAgJ2hhdmlhJywgICdzZWphJywgICdxdWFsJywgICdzZXLDoScsICAnbsOzcycsICAndGVuaG8nLCAgJ2xoZScsICAnZGVsZXMnLCAgJ2Vzc2FzJywgICdlc3NlcycsICAncGVsYXMnLCAgJ2VzdGUnLCAgJ2Zvc3NlJywgICdkZWxlJywgICd0dScsICAndGUnLCAgJ3ZvY8OqcycsICAndm9zJywgICdsaGVzJywgICdtZXVzJywgICdtaW5oYXMnLCAgJ3RldScsICAndHVhJywgICd0ZXVzJywgICd0dWFzJywgICdub3NzbycsICAnbm9zc2EnLCAgJ25vc3NvcycsICAnbm9zc2FzJywgICdkZWxhJywgICdkZWxhcycsICAnZXN0YScsICAnZXN0ZXMnLCAgJ2VzdGFzJywgICdhcXVlbGUnLCAgJ2FxdWVsYScsICAnYXF1ZWxlcycsICAnYXF1ZWxhcycsICAnaXN0bycsICAnYXF1aWxvJywgICdlc3RvdScsICAnZXN0w6EnLCAgJ2VzdGFtb3MnLCAgJ2VzdMOjbycsICAnZXN0aXZlJywgICdlc3RldmUnLCAgJ2VzdGl2ZW1vcycsICAnZXN0aXZlcmFtJywgICdlc3RhdmEnLCAgJ2VzdMOhdmFtb3MnLCAgJ2VzdGF2YW0nLCAgJ2VzdGl2ZXJhJywgICdlc3RpdsOpcmFtb3MnLCAgJ2VzdGVqYScsICAnZXN0ZWphbW9zJywgICdlc3RlamFtJywgICdlc3RpdmVzc2UnLCAgJ2VzdGl2w6lzc2Vtb3MnLCAgJ2VzdGl2ZXNzZW0nLCAgJ2VzdGl2ZXInLCAgJ2VzdGl2ZXJtb3MnLCAgJ2VzdGl2ZXJlbScsICAnaGVpJywgICdow6EnLCAgJ2hhdmVtb3MnLCAgJ2jDo28nLCAgJ2hvdXZlJywgICdob3V2ZW1vcycsICAnaG91dmVyYW0nLCAgJ2hvdXZlcmEnLCAgJ2hvdXbDqXJhbW9zJywgICdoYWphJywgICdoYWphbW9zJywgICdoYWphbScsICAnaG91dmVzc2UnLCAgJ2hvdXbDqXNzZW1vcycsICAnaG91dmVzc2VtJywgICdob3V2ZXInLCAgJ2hvdXZlcm1vcycsICAnaG91dmVyZW0nLCAgJ2hvdXZlcmVpJywgICdob3V2ZXLDoScsICAnaG91dmVyZW1vcycsICAnaG91dmVyw6NvJywgICdob3V2ZXJpYScsICAnaG91dmVyw61hbW9zJywgICdob3V2ZXJpYW0nLCAgJ3NvdScsICAnc29tb3MnLCAgJ3PDo28nLCAgJ2VyYScsICAnw6lyYW1vcycsICAnZXJhbScsICAnZnVpJywgICdmb2knLCAgJ2ZvbW9zJywgICdmb3JhbScsICAnZm9yYScsICAnZsO0cmFtb3MnLCAgJ3NlamEnLCAgJ3NlamFtb3MnLCAgJ3NlamFtJywgICdmb3NzZScsICAnZsO0c3NlbW9zJywgICdmb3NzZW0nLCAgJ2ZvcicsICAnZm9ybW9zJywgICdmb3JlbScsICAnc2VyZWknLCAgJ3NlcsOhJywgICdzZXJlbW9zJywgICdzZXLDo28nLCAgJ3NlcmlhJywgICdzZXLDrWFtb3MnLCAgJ3NlcmlhbScsICAndGVuaG8nLCAgJ3RlbScsICAndGVtb3MnLCAgJ3TDqW0nLCAgJ3RpbmhhJywgICd0w61uaGFtb3MnLCAgJ3RpbmhhbScsICAndGl2ZScsICAndGV2ZScsICAndGl2ZW1vcycsICAndGl2ZXJhbScsICAndGl2ZXJhJywgICd0aXbDqXJhbW9zJywgICd0ZW5oYScsICAndGVuaGFtb3MnLCAgJ3RlbmhhbScsICAndGl2ZXNzZScsICAndGl2w6lzc2Vtb3MnLCAgJ3RpdmVzc2VtJywgICd0aXZlcicsICAndGl2ZXJtb3MnLCAgJ3RpdmVyZW0nLCAgJ3RlcmVpJywgICd0ZXLDoScsICAndGVyZW1vcycsICAndGVyw6NvJywgICd0ZXJpYScsICAndGVyw61hbW9zJywgICd0ZXJpYW0nLCBcIm11bmljaXBhbFwiLCAnbXVuaWPDrXBpbycsICdtdW5pY2lwaW8nLCAnbXVuaWPDrXBpb3MnLCAnbXVuaWNpcGlvcycsICdwcmVmZWl0bycsICdwcmVmZWl0YScsICdwcmVmZWl0b3MnLCAncHJlZmVpdGFzJywgJ2V4ZWN1dGl2bycsICdzZWNyZXRhcmlhJywgJ3NlY3JldGFyaWFzJywgJ3NlbmhvcicsICdzZW5ob3JhJywgJ3ZlcmVhZG9yJywgJ3ZlcmVhZG9yYScsICd2ZXJlYWRvcmVzJywgJ3ZlcmVhZG9yYXMnLCAncG9kZXInLCAnc3InLCAnc2VjcmV0w6FyaW8nLCAnc2VjcmV0w6FyaWEnLCAnc2VjcmV0w6FyaW9zJywgJ3NlY3JldMOhcmlhcycsICdleGNlbGVudMOtc3NpbW8nLCAnZXhjZWxlbnTDrXNzaW1hJywgJ2V4Y2VsZW50w61zc2ltb3MnLCAnZXhjZWxlbnTDrXNzaW1hcycsICdleG1vJywgJ2V4bWEnLCAncHJlZmVpdHVyYScsICdwcmVmZWl0dXJhcycsICdleGNlbMOqbmNpYScsICd2b3NzYScsICdwcmVzaWRlbnRlJywgJ3ByZXNpZGVudGVzJywgXCJzZWNyZXRhcmlhc1wiLCBcIm5vYnJlc1wiLCAnbWluaXN0w6lyaW8nLCAncGxlbsOhcmlvJywgJ2pvc8OpJywgJ3NpbHZhJywgJ2pvw6NvJywgJ3NlY2Fkb3JhJywgJ29uZXR5JywgJ2VsY2lvbmUnKSkgJT4lICBiaW5kX3Jvd3MoKHJlYWRfY3N2MihoZXJlKFwiRGFkb3Mvbm9tZXNfcHJvcHJpb3NfYnIuY3N2XCIpLCBjb2xfbmFtZXMgPSBcInBhbGF2cmFzX3JlbW92ZXJcIikpKVxuXG5wYWxhdnJhc19yZW1vdmVyIDwtIHBhbGF2cmFzX3JlbW92ZXIkcGFsYXZyYXNfcmVtb3ZlciAlPiUgXG4gIHN0cl9yZXBsYWNlX2FsbChcIihbXFxcXF4kLnw/KisoKXt9XSlcIiwgXCJcXFxcXFxcXFxcXFwxXCIpICU+JSBcbiAgc3RyX3RyaW0oKVxuICBcblxucGFsYXZyYXNfcmVtb3ZlciA8LSBwYXN0ZTAoXCJcXFxcYihcIiwgcGFzdGUocGFsYXZyYXNfcmVtb3ZlciwgY29sbGFwc2UgPSBcInxcIiksIFwiKVxcXFxiXCIpXG5cbmBgYCJ9 -->
+<pre class="r"><code>
+#Limpando conectivos:
+palavras_remover &lt;- data.frame(palavras_remover = c(&#39;de&#39;,  &#39;a&#39;,  &#39;o&#39;,  &#39;que&#39;,  &#39;e&#39;,  &#39;do&#39;,  &#39;da&#39;,  &#39;em&#39;,  &#39;um&#39;,  &#39;para&#39;,  &#39;é&#39;,  &#39;com&#39;,  &#39;não&#39;,  &#39;uma&#39;,  &#39;os&#39;,  &#39;no&#39;,  &#39;se&#39;,  &#39;na&#39;,  &#39;por&#39;,  &#39;mais&#39;,  &#39;as&#39;,  &#39;dos&#39;,  &#39;como&#39;,  &#39;mas&#39;,  &#39;foi&#39;,  &#39;ao&#39;,  &#39;ele&#39;,  &#39;das&#39;,  &#39;tem&#39;,  &#39;à&#39;,  &#39;seu&#39;,  &#39;sua&#39;,  &#39;ou&#39;,  &#39;ser&#39;,  &#39;quando&#39;,  &#39;muito&#39;,  &#39;há&#39;,  &#39;nos&#39;,  &#39;já&#39;,  &#39;está&#39;,  &#39;eu&#39;,  &#39;também&#39;,  &#39;só&#39;,  &#39;pelo&#39;,  &#39;pela&#39;,  &#39;até&#39;,  &#39;isso&#39;,  &#39;ela&#39;,  &#39;entre&#39;,  &#39;era&#39;,  &#39;depois&#39;,  &#39;sem&#39;,  &#39;mesmo&#39;,  &#39;aos&#39;,  &#39;ter&#39;,  &#39;seus&#39;,  &#39;quem&#39;,  &#39;nas&#39;,  &#39;me&#39;,  &#39;esse&#39;,  &#39;eles&#39;,  &#39;estão&#39;,  &#39;você&#39;,  &#39;tinha&#39;,  &#39;foram&#39;,  &#39;essa&#39;,  &#39;num&#39;,  &#39;nem&#39;,  &#39;suas&#39;,  &#39;meu&#39;,  &#39;às&#39;,  &#39;minha&#39;,  &#39;têm&#39;,  &#39;numa&#39;,  &#39;pelos&#39;,  &#39;elas&#39;,  &#39;havia&#39;,  &#39;seja&#39;,  &#39;qual&#39;,  &#39;será&#39;,  &#39;nós&#39;,  &#39;tenho&#39;,  &#39;lhe&#39;,  &#39;deles&#39;,  &#39;essas&#39;,  &#39;esses&#39;,  &#39;pelas&#39;,  &#39;este&#39;,  &#39;fosse&#39;,  &#39;dele&#39;,  &#39;tu&#39;,  &#39;te&#39;,  &#39;vocês&#39;,  &#39;vos&#39;,  &#39;lhes&#39;,  &#39;meus&#39;,  &#39;minhas&#39;,  &#39;teu&#39;,  &#39;tua&#39;,  &#39;teus&#39;,  &#39;tuas&#39;,  &#39;nosso&#39;,  &#39;nossa&#39;,  &#39;nossos&#39;,  &#39;nossas&#39;,  &#39;dela&#39;,  &#39;delas&#39;,  &#39;esta&#39;,  &#39;estes&#39;,  &#39;estas&#39;,  &#39;aquele&#39;,  &#39;aquela&#39;,  &#39;aqueles&#39;,  &#39;aquelas&#39;,  &#39;isto&#39;,  &#39;aquilo&#39;,  &#39;estou&#39;,  &#39;está&#39;,  &#39;estamos&#39;,  &#39;estão&#39;,  &#39;estive&#39;,  &#39;esteve&#39;,  &#39;estivemos&#39;,  &#39;estiveram&#39;,  &#39;estava&#39;,  &#39;estávamos&#39;,  &#39;estavam&#39;,  &#39;estivera&#39;,  &#39;estivéramos&#39;,  &#39;esteja&#39;,  &#39;estejamos&#39;,  &#39;estejam&#39;,  &#39;estivesse&#39;,  &#39;estivéssemos&#39;,  &#39;estivessem&#39;,  &#39;estiver&#39;,  &#39;estivermos&#39;,  &#39;estiverem&#39;,  &#39;hei&#39;,  &#39;há&#39;,  &#39;havemos&#39;,  &#39;hão&#39;,  &#39;houve&#39;,  &#39;houvemos&#39;,  &#39;houveram&#39;,  &#39;houvera&#39;,  &#39;houvéramos&#39;,  &#39;haja&#39;,  &#39;hajamos&#39;,  &#39;hajam&#39;,  &#39;houvesse&#39;,  &#39;houvéssemos&#39;,  &#39;houvessem&#39;,  &#39;houver&#39;,  &#39;houvermos&#39;,  &#39;houverem&#39;,  &#39;houverei&#39;,  &#39;houverá&#39;,  &#39;houveremos&#39;,  &#39;houverão&#39;,  &#39;houveria&#39;,  &#39;houveríamos&#39;,  &#39;houveriam&#39;,  &#39;sou&#39;,  &#39;somos&#39;,  &#39;são&#39;,  &#39;era&#39;,  &#39;éramos&#39;,  &#39;eram&#39;,  &#39;fui&#39;,  &#39;foi&#39;,  &#39;fomos&#39;,  &#39;foram&#39;,  &#39;fora&#39;,  &#39;fôramos&#39;,  &#39;seja&#39;,  &#39;sejamos&#39;,  &#39;sejam&#39;,  &#39;fosse&#39;,  &#39;fôssemos&#39;,  &#39;fossem&#39;,  &#39;for&#39;,  &#39;formos&#39;,  &#39;forem&#39;,  &#39;serei&#39;,  &#39;será&#39;,  &#39;seremos&#39;,  &#39;serão&#39;,  &#39;seria&#39;,  &#39;seríamos&#39;,  &#39;seriam&#39;,  &#39;tenho&#39;,  &#39;tem&#39;,  &#39;temos&#39;,  &#39;tém&#39;,  &#39;tinha&#39;,  &#39;tínhamos&#39;,  &#39;tinham&#39;,  &#39;tive&#39;,  &#39;teve&#39;,  &#39;tivemos&#39;,  &#39;tiveram&#39;,  &#39;tivera&#39;,  &#39;tivéramos&#39;,  &#39;tenha&#39;,  &#39;tenhamos&#39;,  &#39;tenham&#39;,  &#39;tivesse&#39;,  &#39;tivéssemos&#39;,  &#39;tivessem&#39;,  &#39;tiver&#39;,  &#39;tivermos&#39;,  &#39;tiverem&#39;,  &#39;terei&#39;,  &#39;terá&#39;,  &#39;teremos&#39;,  &#39;terão&#39;,  &#39;teria&#39;,  &#39;teríamos&#39;,  &#39;teriam&#39;, &quot;municipal&quot;, &#39;município&#39;, &#39;municipio&#39;, &#39;municípios&#39;, &#39;municipios&#39;, &#39;prefeito&#39;, &#39;prefeita&#39;, &#39;prefeitos&#39;, &#39;prefeitas&#39;, &#39;executivo&#39;, &#39;secretaria&#39;, &#39;secretarias&#39;, &#39;senhor&#39;, &#39;senhora&#39;, &#39;vereador&#39;, &#39;vereadora&#39;, &#39;vereadores&#39;, &#39;vereadoras&#39;, &#39;poder&#39;, &#39;sr&#39;, &#39;secretário&#39;, &#39;secretária&#39;, &#39;secretários&#39;, &#39;secretárias&#39;, &#39;excelentíssimo&#39;, &#39;excelentíssima&#39;, &#39;excelentíssimos&#39;, &#39;excelentíssimas&#39;, &#39;exmo&#39;, &#39;exma&#39;, &#39;prefeitura&#39;, &#39;prefeituras&#39;, &#39;excelência&#39;, &#39;vossa&#39;, &#39;presidente&#39;, &#39;presidentes&#39;, &quot;secretarias&quot;, &quot;nobres&quot;, &#39;ministério&#39;, &#39;plenário&#39;, &#39;josé&#39;, &#39;silva&#39;, &#39;joão&#39;, &#39;secadora&#39;, &#39;onety&#39;, &#39;elcione&#39;)) %&gt;%  bind_rows((read_csv2(here(&quot;Dados/nomes_proprios_br.csv&quot;), col_names = &quot;palavras_remover&quot;)))
+
+palavras_remover &lt;- palavras_remover$palavras_remover %&gt;% 
+  str_replace_all(&quot;([\\^$.|?*+(){}])&quot;, &quot;\\\\\\1&quot;) %&gt;% 
+  str_trim()
+  
+
+palavras_remover &lt;- paste0(&quot;\\b(&quot;, paste(palavras_remover, collapse = &quot;|&quot;), &quot;)\\b&quot;)
+</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuXG5kZiA8LSBkZiAlPiVcbiAgbXV0YXRlKGVtZW50YV9wciA9IHN0cl9yZXBsYWNlX2FsbChlbWVudGEsIHJlZ2V4KHBhbGF2cmFzX3JlbW92ZXIpLCBcIl9cIikpXG4gIFxucm0ocGFsYXZyYXNfcmVtb3ZlcilcbmBgYCJ9 -->
+<pre class="r"><code>
+df &lt;- df %&gt;%
+  mutate(ementa_pr = str_replace_all(ementa, regex(palavras_remover), &quot;_&quot;))
+  
+rm(palavras_remover)</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuXG4jQ3JpYSB0YWJlbGEgY29tIHBhbGF2cmFzLCBwb3IgZnJlcXXDqm5jaWEgZW0gcXVlIGFwYXJlY2VtXG5wYWxhdnJhc19mcmVxIDwtZGYgJT4lXG4gIHVubmVzdF90b2tlbnMocGFsYXZyYXMsIGVtZW50YV9wciwgZHJvcCA9IEYpICU+JSBcbiAgZ3JvdXBfYnkocGFsYXZyYXMpICU+JSBcbiAgc3VtbWFyaXNlKG4gPSBuKCkpICU+JSBcbiAgYXJyYW5nZShkZXNjKG4pKSAlPiUgXG4gIHRvcF9uKDMwKSAlPiUgXG4gIGdncGxvdChhZXMoeSA9IHJlb3JkZXIocGFsYXZyYXMsIG4pLCB4ID0gbikpICtcbiAgZ2VvbV9jb2woKSArXG4gIGxhYnMoXG4gICAgdGl0bGUgPSBcIk7Dum1lcm8gZGUgbWVuw6fDtWVzIGFvcyB0ZXJtb3MgbmFzIGVtZW50YXNcIixcbiAgICB4ID0gXCJOw7ptZXJvIGRlIG1lbsOnw7Vlc1wiLFxuICAgIHkgPSBcIlBhbGF2cmFzXCIpICtcbiAgdGhlbWVfY2xhc3NpYygpICtcbiAgdGhlbWUobGVnZW5kLnBvc2l0aW9uID0gXCJub25lXCIpXG4gIFxucGFsYXZyYXNfZnJlcVxuXG5ybShwYWxhdnJhc19mcmVxLCB0aWR5KVxuYGBgIn0= -->
+<pre class="r"><code>
+#Cria tabela com palavras, por frequência em que aparecem
+palavras_freq &lt;-df %&gt;%
+  unnest_tokens(palavras, ementa_pr, drop = F) %&gt;% 
+  group_by(palavras) %&gt;% 
+  summarise(n = n()) %&gt;% 
+  arrange(desc(n)) %&gt;% 
+  top_n(30) %&gt;% 
+  ggplot(aes(y = reorder(palavras, n), x = n)) +
+  geom_col() +
+  labs(
+    title = &quot;Número de menções aos termos nas ementas&quot;,
+    x = &quot;Número de menções&quot;,
+    y = &quot;Palavras&quot;) +
+  theme_classic() +
+  theme(legend.position = &quot;none&quot;)
+  
+palavras_freq
+
+rm(palavras_freq, tidy)</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+</div>
+<div id="fazendo-análise-com-stm" class="section level2">
+<h2>3 Fazendo análise com STM</h2>
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuIyMjIyMjIyNNb2RlbGFnZW0gZGUgdG9waWNvcyAoU3RydWN0dXJhbCBUb3BpYyBNb2RlbClcbiNwcm9jZXNzYW1lbnRvIGRvIHRleHRvIGUgZGVmaW5pw6fDo28gZG8gdmFsb3IgSyBtYWlzIGFkZXF1YWRvXG5cbiNTZWxlY2lvbmFuZG8gc8OzIHRleHRvczpcbnRleHRvcyA8LSBkZiRlbWVudGFfcHJcblxuI1Byb2Nlc3NhbnRvIHRleHRvIChyZW1vdmVuZG8gY29uanVuw6fDtWVzLCBzZXBhcmFuZG8gbWV0YWRhdGEgZXRjKVxucHJlcF90ZXh0cyA8LSB0ZXh0UHJvY2Vzc29yKGRvY3VtZW50cz10ZXh0b3MsIG1ldGFkYXRhPWRhdGEuZnJhbWUoZG9jbnVtYmVycz0xOmxlbmd0aCh0ZXh0b3MpKSwgbGFuZ3VhZ2UgPSBcInBvcnR1Z3Vlc2VcIilcblxuI1ByZXBhcmFudG8gbyB0ZXh0bzogUmVtb3ZlIHBhbGF2cmFzIGNvbSBwb3VjYXMgYXBhcmnDp8O1ZXMgZSBhanVzdGEgb3Mgw61uZGljZXNcbnByZXBfdGV4dHMgPC0gcHJlcERvY3VtZW50cyhwcmVwX3RleHRzJGRvY3VtZW50cywgcHJlcF90ZXh0cyR2b2NhYiwgcHJlcF90ZXh0cyRtZXRhKVxuXG5cbnRleHRvcyA8LSB0ZXh0b3NbYyhwcmVwX3RleHRzJG1ldGEkZG9jbnVtYmVycyldXG5cblxuYGBgIn0= -->
+<pre class="r"><code>########Modelagem de topicos (Structural Topic Model)
+#processamento do texto e definição do valor K mais adequado
+
+#Selecionando só textos:
+textos &lt;- df$ementa_pr
+
+#Processanto texto (removendo conjunções, separando metadata etc)
+prep_texts &lt;- textProcessor(documents=textos, metadata=data.frame(docnumbers=1:length(textos)), language = &quot;portuguese&quot;)
+
+#Preparanto o texto: Remove palavras com poucas aparições e ajusta os índices
+prep_texts &lt;- prepDocuments(prep_texts$documents, prep_texts$vocab, prep_texts$meta)
+
+
+textos &lt;- textos[c(prep_texts$meta$docnumbers)]
+</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuXG4jUm9kYXIgc8OzIHNlIG5lY2Vzc8OhcmlvIChsZXZhIG11aXRvIHRlbXBvKVxuI1ZhbG9yIGsgKG7Dum1lcm8gZGUgdMOzcGljb3MgZW0gcXVlIGRpdmlkaXIpXG4jSyA8LSAyOjIwXG5cbiMjIHNlYXJjaGsgcHJvY3VyYSBvIG1lbGhvciBuw7ptZXJvIGRlIHTDs3BpY29zXG4ja3Jlc3VsdCA8LSBzZWFyY2hLKHByZXBfdGV4dHMkZG9jdW1lbnRzLCBwcmVwX3RleHRzJHZvY2FiLCBLLCBkYXRhPXByZXBfdGV4dHMkbWV0YSlcbiNwbG90KGtyZXN1bHQpXG5cbiNzYXZlUkRTKGtyZXN1bHQsIGhlcmUoXCJEYWRvcy9rcmVzdWx0LlJEU1wiKSlcblxuI3JtKEssIGtyZXN1bHQpXG5gYGAifQ== -->
+<pre class="r"><code>
+#Rodar só se necessário (leva muito tempo)
+#Valor k (número de tópicos em que dividir)
+#K &lt;- 2:20
+
+## searchk procura o melhor número de tópicos
+#kresult &lt;- searchK(prep_texts$documents, prep_texts$vocab, K, data=prep_texts$meta)
+#plot(kresult)
+
+#saveRDS(kresult, here(&quot;Dados/kresult.RDS&quot;))
+
+#rm(K, kresult)</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+<p>Escolhemos k = 9, para maximizar a Coerência Semântica</p>
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuI21vZGVsYWdlbSBkb3MgdMOzcGljb3MgKDkgdMOzcGljb3MpXG5zdG1fcmVzdWx0IDwtIHN0bShwcmVwX3RleHRzJGRvY3VtZW50cywgcHJlcF90ZXh0cyR2b2NhYiwgOSwgZGF0YT1wcmVwX3RleHRzJG1ldGEsIHZlcmJvc2UgPSBGKVxuXG5zYXZlUkRTKHN0bV9yZXN1bHQsIGhlcmUoXCJEYWRvcy9zdG1fcmVzdWx0LlJEU1wiKSlcbnN1bW1hcnkoc3RtX3Jlc3VsdClcbmBgYCJ9 -->
+<pre class="r"><code>#modelagem dos tópicos (9 tópicos)
+stm_result &lt;- stm(prep_texts$documents, prep_texts$vocab, 9, data=prep_texts$meta, verbose = F)
+
+saveRDS(stm_result, here(&quot;Dados/stm_result.RDS&quot;))
+summary(stm_result)</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuI0xvY2FsaXphw6fDo28gZG9zIHRleHRvcyBtYWlzIHJlcHJlc2VudGF0aXZvcyBkZSBkZXRlcm1pbmFkbyB0w7NwaWNvXG50aG91Z2h0cyA8LWZpbmRUaG91Z2h0cyhzdG1fcmVzdWx0LCB0ZXh0cz0gdGV4dG9zLCB0b3BpY3M9YygxOjgpLCBuPTEwKVxuXG50aG91Z2h0c19pZCA8LSBkYXRhLmZyYW1lKHRob3VnaHRzJGluZGV4KVxuXG50aG91Z2h0c19kb2NzIDwtIGRhdGEuZnJhbWUodGhvdWdodHMkZG9jcylcblxuZm9yIChpIGluIDE6bnJvdyh0aG91Z2h0c19pZCkpe1xuICBmb3IgKGogaW4gMTpuY29sKHRob3VnaHRzX2lkKSl7XG4gICAgdGhvdWdodHNfZG9jc1tpLGpdIDwtIGFzLmNoYXJhY3RlcihkZiRlbWVudGFbdGhvdWdodHNfaWRbaSxqXV0pICU+JVxuICAgICAgeyBpZmVsc2UobGVuZ3RoKC4pID4gMCwgLiwgYXMuY2hhcmFjdGVyKE5BKSkgfVxuICB9XG59XG5cbnNhdmVSRFModGhvdWdodHNfZG9jcywgZmlsZSA9IGhlcmUoXCJEYWRvcy9zdG10aG91Z2h0cy5SRFNcIikpXG5cbmBgYCJ9 -->
+<pre class="r"><code>#Localização dos textos mais representativos de determinado tópico
+thoughts &lt;-findThoughts(stm_result, texts= textos, topics=c(1:8), n=10)
+
+thoughts_id &lt;- data.frame(thoughts$index)
+
+thoughts_docs &lt;- data.frame(thoughts$docs)
+
+for (i in 1:nrow(thoughts_id)){
+  for (j in 1:ncol(thoughts_id)){
+    thoughts_docs[i,j] &lt;- as.character(df$ementa[thoughts_id[i,j]]) %&gt;%
+      { ifelse(length(.) &gt; 0, ., as.character(NA)) }
+  }
+}
+
+saveRDS(thoughts_docs, file = here(&quot;Dados/stmthoughts.RDS&quot;))
+</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuc3RtX3RpZHkgPC0gdGlkeShzdG1fcmVzdWx0LCBtYXRyaXggPSBcImdhbW1hXCIpICU+JSBcbiAgcGl2b3Rfd2lkZXIobmFtZXNfZnJvbSA9IHRvcGljLCB2YWx1ZXNfZnJvbSA9IGdhbW1hLCBuYW1lc19wcmVmaXggPSBcIlTDs3BpY28gXCIpXG5cbmRmIDwtIGJpbmRfY29scyhkZiwgc3RtX3RpZHkpJT4lXG4gIG11dGF0ZSh0w7NwaWNvX3ByaW5jaXBhbCA9IGNvbG5hbWVzKHNlbGVjdCguLCBgVMOzcGljbyAxYDpgVMOzcGljbyA5YCkpW21heC5jb2woc2VsZWN0KC4sIGBUw7NwaWNvIDFgOmBUw7NwaWNvIDlgKSwgdGllcy5tZXRob2QgPSBcImZpcnN0XCIpXSlcblxuc2F2ZVJEUyhkZiwgZmlsZSA9IGhlcmUoXCJEYWRvcy9kZl9TVE0uUkRTXCIpKVxuXG5ybShwcmVwX3RleHRzLCB0ZXh0b3MsIHN0bV90aWR5LCB0ZXh0b3MsIHRpZHllbWVudGFzLCBpLCBqLCB0aG91Z2h0c19pZCwgdGhvdWdodHNfZG9jcylcblxuYGBgIn0= -->
+<pre class="r"><code>stm_tidy &lt;- tidy(stm_result, matrix = &quot;gamma&quot;) %&gt;% 
+  pivot_wider(names_from = topic, values_from = gamma, names_prefix = &quot;Tópico &quot;)
+
+df &lt;- bind_cols(df, stm_tidy)%&gt;%
+  mutate(tópico_principal = colnames(select(., `Tópico 1`:`Tópico 9`))[max.col(select(., `Tópico 1`:`Tópico 9`), ties.method = &quot;first&quot;)])
+
+saveRDS(df, file = here(&quot;Dados/df_STM.RDS&quot;))
+
+rm(prep_texts, textos, stm_tidy, textos, tidyementas, i, j, thoughts_id, thoughts_docs)
+</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxucGVyY2VudF90b3BpY29zIDwtIGRmICU+JSBcbiAgZ3JvdXBfYnkodMOzcGljb19wcmluY2lwYWwpICU+JSBcbiAgc3VtbWFyaXNlKG4gPSBuKCkpICU+JSBcbiAgbXV0YXRlKHBvcmNlbnRfbiA9IG4vc3VtKG4pKVxuXG5wZXJjZW50X3RvcGljb3NcbmBgYCJ9 -->
+<pre class="r"><code>percent_topicos &lt;- df %&gt;% 
+  group_by(tópico_principal) %&gt;% 
+  summarise(n = n()) %&gt;% 
+  mutate(porcent_n = n/sum(n))
+
+percent_topicos</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+</div>
+<div id="parei-aqui-4.3---cruzando-as-categorias-com-os-tipos-de-projeto-e-desastre" class="section level2">
+<h2>PAREI AQUI 4.3 - Cruzando as categorias com os tipos de projeto e
+desastre</h2>
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuZGYgPC0gcmVhZFJEUyhoZXJlKFwiRGFkb3MgU0QvZGZfU1RNLlJEU1wiKSlcblxuXG5gYGAifQ== -->
+<pre class="r"><code>df &lt;- readRDS(here(&quot;Dados SD/df_STM.RDS&quot;))
+</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+<div id="gráfico-dias-x-tipos" class="section level3">
+<h3>Gráfico Dias x Tipos</h3>
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuXG5zdW1fZGlzdGFuY2lhIDwtIHN1bW1hcnkoZGYkZGlhc19kZXNhc3RyZV9hbnRlcmlvcilcblxucXVhcnRpbF8xIDwtIHN1bV9kaXN0YW5jaWFbMl1cbnF1YXJ0aWxfMiA8LSBzdW1fZGlzdGFuY2lhWzNdXG5xdWFydGlsXzMgPC0gc3VtX2Rpc3RhbmNpYVs1XVxuXG5ncmFmMyA8LSBkZiAlPiUgXG4gIGdyb3VwX2J5KGRpYXNfZGVzYXN0cmVfYW50ZXJpb3IsIHTDs3BpY29fcHJpbmNpcGFsKSAlPiUgXG4gIHN1bW1hcmlzZShuID0gbigpKSAlPiUgXG4gIGZpbHRlcihkaWFzX2Rlc2FzdHJlX2FudGVyaW9yIDw9IDEzMDApXG4gIFxuZ3JhZjMgJT4lIFxuICBnZ3Bsb3QoYWVzKCB4ID0gYGRpYXNfZGVzYXN0cmVfYW50ZXJpb3JgLCB5ID0gbiwgZmlsbCA9IHTDs3BpY29fcHJpbmNpcGFsKSkgK1xuICBnZW9tX2JhcihzdGF0ID0gXCJpZGVudGl0eVwiKStcbiAgZ2VvbV92bGluZSh4aW50ZXJjZXB0ID0gcXVhcnRpbF8xLCBsaW5ldHlwZSA9IFwiZGFzaGVkXCIpK1xuICBnZW9tX3ZsaW5lKHhpbnRlcmNlcHQgPSBxdWFydGlsXzIsIGxpbmV0eXBlID0gXCJkYXNoZWRcIikrXG4gIGdlb21fdmxpbmUoeGludGVyY2VwdCA9IHF1YXJ0aWxfMywgbGluZXR5cGUgPSBcImRhc2hlZFwiKStcbiAgdGhlbWVfbGluZWRyYXcoKStcbiAgbGFicyh0aXRsZSA9IFwiVMOzcGljb3MgZG9zIHByb2pldG9zLCBwb3IgZGlhcyBhcMOzcyBkZXNhc3RyZVwiKStcbiAgc2NhbGVfZmlsbF9icmV3ZXIocGFsZXR0ZSA9IFwiRGFyazJcIikrXG4gIHlsYWIoJ07Dum1lcm8gZGUgZG9jdW1lbnRvcycpK1xuICB4bGFiKCdEaWFzIGRlc2RlIG8gZGVzYXN0cmUgYW50ZXJpb3InKStcbiAgeGxpbSgwLDE0MDApK1xuICBsYWJzKGZpbGwgPSAnVMOzcGljbyBQcmluY2lwYWwnKStcbiAgdGhlbWUobGVnZW5kLnBvc2l0aW9uID0gXCJib3R0b21cIikrXG4gIGZhY2V0X3dyYXAofnTDs3BpY29fcHJpbmNpcGFsLCBzY2FsZXMgPSBcImZyZWVcIiwgbmNvbCA9IDIpXG5gYGAifQ== -->
+<pre class="r"><code>
+sum_distancia &lt;- summary(df$dias_desastre_anterior)
+
+quartil_1 &lt;- sum_distancia[2]
+quartil_2 &lt;- sum_distancia[3]
+quartil_3 &lt;- sum_distancia[5]
+
+graf3 &lt;- df %&gt;% 
+  group_by(dias_desastre_anterior, tópico_principal) %&gt;% 
+  summarise(n = n()) %&gt;% 
+  filter(dias_desastre_anterior &lt;= 1300)
+  
+graf3 %&gt;% 
+  ggplot(aes( x = `dias_desastre_anterior`, y = n, fill = tópico_principal)) +
+  geom_bar(stat = &quot;identity&quot;)+
+  geom_vline(xintercept = quartil_1, linetype = &quot;dashed&quot;)+
+  geom_vline(xintercept = quartil_2, linetype = &quot;dashed&quot;)+
+  geom_vline(xintercept = quartil_3, linetype = &quot;dashed&quot;)+
+  theme_linedraw()+
+  labs(title = &quot;Tópicos dos projetos, por dias após desastre&quot;)+
+  scale_fill_brewer(palette = &quot;Dark2&quot;)+
+  ylab(&#39;Número de documentos&#39;)+
+  xlab(&#39;Dias desde o desastre anterior&#39;)+
+  xlim(0,1400)+
+  labs(fill = &#39;Tópico Principal&#39;)+
+  theme(legend.position = &quot;bottom&quot;)+
+  facet_wrap(~tópico_principal, scales = &quot;free&quot;, ncol = 2)</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuZ3JhZjMgPC0gZGYgJT4lIFxuICBncm91cF9ieShRdWFydGlsLCB0w7NwaWNvX3ByaW5jaXBhbCkgJT4lIFxuICBzdW1tYXJpc2UobiA9IG4oKSkgJT4lXG4gIGdyb3VwX2J5KFF1YXJ0aWwpICU+JSBcbiAgbXV0YXRlKHBvcmNlbnRfYWwgPSBuLyBzdW0obikpXG4gIFxuZ3JhZjMgJT4lIFxuICBnZ3Bsb3QoYWVzKCB4ID0gYFF1YXJ0aWxgLCB5ID0gcG9yY2VudF9hbCwgZmlsbCA9IHTDs3BpY29fcHJpbmNpcGFsKSkgKyBcbiAgZ2VvbV9iYXIoc3RhdCA9IFwiaWRlbnRpdHlcIikrIFxuICB0aGVtZV9saW5lZHJhdygpK1xuICBsYWJzKHRpdGxlID0gXCJUw7NwaWNvcyBkb3MgcHJvamV0b3MsIHBvciBxdWFydGlsIGVtIHJlbGHDp8OjbyBhbyBkZXNhc3RyZVwiKStcbiAgc2NhbGVfZmlsbF9icmV3ZXIocGFsZXR0ZSA9IFwiRGFyazJcIikrXG4gIHlsYWIoJ1BlcmNlbnR1YWwgZGUgZG9jdW1lbnRvcycpK1xuICB4bGFiKCdRdWFydGlsIGVtIHJlbGHDp8OjbyBhbyBkZXNhc3RyZScpK1xuICBsYWJzKGZpbGwgPSBcIlTDs3BpY28gUHJpbmNpcGFsXCIpXG5gYGAifQ== -->
+<pre class="r"><code>graf3 &lt;- df %&gt;% 
+  group_by(Quartil, tópico_principal) %&gt;% 
+  summarise(n = n()) %&gt;%
+  group_by(Quartil) %&gt;% 
+  mutate(porcent_al = n/ sum(n))
+  
+graf3 %&gt;% 
+  ggplot(aes( x = `Quartil`, y = porcent_al, fill = tópico_principal)) + 
+  geom_bar(stat = &quot;identity&quot;)+ 
+  theme_linedraw()+
+  labs(title = &quot;Tópicos dos projetos, por quartil em relação ao desastre&quot;)+
+  scale_fill_brewer(palette = &quot;Dark2&quot;)+
+  ylab(&#39;Percentual de documentos&#39;)+
+  xlab(&#39;Quartil em relação ao desastre&#39;)+
+  labs(fill = &quot;Tópico Principal&quot;)</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxucm0ocXVhcnRpbF8xLCBxdWFydGlsXzIsIHF1YXJ0aWxfMywgc3VtX2Rpc3RhbmNpYSlcblxuYGBgIn0= -->
+<pre class="r"><code>rm(quartil_1, quartil_2, quartil_3, sum_distancia)
+</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-output-begin eyJkYXRhIjoiV2FybmluZyA6b2JqZXRvICdxdWFydGlsXzEnIG7Do28gZW5jb250cmFkb1xuV2FybmluZyA6b2JqZXRvICdxdWFydGlsXzInIG7Do28gZW5jb250cmFkb1xuV2FybmluZyA6b2JqZXRvICdxdWFydGlsXzMnIG7Do28gZW5jb250cmFkb1xuIn0= -->
+<pre><code>Warning :objeto &#39;quartil_1&#39; não encontrado
+Warning :objeto &#39;quartil_2&#39; não encontrado
+Warning :objeto &#39;quartil_3&#39; não encontrado</code></pre>
+<!-- rnb-output-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+</div>
+<div id="gráfico-tipos-por-desastre" class="section level3">
+<h3>Gráfico Tipos por Desastre</h3>
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuXG4jTGltcGFuZG8gY29uZWN0aXZvczpcbnBhbGF2cmFzX3JlbW92ZXIgPC0gZGF0YS5mcmFtZShwYWxhdnJhc19yZW1vdmVyID0gYygnZGUnLCAgJ2EnLCAgJ28nLCAgJ3F1ZScsICAnZScsICAnZG8nLCAgJ2RhJywgICdlbScsICAndW0nLCAgJ3BhcmEnLCAgJ8OpJywgICdjb20nLCAgJ27Do28nLCAgJ3VtYScsICAnb3MnLCAgJ25vJywgICdzZScsICAnbmEnLCAgJ3BvcicsICAnbWFpcycsICAnYXMnLCAgJ2RvcycsICAnY29tbycsICAnbWFzJywgICdmb2knLCAgJ2FvJywgICdlbGUnLCAgJ2RhcycsICAndGVtJywgICfDoCcsICAnc2V1JywgICdzdWEnLCAgJ291JywgICdzZXInLCAgJ3F1YW5kbycsICAnbXVpdG8nLCAgJ2jDoScsICAnbm9zJywgICdqw6EnLCAgJ2VzdMOhJywgICdldScsICAndGFtYsOpbScsICAnc8OzJywgICdwZWxvJywgICdwZWxhJywgICdhdMOpJywgICdpc3NvJywgICdlbGEnLCAgJ2VudHJlJywgICdlcmEnLCAgJ2RlcG9pcycsICAnc2VtJywgICdtZXNtbycsICAnYW9zJywgICd0ZXInLCAgJ3NldXMnLCAgJ3F1ZW0nLCAgJ25hcycsICAnbWUnLCAgJ2Vzc2UnLCAgJ2VsZXMnLCAgJ2VzdMOjbycsICAndm9jw6onLCAgJ3RpbmhhJywgICdmb3JhbScsICAnZXNzYScsICAnbnVtJywgICduZW0nLCAgJ3N1YXMnLCAgJ21ldScsICAnw6BzJywgICdtaW5oYScsICAndMOqbScsICAnbnVtYScsICAncGVsb3MnLCAgJ2VsYXMnLCAgJ2hhdmlhJywgICdzZWphJywgICdxdWFsJywgICdzZXLDoScsICAnbsOzcycsICAndGVuaG8nLCAgJ2xoZScsICAnZGVsZXMnLCAgJ2Vzc2FzJywgICdlc3NlcycsICAncGVsYXMnLCAgJ2VzdGUnLCAgJ2Zvc3NlJywgICdkZWxlJywgICd0dScsICAndGUnLCAgJ3ZvY8OqcycsICAndm9zJywgICdsaGVzJywgICdtZXVzJywgICdtaW5oYXMnLCAgJ3RldScsICAndHVhJywgICd0ZXVzJywgICd0dWFzJywgICdub3NzbycsICAnbm9zc2EnLCAgJ25vc3NvcycsICAnbm9zc2FzJywgICdkZWxhJywgICdkZWxhcycsICAnZXN0YScsICAnZXN0ZXMnLCAgJ2VzdGFzJywgICdhcXVlbGUnLCAgJ2FxdWVsYScsICAnYXF1ZWxlcycsICAnYXF1ZWxhcycsICAnaXN0bycsICAnYXF1aWxvJywgICdlc3RvdScsICAnZXN0w6EnLCAgJ2VzdGFtb3MnLCAgJ2VzdMOjbycsICAnZXN0aXZlJywgICdlc3RldmUnLCAgJ2VzdGl2ZW1vcycsICAnZXN0aXZlcmFtJywgICdlc3RhdmEnLCAgJ2VzdMOhdmFtb3MnLCAgJ2VzdGF2YW0nLCAgJ2VzdGl2ZXJhJywgICdlc3RpdsOpcmFtb3MnLCAgJ2VzdGVqYScsICAnZXN0ZWphbW9zJywgICdlc3RlamFtJywgICdlc3RpdmVzc2UnLCAgJ2VzdGl2w6lzc2Vtb3MnLCAgJ2VzdGl2ZXNzZW0nLCAgJ2VzdGl2ZXInLCAgJ2VzdGl2ZXJtb3MnLCAgJ2VzdGl2ZXJlbScsICAnaGVpJywgICdow6EnLCAgJ2hhdmVtb3MnLCAgJ2jDo28nLCAgJ2hvdXZlJywgICdob3V2ZW1vcycsICAnaG91dmVyYW0nLCAgJ2hvdXZlcmEnLCAgJ2hvdXbDqXJhbW9zJywgICdoYWphJywgICdoYWphbW9zJywgICdoYWphbScsICAnaG91dmVzc2UnLCAgJ2hvdXbDqXNzZW1vcycsICAnaG91dmVzc2VtJywgICdob3V2ZXInLCAgJ2hvdXZlcm1vcycsICAnaG91dmVyZW0nLCAgJ2hvdXZlcmVpJywgICdob3V2ZXLDoScsICAnaG91dmVyZW1vcycsICAnaG91dmVyw6NvJywgICdob3V2ZXJpYScsICAnaG91dmVyw61hbW9zJywgICdob3V2ZXJpYW0nLCAgJ3NvdScsICAnc29tb3MnLCAgJ3PDo28nLCAgJ2VyYScsICAnw6lyYW1vcycsICAnZXJhbScsICAnZnVpJywgICdmb2knLCAgJ2ZvbW9zJywgICdmb3JhbScsICAnZm9yYScsICAnZsO0cmFtb3MnLCAgJ3NlamEnLCAgJ3NlamFtb3MnLCAgJ3NlamFtJywgICdmb3NzZScsICAnZsO0c3NlbW9zJywgICdmb3NzZW0nLCAgJ2ZvcicsICAnZm9ybW9zJywgICdmb3JlbScsICAnc2VyZWknLCAgJ3NlcsOhJywgICdzZXJlbW9zJywgICdzZXLDo28nLCAgJ3NlcmlhJywgICdzZXLDrWFtb3MnLCAgJ3NlcmlhbScsICAndGVuaG8nLCAgJ3RlbScsICAndGVtb3MnLCAgJ3TDqW0nLCAgJ3RpbmhhJywgICd0w61uaGFtb3MnLCAgJ3RpbmhhbScsICAndGl2ZScsICAndGV2ZScsICAndGl2ZW1vcycsICAndGl2ZXJhbScsICAndGl2ZXJhJywgICd0aXbDqXJhbW9zJywgICd0ZW5oYScsICAndGVuaGFtb3MnLCAgJ3RlbmhhbScsICAndGl2ZXNzZScsICAndGl2w6lzc2Vtb3MnLCAgJ3RpdmVzc2VtJywgICd0aXZlcicsICAndGl2ZXJtb3MnLCAgJ3RpdmVyZW0nLCAgJ3RlcmVpJywgICd0ZXLDoScsICAndGVyZW1vcycsICAndGVyw6NvJywgICd0ZXJpYScsICAndGVyw61hbW9zJywgICd0ZXJpYW0nLCBcIm11bmljaXBhbFwiLCAnbXVuaWPDrXBpbycsICdtdW5pY2lwaW8nLCAnbXVuaWPDrXBpb3MnLCAnbXVuaWNpcGlvcycsICdwcmVmZWl0bycsICdwcmVmZWl0YScsICdwcmVmZWl0b3MnLCAncHJlZmVpdGFzJywgJ2V4ZWN1dGl2bycsICdzZWNyZXRhcmlhJywgJ3NlY3JldGFyaWFzJywgJ3NlbmhvcicsICdzZW5ob3JhJywgJ3ZlcmVhZG9yJywgJ3ZlcmVhZG9yYScsICd2ZXJlYWRvcmVzJywgJ3ZlcmVhZG9yYXMnLCAncG9kZXInLCAnc3InLCAnc2VjcmV0w6FyaW8nLCAnc2VjcmV0w6FyaWEnLCAnc2VjcmV0w6FyaW9zJywgJ3NlY3JldMOhcmlhcycsICdleGNlbGVudMOtc3NpbW8nLCAnZXhjZWxlbnTDrXNzaW1hJywgJ2V4Y2VsZW50w61zc2ltb3MnLCAnZXhjZWxlbnTDrXNzaW1hcycsICdleG1vJywgJ2V4bWEnLCAncHJlZmVpdHVyYScsICdwcmVmZWl0dXJhcycsICdleGNlbMOqbmNpYScsICd2b3NzYScsICdwcmVzaWRlbnRlJywgJ3ByZXNpZGVudGVzJywgXCJzZWNyZXRhcmlhc1wiLCBcIm5vYnJlc1wiLCAnbWluaXN0w6lyaW8nLCAncGxlbsOhcmlvJywgJ2pvc8OpJywgJ3NpbHZhJywgJ2pvw6NvJywgJ3NlY2Fkb3JhJywgJ29uZXR5JywgJ2VsY2lvbmUnKSkgJT4lICBiaW5kX3Jvd3MoKHJlYWRfY3N2MihoZXJlKFwiRGFkb3Mvbm9tZXNfcHJvcHJpb3NfYnIuY3N2XCIpLCBjb2xfbmFtZXMgPSBcInBhbGF2cmFzX3JlbW92ZXJcIikpKVxuYGBgIn0= -->
+<pre class="r"><code>
+#Limpando conectivos:
+palavras_remover &lt;- data.frame(palavras_remover = c(&#39;de&#39;,  &#39;a&#39;,  &#39;o&#39;,  &#39;que&#39;,  &#39;e&#39;,  &#39;do&#39;,  &#39;da&#39;,  &#39;em&#39;,  &#39;um&#39;,  &#39;para&#39;,  &#39;é&#39;,  &#39;com&#39;,  &#39;não&#39;,  &#39;uma&#39;,  &#39;os&#39;,  &#39;no&#39;,  &#39;se&#39;,  &#39;na&#39;,  &#39;por&#39;,  &#39;mais&#39;,  &#39;as&#39;,  &#39;dos&#39;,  &#39;como&#39;,  &#39;mas&#39;,  &#39;foi&#39;,  &#39;ao&#39;,  &#39;ele&#39;,  &#39;das&#39;,  &#39;tem&#39;,  &#39;à&#39;,  &#39;seu&#39;,  &#39;sua&#39;,  &#39;ou&#39;,  &#39;ser&#39;,  &#39;quando&#39;,  &#39;muito&#39;,  &#39;há&#39;,  &#39;nos&#39;,  &#39;já&#39;,  &#39;está&#39;,  &#39;eu&#39;,  &#39;também&#39;,  &#39;só&#39;,  &#39;pelo&#39;,  &#39;pela&#39;,  &#39;até&#39;,  &#39;isso&#39;,  &#39;ela&#39;,  &#39;entre&#39;,  &#39;era&#39;,  &#39;depois&#39;,  &#39;sem&#39;,  &#39;mesmo&#39;,  &#39;aos&#39;,  &#39;ter&#39;,  &#39;seus&#39;,  &#39;quem&#39;,  &#39;nas&#39;,  &#39;me&#39;,  &#39;esse&#39;,  &#39;eles&#39;,  &#39;estão&#39;,  &#39;você&#39;,  &#39;tinha&#39;,  &#39;foram&#39;,  &#39;essa&#39;,  &#39;num&#39;,  &#39;nem&#39;,  &#39;suas&#39;,  &#39;meu&#39;,  &#39;às&#39;,  &#39;minha&#39;,  &#39;têm&#39;,  &#39;numa&#39;,  &#39;pelos&#39;,  &#39;elas&#39;,  &#39;havia&#39;,  &#39;seja&#39;,  &#39;qual&#39;,  &#39;será&#39;,  &#39;nós&#39;,  &#39;tenho&#39;,  &#39;lhe&#39;,  &#39;deles&#39;,  &#39;essas&#39;,  &#39;esses&#39;,  &#39;pelas&#39;,  &#39;este&#39;,  &#39;fosse&#39;,  &#39;dele&#39;,  &#39;tu&#39;,  &#39;te&#39;,  &#39;vocês&#39;,  &#39;vos&#39;,  &#39;lhes&#39;,  &#39;meus&#39;,  &#39;minhas&#39;,  &#39;teu&#39;,  &#39;tua&#39;,  &#39;teus&#39;,  &#39;tuas&#39;,  &#39;nosso&#39;,  &#39;nossa&#39;,  &#39;nossos&#39;,  &#39;nossas&#39;,  &#39;dela&#39;,  &#39;delas&#39;,  &#39;esta&#39;,  &#39;estes&#39;,  &#39;estas&#39;,  &#39;aquele&#39;,  &#39;aquela&#39;,  &#39;aqueles&#39;,  &#39;aquelas&#39;,  &#39;isto&#39;,  &#39;aquilo&#39;,  &#39;estou&#39;,  &#39;está&#39;,  &#39;estamos&#39;,  &#39;estão&#39;,  &#39;estive&#39;,  &#39;esteve&#39;,  &#39;estivemos&#39;,  &#39;estiveram&#39;,  &#39;estava&#39;,  &#39;estávamos&#39;,  &#39;estavam&#39;,  &#39;estivera&#39;,  &#39;estivéramos&#39;,  &#39;esteja&#39;,  &#39;estejamos&#39;,  &#39;estejam&#39;,  &#39;estivesse&#39;,  &#39;estivéssemos&#39;,  &#39;estivessem&#39;,  &#39;estiver&#39;,  &#39;estivermos&#39;,  &#39;estiverem&#39;,  &#39;hei&#39;,  &#39;há&#39;,  &#39;havemos&#39;,  &#39;hão&#39;,  &#39;houve&#39;,  &#39;houvemos&#39;,  &#39;houveram&#39;,  &#39;houvera&#39;,  &#39;houvéramos&#39;,  &#39;haja&#39;,  &#39;hajamos&#39;,  &#39;hajam&#39;,  &#39;houvesse&#39;,  &#39;houvéssemos&#39;,  &#39;houvessem&#39;,  &#39;houver&#39;,  &#39;houvermos&#39;,  &#39;houverem&#39;,  &#39;houverei&#39;,  &#39;houverá&#39;,  &#39;houveremos&#39;,  &#39;houverão&#39;,  &#39;houveria&#39;,  &#39;houveríamos&#39;,  &#39;houveriam&#39;,  &#39;sou&#39;,  &#39;somos&#39;,  &#39;são&#39;,  &#39;era&#39;,  &#39;éramos&#39;,  &#39;eram&#39;,  &#39;fui&#39;,  &#39;foi&#39;,  &#39;fomos&#39;,  &#39;foram&#39;,  &#39;fora&#39;,  &#39;fôramos&#39;,  &#39;seja&#39;,  &#39;sejamos&#39;,  &#39;sejam&#39;,  &#39;fosse&#39;,  &#39;fôssemos&#39;,  &#39;fossem&#39;,  &#39;for&#39;,  &#39;formos&#39;,  &#39;forem&#39;,  &#39;serei&#39;,  &#39;será&#39;,  &#39;seremos&#39;,  &#39;serão&#39;,  &#39;seria&#39;,  &#39;seríamos&#39;,  &#39;seriam&#39;,  &#39;tenho&#39;,  &#39;tem&#39;,  &#39;temos&#39;,  &#39;tém&#39;,  &#39;tinha&#39;,  &#39;tínhamos&#39;,  &#39;tinham&#39;,  &#39;tive&#39;,  &#39;teve&#39;,  &#39;tivemos&#39;,  &#39;tiveram&#39;,  &#39;tivera&#39;,  &#39;tivéramos&#39;,  &#39;tenha&#39;,  &#39;tenhamos&#39;,  &#39;tenham&#39;,  &#39;tivesse&#39;,  &#39;tivéssemos&#39;,  &#39;tivessem&#39;,  &#39;tiver&#39;,  &#39;tivermos&#39;,  &#39;tiverem&#39;,  &#39;terei&#39;,  &#39;terá&#39;,  &#39;teremos&#39;,  &#39;terão&#39;,  &#39;teria&#39;,  &#39;teríamos&#39;,  &#39;teriam&#39;, &quot;municipal&quot;, &#39;município&#39;, &#39;municipio&#39;, &#39;municípios&#39;, &#39;municipios&#39;, &#39;prefeito&#39;, &#39;prefeita&#39;, &#39;prefeitos&#39;, &#39;prefeitas&#39;, &#39;executivo&#39;, &#39;secretaria&#39;, &#39;secretarias&#39;, &#39;senhor&#39;, &#39;senhora&#39;, &#39;vereador&#39;, &#39;vereadora&#39;, &#39;vereadores&#39;, &#39;vereadoras&#39;, &#39;poder&#39;, &#39;sr&#39;, &#39;secretário&#39;, &#39;secretária&#39;, &#39;secretários&#39;, &#39;secretárias&#39;, &#39;excelentíssimo&#39;, &#39;excelentíssima&#39;, &#39;excelentíssimos&#39;, &#39;excelentíssimas&#39;, &#39;exmo&#39;, &#39;exma&#39;, &#39;prefeitura&#39;, &#39;prefeituras&#39;, &#39;excelência&#39;, &#39;vossa&#39;, &#39;presidente&#39;, &#39;presidentes&#39;, &quot;secretarias&quot;, &quot;nobres&quot;, &#39;ministério&#39;, &#39;plenário&#39;, &#39;josé&#39;, &#39;silva&#39;, &#39;joão&#39;, &#39;secadora&#39;, &#39;onety&#39;, &#39;elcione&#39;)) %&gt;%  bind_rows((read_csv2(here(&quot;Dados/nomes_proprios_br.csv&quot;), col_names = &quot;palavras_remover&quot;)))</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-output-begin eyJkYXRhIjoiXHUwMDFiRzM74oS5IFVzaW5nIFwiJywnXCIgYXMgZGVjaW1hbCBhbmQgXCInLidcIiBhcyBncm91cGluZyBtYXJrLiBVc2UgYHJlYWRfZGVsaW0oKWAgZm9yIG1vcmUgY29udHJvbC5cblx1MDAxYmdSb3dzOiA5OTkgQ29sdW1uczogMVxu4pSA4pSAIENvbHVtbiBzcGVjaWZpY2F0aW9uIOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgOKUgFxuRGVsaW1pdGVyOiBcIjtcIlxuY2hyICgxKTogcGFsYXZyYXNfcmVtb3ZlclxuXG7ihLkgVXNlIGBzcGVjKClgIHRvIHJldHJpZXZlIHRoZSBmdWxsIGNvbHVtbiBzcGVjaWZpY2F0aW9uIGZvciB0aGlzIGRhdGEuXG7ihLkgU3BlY2lmeSB0aGUgY29sdW1uIHR5cGVzIG9yIHNldCBgc2hvd19jb2xfdHlwZXMgPSBGQUxTRWAgdG8gcXVpZXQgdGhpcyBtZXNzYWdlLlxuIn0= -->
+<pre><code>G3;ℹ Using &quot;&#39;,&#39;&quot; as decimal and &quot;&#39;.&#39;&quot; as grouping mark. Use `read_delim()` for more control.
+gRows: 999 Columns: 1
+── Column specification ────────────────────────────────────────────────────────────────────────────────────
+Delimiter: &quot;;&quot;
+chr (1): palavras_remover
+
+ℹ Use `spec()` to retrieve the full column specification for this data.
+ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.</code></pre>
+<!-- rnb-output-end -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxucGFsYXZyYXNfcmVtb3ZlciA8LSBwYWxhdnJhc19yZW1vdmVyJHBhbGF2cmFzX3JlbW92ZXIgJT4lIFxuICBzdHJfcmVwbGFjZV9hbGwoXCIoW1xcXFxeJC58PyorKCl7fV0pXCIsIFwiXFxcXFxcXFxcXFxcMVwiKSAlPiUgXG4gIHN0cl90cmltKClcbiAgXG5cbnBhbGF2cmFzX3JlbW92ZXIgPC0gcGFzdGUwKFwiXFxcXGIoXCIsIHBhc3RlKHBhbGF2cmFzX3JlbW92ZXIsIGNvbGxhcHNlID0gXCJ8XCIpLCBcIilcXFxcYlwiKVxuXG5gYGAifQ== -->
+<pre class="r"><code>palavras_remover &lt;- palavras_remover$palavras_remover %&gt;% 
+  str_replace_all(&quot;([\\^$.|?*+(){}])&quot;, &quot;\\\\\\1&quot;) %&gt;% 
+  str_trim()
+  
+
+palavras_remover &lt;- paste0(&quot;\\b(&quot;, paste(palavras_remover, collapse = &quot;|&quot;), &quot;)\\b&quot;)
+</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuQV9UaXBvcyA8LSBkZiAlPiUgXG4gIGdyb3VwX2J5KHTDs3BpY29fcHJpbmNpcGFsLCBBbm8pICU+JSBcbiAgc3VtbWFyaXNlKG5fYWwgPSBuKCkpICU+JVxuICBncm91cF9ieShBbm8pICU+JSBcbiAgbXV0YXRlKHBvcmNlbnRfYWwgPSBuX2FsLyBzdW0obl9hbCkpIFxuXG5BX1RpcG9zICU+JSBcbiAgZ2dwbG90KGFlcyggeCA9IGBBbm9gLCB5ID0gcG9yY2VudF9hbCwgZmlsbCA9IHTDs3BpY29fcHJpbmNpcGFsKSkgKyBcbiAgZ2VvbV9iYXIoc3RhdCA9IFwiaWRlbnRpdHlcIikrIFxuICB0aGVtZV9saW5lZHJhdygpK1xuICBsYWJzKHRpdGxlID0gXCJUw7NwaWNvcyBkYXMgcHJvcG9zaXR1cmFzLCBwb3IgQW5vXCIpK1xuICBzY2FsZV9maWxsX2JyZXdlcihwYWxldHRlID0gXCJEYXJrMlwiKStcbiAgbGFicyhmaWxsID0gJ1TDs3BpY28gUHJpbmNpcGFsJykrXG4gIHlsYWIoJ1BlcmNlbnR1YWwgZGUgZG9jdW1lbnRvcycpXG5gYGAifQ== -->
+<pre class="r"><code>A_Tipos &lt;- df %&gt;% 
+  group_by(tópico_principal, Ano) %&gt;% 
+  summarise(n_al = n()) %&gt;%
+  group_by(Ano) %&gt;% 
+  mutate(porcent_al = n_al/ sum(n_al)) 
+
+A_Tipos %&gt;% 
+  ggplot(aes( x = `Ano`, y = porcent_al, fill = tópico_principal)) + 
+  geom_bar(stat = &quot;identity&quot;)+ 
+  theme_linedraw()+
+  labs(title = &quot;Tópicos das proposituras, por Ano&quot;)+
+  scale_fill_brewer(palette = &quot;Dark2&quot;)+
+  labs(fill = &#39;Tópico Principal&#39;)+
+  ylab(&#39;Percentual de documentos&#39;)</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-chunk-end -->
+</div>
+</div>
+</div>
+
+<div id="rmd-source-code">LS0tDQp0aXRsZTogIjMuIEFuw6FsaXNlIGRlIGNvbnRlw7pkbyBkb3MgcHJvamV0b3MgY29tIFNUTSINCm91dHB1dDogaHRtbF9ub3RlYm9vaw0KLS0tDQoNCiMgMy4gQW7DoWxpc2UgZGUgY29udGXDumRvIGRvcyBwcm9qZXRvcyBjb20gTW9kZWxhZ2VtIGRlIFTDs3BpY29zDQoNCmBgYHtyfQ0KI2luc3RhbGwucGFja2FnZXMoImRwbHlyIikNCiNpbnN0YWxsLnBhY2thZ2VzKCJkYXRhLnRhYmxlIikNCiNpbnN0YWxsLnBhY2thZ2VzKCJzdG0iKQ0KI2luc3RhbGwucGFja2FnZXMoInRtIikNCiNpbnN0YWxsLnBhY2thZ2VzKCJTbm93YmFsbEMiKQ0KI2luc3RhbGwucGFja2FnZXMoInJlc2hhcGUyIikNCmBgYA0KDQpgYGB7ciwgd2FybmluZyA9IEZBTFNFfQ0KbGlicmFyeShkcGx5cikNCmxpYnJhcnkoaGVyZSkNCmxpYnJhcnkocmVhZHIpDQpsaWJyYXJ5KGRhdGEudGFibGUpDQpsaWJyYXJ5KHN0cmluZ3IpDQpsaWJyYXJ5KHRpZHl0ZXh0KQ0KbGlicmFyeShnZ3Bsb3QyKQ0KbGlicmFyeShzdG0pDQoNCmBgYA0KDQojIyAxLiBQcmVwYXJhbmRvIGEgYmFzZSBkZSBkYWRvcw0KDQpgYGB7cn0NCmRmIDwtIHJlYWRSRFMoaGVyZSgiRGFkb3MvZGZfYWdlbmRhY2xpbWFfbXVuaWNpcGFsLlJEUyIpKQ0KYGBgDQoNCmBgYHtyLCAnYWRpY2lvbmFuZG9fcXVhcnRpcyd9DQpzdW1fZGlzdGFuY2lhIDwtIHN1bW1hcnkoZGYkZGlhc19kZXNhc3RyZV9hbnRlcmlvcikNCg0KcXVhcnRpbF8xIDwtIHN1bV9kaXN0YW5jaWFbMl0NCnF1YXJ0aWxfMiA8LSBzdW1fZGlzdGFuY2lhWzNdDQpxdWFydGlsXzMgPC0gc3VtX2Rpc3RhbmNpYVs1XQ0KDQpzdW1fZGlzdGFuY2lhDQpgYGANCg0KYGBge3J9DQoNCnBhbGV0YXMgPC0gcmVhZFJEUygiRGFkb3MvcGFsZXRhcy5SRFMiKQ0KcGx0X3Byb3Bvc2l0dXJhcyA8LSBwYWxldGFzJHByb3Bvc2l0dXJhcw0KDQpkZiAlPiUgDQogIG11dGF0ZShUaXBvID0gaWZlbHNlKFRpcG8gJWluJSBwbHRfcHJvcG9zaXR1cmFzJFRpcG8sIFRpcG8sICJvdXRyb3MiKSkgJT4lIA0KICBnZ3Bsb3QoYWVzKHggPSBkaWFzX2Rlc2FzdHJlX2FudGVyaW9yLCBmaWxsID0gVGlwbykpKw0KICBnZW9tX2hpc3RvZ3JhbShiaW5zPTIwMCkrDQogIGdlb21fdmxpbmUoeGludGVyY2VwdCA9IHF1YXJ0aWxfMSwgbGluZXR5cGUgPSAiZGFzaGVkIikrDQogIGdlb21fdmxpbmUoeGludGVyY2VwdCA9IHF1YXJ0aWxfMiwgbGluZXR5cGUgPSAiZGFzaGVkIikrDQogIGdlb21fdmxpbmUoeGludGVyY2VwdCA9IHF1YXJ0aWxfMywgbGluZXR5cGUgPSAiZGFzaGVkIikrDQogIHRoZW1lX2xpbmVkcmF3KCkrDQogIHRoZW1lKGxlZ2VuZC5wb3NpdGlvbiA9ICJib3R0b20iKSsNCiAgc2NhbGVfY29sb3JfbWFudWFsKHZhbHVlcyA9IHBsdF9wcm9wb3NpdHVyYXMkQ29yZXMsIGxpbWl0cyA9IHBsdF9wcm9wb3NpdHVyYXMkVGlwbykrDQogIHhsaW0oMCwyMDAwKSsNCiAgeGxhYigiRGlhcyBkZXNkZSBvIGRlc2FzdHJlIGFudGVyaW9yIikrDQogIHlsYWIoIk7Dum1lcm8gZGUgcHJvcG9zacOnw7VlcyIpDQpgYGANCg0KYGBge3J9DQpkZiA8LSBkZiAlPiUgDQogIG11dGF0ZShRdWFydGlsID0gY2FzZV93aGVuKGRpYXNfZGVzYXN0cmVfYW50ZXJpb3IgPD0gcXVhcnRpbF8xIH4gMSwNCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgZGlhc19kZXNhc3RyZV9hbnRlcmlvciA+IHF1YXJ0aWxfMSAmIGRpYXNfZGVzYXN0cmVfYW50ZXJpb3IgPD0gcXVhcnRpbF8yIH4gMiwNCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgZGlhc19kZXNhc3RyZV9hbnRlcmlvciA+IHF1YXJ0aWxfMiAmIGRpYXNfZGVzYXN0cmVfYW50ZXJpb3IgPD0gcXVhcnRpbF8zIH4gMywNCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgZGlhc19kZXNhc3RyZV9hbnRlcmlvciA+IHF1YXJ0aWxfMyB+IDQsDQogICAgICAgICAgICAgICAgICAgICAgICAgICAgIC5kZWZhdWx0ID0gTkEpLA0KICAgICAgICBlbWVudGEgPSBhcy5mYWN0b3IoZW1lbnRhKSkNCg0Kcm0ocXVhcnRpbF8xLCBxdWFydGlsXzIsIHF1YXJ0aWxfMywgc3VtX2Rpc3RhbmNpYSkNCmBgYA0KDQojIyAyLiBMaW1wYW5kbyB0ZXh0byBkYXMgZW1lbnRhcw0KDQpBbnRlcyBkZSBhbmFsaXNhciBvIHRleHRvIGRhcyBlbWVudGFzLCBwcmVjaXNhbW9zIGxpbXDDoS1sbyBwYXJhIGV4Y2x1aXIgY29uZWN0aXZvcywgcHJvbm9tZXMsIHZvY2F0aXZvcyBlIG5vbWVzIHByw7NwcmlvcywgZW50cmUgb3V0cmFzIHBhbGF2cmFzIHF1ZSBuw6NvIGludGVyZXNzYW0gw6AgYW7DoWxpc2UuDQoNCioqQ2VydGlmaXF1ZS1zZSBxdWUgbyBhcnF1aXZvICJub21lc19wcm9wcmlvc19ici5jc3YiIGVzdMOhIG5hIHBhc3RhICJEYWRvcyIqKg0KDQpgYGB7ciwgIHdhcm5pbmc9RkFMU0UsICdsaXN0YXNfcGFsYXZyYXNfcmVtb3ZpZGFzJ30NCg0KI0xpbXBhbmRvIGNvbmVjdGl2b3M6DQpwYWxhdnJhc19yZW1vdmVyIDwtIGRhdGEuZnJhbWUocGFsYXZyYXNfcmVtb3ZlciA9IGMoJ2RlJywgICdhJywgICdvJywgICdxdWUnLCAgJ2UnLCAgJ2RvJywgICdkYScsICAnZW0nLCAgJ3VtJywgICdwYXJhJywgICfDqScsICAnY29tJywgICduw6NvJywgICd1bWEnLCAgJ29zJywgICdubycsICAnc2UnLCAgJ25hJywgICdwb3InLCAgJ21haXMnLCAgJ2FzJywgICdkb3MnLCAgJ2NvbW8nLCAgJ21hcycsICAnZm9pJywgICdhbycsICAnZWxlJywgICdkYXMnLCAgJ3RlbScsICAnw6AnLCAgJ3NldScsICAnc3VhJywgICdvdScsICAnc2VyJywgICdxdWFuZG8nLCAgJ211aXRvJywgICdow6EnLCAgJ25vcycsICAnasOhJywgICdlc3TDoScsICAnZXUnLCAgJ3RhbWLDqW0nLCAgJ3PDsycsICAncGVsbycsICAncGVsYScsICAnYXTDqScsICAnaXNzbycsICAnZWxhJywgICdlbnRyZScsICAnZXJhJywgICdkZXBvaXMnLCAgJ3NlbScsICAnbWVzbW8nLCAgJ2FvcycsICAndGVyJywgICdzZXVzJywgICdxdWVtJywgICduYXMnLCAgJ21lJywgICdlc3NlJywgICdlbGVzJywgICdlc3TDo28nLCAgJ3ZvY8OqJywgICd0aW5oYScsICAnZm9yYW0nLCAgJ2Vzc2EnLCAgJ251bScsICAnbmVtJywgICdzdWFzJywgICdtZXUnLCAgJ8OgcycsICAnbWluaGEnLCAgJ3TDqm0nLCAgJ251bWEnLCAgJ3BlbG9zJywgICdlbGFzJywgICdoYXZpYScsICAnc2VqYScsICAncXVhbCcsICAnc2Vyw6EnLCAgJ27Ds3MnLCAgJ3RlbmhvJywgICdsaGUnLCAgJ2RlbGVzJywgICdlc3NhcycsICAnZXNzZXMnLCAgJ3BlbGFzJywgICdlc3RlJywgICdmb3NzZScsICAnZGVsZScsICAndHUnLCAgJ3RlJywgICd2b2PDqnMnLCAgJ3ZvcycsICAnbGhlcycsICAnbWV1cycsICAnbWluaGFzJywgICd0ZXUnLCAgJ3R1YScsICAndGV1cycsICAndHVhcycsICAnbm9zc28nLCAgJ25vc3NhJywgICdub3Nzb3MnLCAgJ25vc3NhcycsICAnZGVsYScsICAnZGVsYXMnLCAgJ2VzdGEnLCAgJ2VzdGVzJywgICdlc3RhcycsICAnYXF1ZWxlJywgICdhcXVlbGEnLCAgJ2FxdWVsZXMnLCAgJ2FxdWVsYXMnLCAgJ2lzdG8nLCAgJ2FxdWlsbycsICAnZXN0b3UnLCAgJ2VzdMOhJywgICdlc3RhbW9zJywgICdlc3TDo28nLCAgJ2VzdGl2ZScsICAnZXN0ZXZlJywgICdlc3RpdmVtb3MnLCAgJ2VzdGl2ZXJhbScsICAnZXN0YXZhJywgICdlc3TDoXZhbW9zJywgICdlc3RhdmFtJywgICdlc3RpdmVyYScsICAnZXN0aXbDqXJhbW9zJywgICdlc3RlamEnLCAgJ2VzdGVqYW1vcycsICAnZXN0ZWphbScsICAnZXN0aXZlc3NlJywgICdlc3RpdsOpc3NlbW9zJywgICdlc3RpdmVzc2VtJywgICdlc3RpdmVyJywgICdlc3RpdmVybW9zJywgICdlc3RpdmVyZW0nLCAgJ2hlaScsICAnaMOhJywgICdoYXZlbW9zJywgICdow6NvJywgICdob3V2ZScsICAnaG91dmVtb3MnLCAgJ2hvdXZlcmFtJywgICdob3V2ZXJhJywgICdob3V2w6lyYW1vcycsICAnaGFqYScsICAnaGFqYW1vcycsICAnaGFqYW0nLCAgJ2hvdXZlc3NlJywgICdob3V2w6lzc2Vtb3MnLCAgJ2hvdXZlc3NlbScsICAnaG91dmVyJywgICdob3V2ZXJtb3MnLCAgJ2hvdXZlcmVtJywgICdob3V2ZXJlaScsICAnaG91dmVyw6EnLCAgJ2hvdXZlcmVtb3MnLCAgJ2hvdXZlcsOjbycsICAnaG91dmVyaWEnLCAgJ2hvdXZlcsOtYW1vcycsICAnaG91dmVyaWFtJywgICdzb3UnLCAgJ3NvbW9zJywgICdzw6NvJywgICdlcmEnLCAgJ8OpcmFtb3MnLCAgJ2VyYW0nLCAgJ2Z1aScsICAnZm9pJywgICdmb21vcycsICAnZm9yYW0nLCAgJ2ZvcmEnLCAgJ2bDtHJhbW9zJywgICdzZWphJywgICdzZWphbW9zJywgICdzZWphbScsICAnZm9zc2UnLCAgJ2bDtHNzZW1vcycsICAnZm9zc2VtJywgICdmb3InLCAgJ2Zvcm1vcycsICAnZm9yZW0nLCAgJ3NlcmVpJywgICdzZXLDoScsICAnc2VyZW1vcycsICAnc2Vyw6NvJywgICdzZXJpYScsICAnc2Vyw61hbW9zJywgICdzZXJpYW0nLCAgJ3RlbmhvJywgICd0ZW0nLCAgJ3RlbW9zJywgICd0w6ltJywgICd0aW5oYScsICAndMOtbmhhbW9zJywgICd0aW5oYW0nLCAgJ3RpdmUnLCAgJ3RldmUnLCAgJ3RpdmVtb3MnLCAgJ3RpdmVyYW0nLCAgJ3RpdmVyYScsICAndGl2w6lyYW1vcycsICAndGVuaGEnLCAgJ3RlbmhhbW9zJywgICd0ZW5oYW0nLCAgJ3RpdmVzc2UnLCAgJ3RpdsOpc3NlbW9zJywgICd0aXZlc3NlbScsICAndGl2ZXInLCAgJ3RpdmVybW9zJywgICd0aXZlcmVtJywgICd0ZXJlaScsICAndGVyw6EnLCAgJ3RlcmVtb3MnLCAgJ3RlcsOjbycsICAndGVyaWEnLCAgJ3RlcsOtYW1vcycsICAndGVyaWFtJywgIm11bmljaXBhbCIsICdtdW5pY8OtcGlvJywgJ211bmljaXBpbycsICdtdW5pY8OtcGlvcycsICdtdW5pY2lwaW9zJywgJ3ByZWZlaXRvJywgJ3ByZWZlaXRhJywgJ3ByZWZlaXRvcycsICdwcmVmZWl0YXMnLCAnZXhlY3V0aXZvJywgJ3NlY3JldGFyaWEnLCAnc2VjcmV0YXJpYXMnLCAnc2VuaG9yJywgJ3NlbmhvcmEnLCAndmVyZWFkb3InLCAndmVyZWFkb3JhJywgJ3ZlcmVhZG9yZXMnLCAndmVyZWFkb3JhcycsICdwb2RlcicsICdzcicsICdzZWNyZXTDoXJpbycsICdzZWNyZXTDoXJpYScsICdzZWNyZXTDoXJpb3MnLCAnc2VjcmV0w6FyaWFzJywgJ2V4Y2VsZW50w61zc2ltbycsICdleGNlbGVudMOtc3NpbWEnLCAnZXhjZWxlbnTDrXNzaW1vcycsICdleGNlbGVudMOtc3NpbWFzJywgJ2V4bW8nLCAnZXhtYScsICdwcmVmZWl0dXJhJywgJ3ByZWZlaXR1cmFzJywgJ2V4Y2Vsw6puY2lhJywgJ3Zvc3NhJywgJ3ByZXNpZGVudGUnLCAncHJlc2lkZW50ZXMnLCAic2VjcmV0YXJpYXMiLCAibm9icmVzIiwgJ21pbmlzdMOpcmlvJywgJ3BsZW7DoXJpbycsICdqb3PDqScsICdzaWx2YScsICdqb8OjbycsICdzZWNhZG9yYScsICdvbmV0eScsICdlbGNpb25lJykpICU+JSAgYmluZF9yb3dzKChyZWFkX2NzdjIoaGVyZSgiRGFkb3Mvbm9tZXNfcHJvcHJpb3NfYnIuY3N2IiksIGNvbF9uYW1lcyA9ICJwYWxhdnJhc19yZW1vdmVyIikpKQ0KDQpwYWxhdnJhc19yZW1vdmVyIDwtIHBhbGF2cmFzX3JlbW92ZXIkcGFsYXZyYXNfcmVtb3ZlciAlPiUgDQogIHN0cl9yZXBsYWNlX2FsbCgiKFtcXF4kLnw/KisoKXt9XSkiLCAiXFxcXFxcMSIpICU+JSANCiAgc3RyX3RyaW0oKQ0KICANCg0KcGFsYXZyYXNfcmVtb3ZlciA8LSBwYXN0ZTAoIlxcYigiLCBwYXN0ZShwYWxhdnJhc19yZW1vdmVyLCBjb2xsYXBzZSA9ICJ8IiksICIpXFxiIikNCg0KYGBgDQoNCmBgYHtyLCAnYWRkX2VtZW50YV9wcid9DQoNCmRmIDwtIGRmICU+JQ0KICBtdXRhdGUoZW1lbnRhX3ByID0gc3RyX3JlcGxhY2VfYWxsKGVtZW50YSwgcmVnZXgocGFsYXZyYXNfcmVtb3ZlciksICJfIikpDQogIA0Kcm0ocGFsYXZyYXNfcmVtb3ZlcikNCmBgYA0KDQpgYGB7ciwgJ3BhbGF2cmFzX3ByZWRvbWluYW50ZXNfcXVhcnRpbCd9DQoNCiNDcmlhIHRhYmVsYSBjb20gcGFsYXZyYXMsIHBvciBmcmVxdcOqbmNpYSBlbSBxdWUgYXBhcmVjZW0NCnBhbGF2cmFzX2ZyZXEgPC1kZiAlPiUNCiAgdW5uZXN0X3Rva2VucyhwYWxhdnJhcywgZW1lbnRhX3ByLCBkcm9wID0gRikgJT4lIA0KICBncm91cF9ieShwYWxhdnJhcykgJT4lIA0KICBzdW1tYXJpc2UobiA9IG4oKSkgJT4lIA0KICBhcnJhbmdlKGRlc2MobikpICU+JSANCiAgdG9wX24oMzApICU+JSANCiAgZ2dwbG90KGFlcyh5ID0gcmVvcmRlcihwYWxhdnJhcywgbiksIHggPSBuKSkgKw0KICBnZW9tX2NvbCgpICsNCiAgbGFicygNCiAgICB0aXRsZSA9ICJOw7ptZXJvIGRlIG1lbsOnw7VlcyBhb3MgdGVybW9zIG5hcyBlbWVudGFzIiwNCiAgICB4ID0gIk7Dum1lcm8gZGUgbWVuw6fDtWVzIiwNCiAgICB5ID0gIlBhbGF2cmFzIikgKw0KICB0aGVtZV9jbGFzc2ljKCkgKw0KICB0aGVtZShsZWdlbmQucG9zaXRpb24gPSAibm9uZSIpDQogIA0KcGFsYXZyYXNfZnJlcQ0KDQpybShwYWxhdnJhc19mcmVxLCB0aWR5KQ0KYGBgDQoNCiMjIDMgRmF6ZW5kbyBhbsOhbGlzZSBjb20gU1RNDQoNCmBgYHtyLCAncHJlcGFyYW5kb190ZXh0b3MnfQ0KIyMjIyMjIyNNb2RlbGFnZW0gZGUgdG9waWNvcyAoU3RydWN0dXJhbCBUb3BpYyBNb2RlbCkNCiNwcm9jZXNzYW1lbnRvIGRvIHRleHRvIGUgZGVmaW5pw6fDo28gZG8gdmFsb3IgSyBtYWlzIGFkZXF1YWRvDQoNCiNTZWxlY2lvbmFuZG8gc8OzIHRleHRvczoNCnRleHRvcyA8LSBkZiRlbWVudGFfcHINCg0KI1Byb2Nlc3NhbnRvIHRleHRvIChyZW1vdmVuZG8gY29uanVuw6fDtWVzLCBzZXBhcmFuZG8gbWV0YWRhdGEgZXRjKQ0KcHJlcF90ZXh0cyA8LSB0ZXh0UHJvY2Vzc29yKGRvY3VtZW50cz10ZXh0b3MsIG1ldGFkYXRhPWRhdGEuZnJhbWUoZG9jbnVtYmVycz0xOmxlbmd0aCh0ZXh0b3MpKSwgbGFuZ3VhZ2UgPSAicG9ydHVndWVzZSIpDQoNCiNQcmVwYXJhbnRvIG8gdGV4dG86IFJlbW92ZSBwYWxhdnJhcyBjb20gcG91Y2FzIGFwYXJpw6fDtWVzIGUgYWp1c3RhIG9zIMOtbmRpY2VzDQpwcmVwX3RleHRzIDwtIHByZXBEb2N1bWVudHMocHJlcF90ZXh0cyRkb2N1bWVudHMsIHByZXBfdGV4dHMkdm9jYWIsIHByZXBfdGV4dHMkbWV0YSkNCg0KDQp0ZXh0b3MgPC0gdGV4dG9zW2MocHJlcF90ZXh0cyRtZXRhJGRvY251bWJlcnMpXQ0KDQoNCmBgYA0KDQpgYGB7ciwgJ2VuY29udHJhbmRvX2tfaWRlYWwnfQ0KDQojUm9kYXIgc8OzIHNlIG5lY2Vzc8OhcmlvIChsZXZhIG11aXRvIHRlbXBvKQ0KI1ZhbG9yIGsgKG7Dum1lcm8gZGUgdMOzcGljb3MgZW0gcXVlIGRpdmlkaXIpDQojSyA8LSAyOjIwDQoNCiMjIHNlYXJjaGsgcHJvY3VyYSBvIG1lbGhvciBuw7ptZXJvIGRlIHTDs3BpY29zDQoja3Jlc3VsdCA8LSBzZWFyY2hLKHByZXBfdGV4dHMkZG9jdW1lbnRzLCBwcmVwX3RleHRzJHZvY2FiLCBLLCBkYXRhPXByZXBfdGV4dHMkbWV0YSkNCiNwbG90KGtyZXN1bHQpDQoNCiNzYXZlUkRTKGtyZXN1bHQsIGhlcmUoIkRhZG9zL2tyZXN1bHQuUkRTIikpDQoNCiNybShLLCBrcmVzdWx0KQ0KYGBgDQoNCkVzY29saGVtb3MgayA9IDksIHBhcmEgbWF4aW1pemFyIGEgQ29lcsOqbmNpYSBTZW3Dom50aWNhDQoNCmBgYHtyLCAnbW9kZWxhZ2VtX3N0bSd9DQojbW9kZWxhZ2VtIGRvcyB0w7NwaWNvcyAoOSB0w7NwaWNvcykNCnN0bV9yZXN1bHQgPC0gc3RtKHByZXBfdGV4dHMkZG9jdW1lbnRzLCBwcmVwX3RleHRzJHZvY2FiLCA5LCBkYXRhPXByZXBfdGV4dHMkbWV0YSwgdmVyYm9zZSA9IEYpDQoNCnNhdmVSRFMoc3RtX3Jlc3VsdCwgaGVyZSgiRGFkb3Mvc3RtX3Jlc3VsdC5SRFMiKSkNCnN1bW1hcnkoc3RtX3Jlc3VsdCkNCmBgYA0KDQpgYGB7ciwgJ3Rob3VnaHRzJ30NCiNMb2NhbGl6YcOnw6NvIGRvcyB0ZXh0b3MgbWFpcyByZXByZXNlbnRhdGl2b3MgZGUgZGV0ZXJtaW5hZG8gdMOzcGljbw0KdGhvdWdodHMgPC1maW5kVGhvdWdodHMoc3RtX3Jlc3VsdCwgdGV4dHM9IHRleHRvcywgdG9waWNzPWMoMTo4KSwgbj0xMCkNCg0KdGhvdWdodHNfaWQgPC0gZGF0YS5mcmFtZSh0aG91Z2h0cyRpbmRleCkNCg0KdGhvdWdodHNfZG9jcyA8LSBkYXRhLmZyYW1lKHRob3VnaHRzJGRvY3MpDQoNCmZvciAoaSBpbiAxOm5yb3codGhvdWdodHNfaWQpKXsNCiAgZm9yIChqIGluIDE6bmNvbCh0aG91Z2h0c19pZCkpew0KICAgIHRob3VnaHRzX2RvY3NbaSxqXSA8LSBhcy5jaGFyYWN0ZXIoZGYkZW1lbnRhW3Rob3VnaHRzX2lkW2ksal1dKSAlPiUNCiAgICAgIHsgaWZlbHNlKGxlbmd0aCguKSA+IDAsIC4sIGFzLmNoYXJhY3RlcihOQSkpIH0NCiAgfQ0KfQ0KDQpzYXZlUkRTKHRob3VnaHRzX2RvY3MsIGZpbGUgPSBoZXJlKCJEYWRvcy9zdG10aG91Z2h0cy5SRFMiKSkNCg0KYGBgDQoNCmBgYHtyLCAnYWRpY2lvbmFuZG9fYW9fZGYnfQ0Kc3RtX3RpZHkgPC0gdGlkeShzdG1fcmVzdWx0LCBtYXRyaXggPSAiZ2FtbWEiKSAlPiUgDQogIHBpdm90X3dpZGVyKG5hbWVzX2Zyb20gPSB0b3BpYywgdmFsdWVzX2Zyb20gPSBnYW1tYSwgbmFtZXNfcHJlZml4ID0gIlTDs3BpY28gIikNCg0KZGYgPC0gYmluZF9jb2xzKGRmLCBzdG1fdGlkeSklPiUNCiAgbXV0YXRlKHTDs3BpY29fcHJpbmNpcGFsID0gY29sbmFtZXMoc2VsZWN0KC4sIGBUw7NwaWNvIDFgOmBUw7NwaWNvIDlgKSlbbWF4LmNvbChzZWxlY3QoLiwgYFTDs3BpY28gMWA6YFTDs3BpY28gOWApLCB0aWVzLm1ldGhvZCA9ICJmaXJzdCIpXSkNCg0Kc2F2ZVJEUyhkZiwgZmlsZSA9IGhlcmUoIkRhZG9zL2RmX1NUTS5SRFMiKSkNCg0Kcm0ocHJlcF90ZXh0cywgdGV4dG9zLCBzdG1fdGlkeSwgdGV4dG9zLCB0aWR5ZW1lbnRhcywgaSwgaiwgdGhvdWdodHNfaWQsIHRob3VnaHRzX2RvY3MpDQoNCmBgYA0KDQpgYGB7ciwgJ3BlcmNlbnRfdG9waWNvcyd9DQpwZXJjZW50X3RvcGljb3MgPC0gZGYgJT4lIA0KICBncm91cF9ieSh0w7NwaWNvX3ByaW5jaXBhbCkgJT4lIA0KICBzdW1tYXJpc2UobiA9IG4oKSkgJT4lIA0KICBtdXRhdGUocG9yY2VudF9uID0gbi9zdW0obikpDQoNCnBlcmNlbnRfdG9waWNvcw0KYGBgDQoNCiMjIFBBUkVJIEFRVUkgNC4zIC0gQ3J1emFuZG8gYXMgY2F0ZWdvcmlhcyBjb20gb3MgdGlwb3MgZGUgcHJvamV0byBlIGRlc2FzdHJlDQoNCmBgYHtyLCBmcmVxdcOqbmNpYV90b3BpY29zfQ0KZGYgPC0gcmVhZFJEUyhoZXJlKCJEYWRvcyBTRC9kZl9TVE0uUkRTIikpDQoNCg0KYGBgDQoNCiMjIyBHcsOhZmljbyBEaWFzIHggVGlwb3MNCg0KYGBge3IsICdncmFmX2RpYXNfdGlwbyd9DQoNCnN1bV9kaXN0YW5jaWEgPC0gc3VtbWFyeShkZiRkaWFzX2Rlc2FzdHJlX2FudGVyaW9yKQ0KDQpxdWFydGlsXzEgPC0gc3VtX2Rpc3RhbmNpYVsyXQ0KcXVhcnRpbF8yIDwtIHN1bV9kaXN0YW5jaWFbM10NCnF1YXJ0aWxfMyA8LSBzdW1fZGlzdGFuY2lhWzVdDQoNCmdyYWYzIDwtIGRmICU+JSANCiAgZ3JvdXBfYnkoZGlhc19kZXNhc3RyZV9hbnRlcmlvciwgdMOzcGljb19wcmluY2lwYWwpICU+JSANCiAgc3VtbWFyaXNlKG4gPSBuKCkpICU+JSANCiAgZmlsdGVyKGRpYXNfZGVzYXN0cmVfYW50ZXJpb3IgPD0gMTMwMCkNCiAgDQpncmFmMyAlPiUgDQogIGdncGxvdChhZXMoIHggPSBgZGlhc19kZXNhc3RyZV9hbnRlcmlvcmAsIHkgPSBuLCBmaWxsID0gdMOzcGljb19wcmluY2lwYWwpKSArDQogIGdlb21fYmFyKHN0YXQgPSAiaWRlbnRpdHkiKSsNCiAgZ2VvbV92bGluZSh4aW50ZXJjZXB0ID0gcXVhcnRpbF8xLCBsaW5ldHlwZSA9ICJkYXNoZWQiKSsNCiAgZ2VvbV92bGluZSh4aW50ZXJjZXB0ID0gcXVhcnRpbF8yLCBsaW5ldHlwZSA9ICJkYXNoZWQiKSsNCiAgZ2VvbV92bGluZSh4aW50ZXJjZXB0ID0gcXVhcnRpbF8zLCBsaW5ldHlwZSA9ICJkYXNoZWQiKSsNCiAgdGhlbWVfbGluZWRyYXcoKSsNCiAgbGFicyh0aXRsZSA9ICJUw7NwaWNvcyBkb3MgcHJvamV0b3MsIHBvciBkaWFzIGFww7NzIGRlc2FzdHJlIikrDQogIHNjYWxlX2ZpbGxfYnJld2VyKHBhbGV0dGUgPSAiRGFyazIiKSsNCiAgeWxhYignTsO6bWVybyBkZSBkb2N1bWVudG9zJykrDQogIHhsYWIoJ0RpYXMgZGVzZGUgbyBkZXNhc3RyZSBhbnRlcmlvcicpKw0KICB4bGltKDAsMTQwMCkrDQogIGxhYnMoZmlsbCA9ICdUw7NwaWNvIFByaW5jaXBhbCcpKw0KICB0aGVtZShsZWdlbmQucG9zaXRpb24gPSAiYm90dG9tIikrDQogIGZhY2V0X3dyYXAofnTDs3BpY29fcHJpbmNpcGFsLCBzY2FsZXMgPSAiZnJlZSIsIG5jb2wgPSAyKQ0KYGBgDQoNCmBgYHtyLCAnUG9yIFF1YXJ0aWwnfQ0KZ3JhZjMgPC0gZGYgJT4lIA0KICBncm91cF9ieShRdWFydGlsLCB0w7NwaWNvX3ByaW5jaXBhbCkgJT4lIA0KICBzdW1tYXJpc2UobiA9IG4oKSkgJT4lDQogIGdyb3VwX2J5KFF1YXJ0aWwpICU+JSANCiAgbXV0YXRlKHBvcmNlbnRfYWwgPSBuLyBzdW0obikpDQogIA0KZ3JhZjMgJT4lIA0KICBnZ3Bsb3QoYWVzKCB4ID0gYFF1YXJ0aWxgLCB5ID0gcG9yY2VudF9hbCwgZmlsbCA9IHTDs3BpY29fcHJpbmNpcGFsKSkgKyANCiAgZ2VvbV9iYXIoc3RhdCA9ICJpZGVudGl0eSIpKyANCiAgdGhlbWVfbGluZWRyYXcoKSsNCiAgbGFicyh0aXRsZSA9ICJUw7NwaWNvcyBkb3MgcHJvamV0b3MsIHBvciBxdWFydGlsIGVtIHJlbGHDp8OjbyBhbyBkZXNhc3RyZSIpKw0KICBzY2FsZV9maWxsX2JyZXdlcihwYWxldHRlID0gIkRhcmsyIikrDQogIHlsYWIoJ1BlcmNlbnR1YWwgZGUgZG9jdW1lbnRvcycpKw0KICB4bGFiKCdRdWFydGlsIGVtIHJlbGHDp8OjbyBhbyBkZXNhc3RyZScpKw0KICBsYWJzKGZpbGwgPSAiVMOzcGljbyBQcmluY2lwYWwiKQ0KYGBgDQoNCmBgYHtyfQ0KDQpncmFmNCA8LSBkZiAlPiUgDQogIGZpbHRlcihUaXBvICVpbiUgYygnSW5kaWNhY2FvJywgJ01vY2FvJywgJ1BlZGlkbyBkZSBwcm92aWRlbmNpYXMnLCAnUHJvamV0byBkZSBkZWNyZXRvIGxlZ2lzbGF0aXZvJywgJ1Byb2pldG8gZGUgbGVpIG9yZGluYXJpYScsICdQcm9qZXRvIGV4ZWN1dGl2byBtdW5pY2lwYWwnLCAnUmVxdWVyaW1lbnRvJywgJ0VtZW5kYXMgb3LDp2FtZW50w6FyaWFzJykpICU+JSANCiAgZ3JvdXBfYnkoVGlwbywgUXVhcnRpbCwgdMOzcGljb19wcmluY2lwYWwpICU+JSANCiAgc3VtbWFyaXNlKG4gPSBuKCkpICU+JQ0KICBncm91cF9ieShRdWFydGlsLCBUaXBvKSAlPiUgDQogIG11dGF0ZShwb3JjZW50X2FsID0gbi8gc3VtKG4pKQ0KICANCmdyYWY0ICU+JSANCiAgZ2dwbG90KGFlcyggeCA9IGBRdWFydGlsYCwgeSA9IHBvcmNlbnRfYWwsIGZpbGwgPSB0w7NwaWNvX3ByaW5jaXBhbCkpICsgDQogIGdlb21fYmFyKHN0YXQgPSAiaWRlbnRpdHkiKSsgDQogIHRoZW1lX2xpbmVkcmF3KCkrDQogIGxhYnModGl0bGUgPSAiVMOzcGljb3MgZG9zIHByb2pldG9zLCBwb3IgcXVhcnRpbCBlbSByZWxhw6fDo28gYW8gZGVzYXN0cmUgKGVtIHBlcmNlbnR1YWwpIikrDQogIHNjYWxlX2ZpbGxfYnJld2VyKHBhbGV0dGUgPSAiRGFyazIiKSsNCiAgeWxhYignUGVyY2VudHVhbCBkZSBkb2N1bWVudG9zJykrDQogIHhsYWIoJ1F1YXJ0aWwgZW0gcmVsYcOnw6NvIGFvIGRlc2FzdHJlJykrDQogIHRoZW1lKGxlZ2VuZC5wb3NpdGlvbiA9ICJib3R0b20iKSsNCiAgbGFicyhmaWxsID0gJ1TDs3BpY28gUHJpbmNpcGFsJykrDQogIGZhY2V0X3dyYXAoflRpcG8sIG5jb2wgPSA0KQ0KYGBgDQoNCiMjIyBHcsOhZmljbyBUaXBvcyBwb3IgRGVzYXN0cmUNCg0KYGBge3J9DQpncmFmNCA8LSBkZiAlPiUgDQogIA0KICBmaWx0ZXIoIShkZXNhc3RyZV9hbnRlcmlvciAlaW4lIGMoJ09uZGEgZGUgQ2Fsb3IgZSBCYWl4YSBVbWlkYWRlJywgJ09uZGEgZGUgRnJpbycsICdUb3JuYWRvJywgJ0dyYW5pem8nKSksDQogICAgICAgICAgIFRpcG8gJWluJSBjKCdJbmRpY2FjYW8nLCAnTW9jYW8nLCAnUGVkaWRvIGRlIHByb3ZpZGVuY2lhcycsICdQcm9qZXRvIGRlIGRlY3JldG8gbGVnaXNsYXRpdm8nLCAnUHJvamV0byBkZSBsZWkgb3JkaW5hcmlhJywgJ1Byb2pldG8gZXhlY3V0aXZvIG11bmljaXBhbCcsICdSZXF1ZXJpbWVudG8nLCAnT2ZpY2lvJykpICU+JSANCiAgZ3JvdXBfYnkoZGVzYXN0cmVfYW50ZXJpb3IsIFF1YXJ0aWwsIHTDs3BpY29fcHJpbmNpcGFsKSAlPiUgDQogIHN1bW1hcmlzZShuID0gbigpKSAlPiUNCiAgZ3JvdXBfYnkoUXVhcnRpbCwgZGVzYXN0cmVfYW50ZXJpb3IpICU+JSANCiAgbXV0YXRlKHBvcmNlbnRfYWwgPSBuLyBzdW0obikpDQoNCmdyYWY0ICU+JSANCiAgZ2dwbG90KGFlcyggeCA9IGBRdWFydGlsYCwgeSA9IHBvcmNlbnRfYWwsIGZpbGwgPSB0w7NwaWNvX3ByaW5jaXBhbCkpICsgDQogIGdlb21fYmFyKHN0YXQgPSAiaWRlbnRpdHkiKSsgDQogIHRoZW1lX2xpbmVkcmF3KCkrDQogIGxhYnModGl0bGUgPSAiVMOzcGljb3MgZG9zIHByb2pldG9zLCBwb3IgcXVhcnRpbCBlbSByZWxhw6fDo28gYW8gZGVzYXN0cmUgIGUgdGlwbyBkZSBkZXNhc3RyZSIpKw0KICBzY2FsZV9maWxsX2JyZXdlcihwYWxldHRlID0gIkRhcmsyIikrDQogIHlsYWIoJ1BlcmNlbnR1YWwgZGUgZG9jdW1lbnRvcycpKw0KICB4bGFiKCdRdWFydGlsIGVtIHJlbGHDp8OjbyBhbyBkZXNhc3RyZScpKw0KICB0aGVtZShsZWdlbmQucG9zaXRpb24gPSAiYm90dG9tIikrDQogIGxhYnMoZmlsbCA9ICdUw7NwaWNvIFByaW5jaXBhbCcpKw0KICBmYWNldF93cmFwKH5kZXNhc3RyZV9hbnRlcmlvciwgbmNvbCA9IDMpDQpgYGANCg0KYGBge3IsICd0b3BpY29fYW5vJ30NCkFfVGlwb3MgPC0gZGYgJT4lIA0KICBncm91cF9ieSh0w7NwaWNvX3ByaW5jaXBhbCwgQW5vKSAlPiUgDQogIHN1bW1hcmlzZShuX2FsID0gbigpKSAlPiUNCiAgZ3JvdXBfYnkoQW5vKSAlPiUgDQogIG11dGF0ZShwb3JjZW50X2FsID0gbl9hbC8gc3VtKG5fYWwpKSANCg0KQV9UaXBvcyAlPiUgDQogIGdncGxvdChhZXMoIHggPSBgQW5vYCwgeSA9IHBvcmNlbnRfYWwsIGZpbGwgPSB0w7NwaWNvX3ByaW5jaXBhbCkpICsgDQogIGdlb21fYmFyKHN0YXQgPSAiaWRlbnRpdHkiKSsgDQogIHRoZW1lX2xpbmVkcmF3KCkrDQogIGxhYnModGl0bGUgPSAiVMOzcGljb3MgZGFzIHByb3Bvc2l0dXJhcywgcG9yIEFubyIpKw0KICBzY2FsZV9maWxsX2JyZXdlcihwYWxldHRlID0gIkRhcmsyIikrDQogIGxhYnMoZmlsbCA9ICdUw7NwaWNvIFByaW5jaXBhbCcpKw0KICB5bGFiKCdQZXJjZW50dWFsIGRlIGRvY3VtZW50b3MnKQ0KYGBgDQoNCmBgYHtyfQ0KdmlldyhkZikNCmBgYA0K</div>
 
 
 
