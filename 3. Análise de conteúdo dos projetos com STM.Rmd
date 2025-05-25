@@ -18,15 +18,16 @@ output: html_notebook
 library(dplyr)
 library(here)
 library(readr)
+library(tidyr)
 library(data.table)
 library(stringr)
 library(tidytext)
 library(ggplot2)
-library(stm)
+
 
 ```
 
-## 1. Preparando a base de dados
+## 3.1. Preparando a base de dados
 
 ```{r}
 df <- readRDS(here("Dados/df_agendaclima_municipal.RDS"))
@@ -71,10 +72,9 @@ df <- df %>%
                              .default = NA),
         ementa = as.factor(ementa))
 
-rm(quartil_1, quartil_2, quartil_3, sum_distancia)
 ```
 
-## 2. Limpando texto das ementas
+## 3.2. Limpando texto das ementas
 
 Antes de analisar o texto das ementas, precisamos limpá-lo para excluir conectivos, pronomes, vocativos e nomes próprios, entre outras palavras que não interessam à análise.
 
@@ -125,9 +125,10 @@ palavras_freq
 rm(palavras_freq, tidy)
 ```
 
-## 3 Fazendo análise com STM
+## 3.3 Fazendo análise com STM
 
 ```{r, 'preparando_textos'}
+library(stm)
 ########Modelagem de topicos (Structural Topic Model)
 #processamento do texto e definição do valor K mais adequado
 
@@ -150,7 +151,7 @@ textos <- textos[c(prep_texts$meta$docnumbers)]
 
 #Rodar só se necessário (leva muito tempo)
 #Valor k (número de tópicos em que dividir)
-#K <- 2:20
+#K <- 20:30
 
 ## searchk procura o melhor número de tópicos
 #kresult <- searchK(prep_texts$documents, prep_texts$vocab, K, data=prep_texts$meta)
@@ -161,19 +162,21 @@ textos <- textos[c(prep_texts$meta$docnumbers)]
 #rm(K, kresult)
 ```
 
-Escolhemos k = 9, para maximizar a Coerência Semântica
+Escolhemos k = 3, 6, 9 para maximizar a Coerência Semântica e 26 para reduzir os resíduos
 
 ```{r, 'modelagem_stm'}
 #modelagem dos tópicos (9 tópicos)
 stm_result <- stm(prep_texts$documents, prep_texts$vocab, 9, data=prep_texts$meta, verbose = F)
 
 saveRDS(stm_result, here("Dados/stm_result.RDS"))
+
 summary(stm_result)
 ```
 
 ```{r, 'thoughts'}
+
 #Localização dos textos mais representativos de determinado tópico
-thoughts <-findThoughts(stm_result, texts= textos, topics=c(1:8), n=10)
+thoughts <-findThoughts(stm_result, texts= textos, topics=c(1:9), n=10)
 
 thoughts_id <- data.frame(thoughts$index)
 
@@ -186,7 +189,7 @@ for (i in 1:nrow(thoughts_id)){
   }
 }
 
-saveRDS(thoughts_docs, file = here("Dados/stmthoughts.RDS"))
+write.csv(thoughts_docs, here("Dados/stm_thoughts9.csv"))
 
 ```
 
@@ -197,143 +200,752 @@ stm_tidy <- tidy(stm_result, matrix = "gamma") %>%
 df <- bind_cols(df, stm_tidy)%>%
   mutate(tópico_principal = colnames(select(., `Tópico 1`:`Tópico 9`))[max.col(select(., `Tópico 1`:`Tópico 9`), ties.method = "first")])
 
+df <- df[, max_topico := do.call(pmax, c(.SD, na.rm = TRUE)), .SDcols = paste0("Tópico ", 1:9)]
+
 saveRDS(df, file = here("Dados/df_STM.RDS"))
 
-rm(prep_texts, textos, stm_tidy, textos, tidyementas, i, j, thoughts_id, thoughts_docs)
+rm(textos, prep_texts, stm_tidy, i, j, thoughts_id, thoughts_docs, thoughts)
 
 ```
+
+## 3.4 - Cruzando as categorias com os tipos de projeto e desastre
+
+Primeiro, vamos adicionar a paleta de cores para os gráficos com Tópicos:
+
+```{r}
+
+#Criando paleta de cores para os Tipos: 
+
+paleta_topicos <- data.frame(
+  Topicos = c("Tópico 1", "Tópico 2", "Tópico 3", 
+              "Tópico 4", "Tópico 5", "Tópico 6", 
+              "Tópico 7", "Tópico 8", "Tópico 9"),
+  Cores = c("#8E5209", "#09728F", "#8F0909", 
+              "#095B8F", "#8F0952", "#09358F", 
+              "#098F16", "#091D8F", "#2C098F"))
+
+paletas <- c(paletas, list(topicos = paleta_topicos))
+
+saveRDS(paletas, here("Dados/paletas.RDS"))
+```
+
+### 3.4.1 Percentuais atribuídos aos tópicos com maior valor
+
+Depois, vamos analisar quais os percentuais atribuídos aos tópicos com maior percentual
+
+```{r}
+#Valor médio e variância do tópico com maior percentual de cada projeto
+mean_df <- df[, .(mean_val = mean(max_topico, na.rm = TRUE)), by = .(`tópico_principal`)]
+mean_df
+
+box_topicos <- df %>% 
+  ggplot(aes(y = max_topico, x = tópico_principal, fill = tópico_principal)) +
+  geom_boxplot()+
+    labs(
+      title = "Boxplot: distribuição dos percentuais de Tópicos",
+      x = "Tópicos",
+      y = "Percentual atribuído aos tópicos com maior valor",
+      fill = "Tópicos"
+    ) +
+    theme_classic() +
+    theme(legend.position = "none")+
+  ylim(0,1)+
+    scale_fill_manual(values = paleta_topicos$Cores, limits = paleta_topicos$Topicos)
+
+box_topicos
+  
+ggsave(here("Figuras/3.4.1Boxplot_Maior_Topico.png"), box_topicos)
+  
+rm(box_topicos)
+
+```
+
+Quando mais alta a média e menor a variância no boxplot, maior a certeza na classificação do respectivo Tópico
 
 ```{r, 'percent_topicos'}
-percent_topicos <- df %>% 
-  group_by(tópico_principal) %>% 
-  summarise(n = n()) %>% 
-  mutate(porcent_n = n/sum(n))
+dist_maior_topic <-  df %>% 
+    ggplot(aes(x = max_topico, fill = tópico_principal)) +
+    geom_histogram() +
+  geom_vline(data = as.data.frame(mean_df), aes(xintercept = mean_val), linetype = "dashed", color = "black") +
+  geom_text(data = as.data.frame(mean_df), aes(x = mean_val, y = Inf, label = sprintf("%.2f", mean_val)), vjust = 5,  color = "black", size = 3) +
+    labs(
+      title = "Distribuição dos percentuais de Tópicos",
+      x = "Percentual atribuído aos tópicos",
+      y = "Número de proposituras",
+      fill = "Tópicos"
+    ) +
+    theme_classic() +
+    theme(legend.position = "none")+
+    scale_fill_manual(values = paleta_topicos$Cores, limits = paleta_topicos$Topicos)+
+    facet_wrap(~tópico_principal, ncol = 3)
 
-percent_topicos
+dist_maior_topic
+
+ggsave(here("Figuras/3.4.1Histograma_Maior_Topico.png"), dist_maior_topic)
+  
+rm(dist_maior_topic)
 ```
 
-## PAREI AQUI 4.3 - Cruzando as categorias com os tipos de projeto e desastre
+Interpretamos o gráfico anterior da seguinte forma: quanto mais valores próximos a 1 (direita), menor a incerteza sobre a qual tópico eles pertencem
 
-```{r, frequência_topicos}
-df <- readRDS(here("Dados SD/df_STM.RDS"))
+### 3.4.2 Gráfico Dias desde o último desastre x Tipos
 
-
-```
-
-### Gráfico Dias x Tipos
+Agora, podemos comparar a soma dos percentuais atribuídos aos projetos em cada dia após o desastre, por tópico
 
 ```{r, 'graf_dias_tipo'}
 
-sum_distancia <- summary(df$dias_desastre_anterior)
-
-quartil_1 <- sum_distancia[2]
-quartil_2 <- sum_distancia[3]
-quartil_3 <- sum_distancia[5]
-
-graf3 <- df %>% 
-  group_by(dias_desastre_anterior, tópico_principal) %>% 
-  summarise(n = n()) %>% 
-  filter(dias_desastre_anterior <= 1300)
-  
-graf3 %>% 
-  ggplot(aes( x = `dias_desastre_anterior`, y = n, fill = tópico_principal)) +
+topico_dias <- df %>% 
+  pivot_longer(starts_with("Tópico "), names_to = "Topicos", values_to = "Percent_Topicos") %>% 
+  group_by(dias_desastre_anterior, Topicos) %>% 
+  summarise(Percent_Topicos = sum(Percent_Topicos)/n()) %>% 
+  filter(dias_desastre_anterior<= (quartil_3 + 365)) %>% 
+  ggplot(aes( x = `dias_desastre_anterior`, y = Percent_Topicos, fill = Topicos)) +
   geom_bar(stat = "identity")+
   geom_vline(xintercept = quartil_1, linetype = "dashed")+
   geom_vline(xintercept = quartil_2, linetype = "dashed")+
   geom_vline(xintercept = quartil_3, linetype = "dashed")+
-  theme_linedraw()+
-  labs(title = "Tópicos dos projetos, por dias após desastre")+
-  scale_fill_brewer(palette = "Dark2")+
-  ylab('Número de documentos')+
+  theme_classic()+
+  labs(title = "Percentual atribuído por tópico, por dias após desastre")+
+  ylab('Soma dos percentuais atribuídos às proposituras')+
   xlab('Dias desde o desastre anterior')+
-  xlim(0,1400)+
   labs(fill = 'Tópico Principal')+
   theme(legend.position = "bottom")+
-  facet_wrap(~tópico_principal, scales = "free", ncol = 2)
+  scale_fill_manual(values = paleta_topicos$Cores, limits = paleta_topicos$Topicos)+
+  facet_wrap(~Topicos,  ncol = 3)
+
+topico_dias 
+
+
+ggsave(here("Figuras/3.4.2.1.Percentual_Topicos_Dias.png"), topico_dias)
+  
+rm(topico_dias)
 ```
 
 ```{r, 'Por Quartil'}
-graf3 <- df %>% 
-  group_by(Quartil, tópico_principal) %>% 
-  summarise(n = n()) %>%
-  group_by(Quartil) %>% 
-  mutate(porcent_al = n/ sum(n))
+topico_quartil <- df %>% 
+  pivot_longer(starts_with("Tópico "), names_to = "Topicos", values_to = "Percent_Topicos") %>% 
+  group_by(Quartil, Topicos) %>% 
+  summarise(Percent_Topicos = mean(Percent_Topicos)) %>% 
+  ggplot(aes( x = `Quartil`, y = Percent_Topicos, fill = Topicos)) +
+  geom_bar(stat = "identity")+
+  theme_classic()+
+  labs(title = "Percentual atribuído por tópico, por quartil em relação ao desastre")+
+  ylab('Soma dos percentuais atribuídos às proposituras')+
+  xlab('Quartis em relação ao desastre anterior')+
+  labs(fill = 'Tópico Principal')+
+  theme(legend.position = "bottom")+
+  scale_fill_manual(values = paleta_topicos$Cores, limits = paleta_topicos$Topicos)
+
+topico_quartil
+
+ggsave(here("Figuras/3.4.2.2Percentual_Topicos_Quartil.png"), topico_quartil)
   
-graf3 %>% 
-  ggplot(aes( x = `Quartil`, y = porcent_al, fill = tópico_principal)) + 
-  geom_bar(stat = "identity")+ 
-  theme_linedraw()+
-  labs(title = "Tópicos dos projetos, por quartil em relação ao desastre")+
-  scale_fill_brewer(palette = "Dark2")+
-  ylab('Percentual de documentos')+
-  xlab('Quartil em relação ao desastre')+
-  labs(fill = "Tópico Principal")
+rm(topico_quartil)
 ```
 
 ```{r}
+topico_quartil <- df %>% 
+  group_by(Quartil, tópico_principal) %>% 
+  summarise(n = n(),
+            Percent_n = n()/sum(n)) %>% 
+  ggplot(aes( x = `Quartil`, y = n, fill = tópico_principal)) +
+  geom_bar(stat = "identity")+
+  theme_classic()+
+  labs(title = "Percentual atribuído por tópico, por quartil em relação ao desastre")+
+  ylab('Soma dos percentuais atribuídos às proposituras')+
+  xlab('Quartis em relação ao desastre anterior')+
+  labs(fill = 'Tópico Principal')+
+  theme(legend.position = "bottom")+
+  scale_fill_manual(values = paleta_topicos$Cores, limits = paleta_topicos$Topicos)
 
-graf4 <- df %>% 
-  filter(Tipo %in% c('Indicacao', 'Mocao', 'Pedido de providencias', 'Projeto de decreto legislativo', 'Projeto de lei ordinaria', 'Projeto executivo municipal', 'Requerimento', 'Emendas orçamentárias')) %>% 
-  group_by(Tipo, Quartil, tópico_principal) %>% 
-  summarise(n = n()) %>%
-  group_by(Quartil, Tipo) %>% 
-  mutate(porcent_al = n/ sum(n))
+topico_quartil
+
+#ggsave(here("Figuras/3.4.4.Percentual_Topicos_Quartil.png"), topico_quartil)
   
-graf4 %>% 
-  ggplot(aes( x = `Quartil`, y = porcent_al, fill = tópico_principal)) + 
+#rm(topico_quartil)
+```
+
+### 3.4.3 Por tipo de propositura
+
+```{r}
+paleta_proposituras <- paletas$proposituras
+
+
+
+topico_propositura <- df %>% 
+  mutate(Tipo = ifelse(Tipo %in% paleta_proposituras$Tipo, Tipo, "outros")) %>%   
+           pivot_longer(starts_with("Tópico "), names_to = "Topicos", values_to = "Percent_Topicos") %>% 
+  group_by(Tipo, dias_desastre_anterior, Topicos) %>% 
+  summarise(Percent_Topicos = mean(Percent_Topicos))%>% 
+  filter(dias_desastre_anterior<= (quartil_3 + 100)) %>% 
+  ggplot(aes( x = `dias_desastre_anterior`, y = Percent_Topicos, fill = Topicos)) + 
   geom_bar(stat = "identity")+ 
-  theme_linedraw()+
+  geom_vline(xintercept = quartil_1, linetype = "dashed")+
+  geom_vline(xintercept = quartil_2, linetype = "dashed")+
+  geom_vline(xintercept = quartil_3, linetype = "dashed")+
+  theme_bw()+
+  labs(title = "Tópicos dos projetos, por dia em relação ao desastre (em percentual)")+
+  scale_fill_manual(values = paleta_topicos$Cores, limits = paleta_topicos$Topicos)+
+  ylab('Percentual de proposituras')+
+  xlab('Dias desde o desastre')+
+  theme(legend.position = "bottom")+
+  labs(fill = 'Tópico Principal')+
+  facet_grid(Topicos~Tipo)
+
+topico_propositura
+
+ggsave(here("Figuras/3.4.3.1Percentual_Topicos_Dias_Tipo_Propositura.png"), topico_propositura, width = 15, height = 10)
+
+rm(topico_propositura)
+```
+
+```{r}
+topico_propositura_quartil <- df %>% 
+  mutate(Tipo = ifelse(Tipo %in% paleta_proposituras$Tipo, Tipo, "outros")) %>%   
+           pivot_longer(starts_with("Tópico "), names_to = "Topicos", values_to = "Percent_Topicos") %>% 
+  group_by(Tipo, Quartil, Topicos) %>% 
+  summarise(Percent_Topicos = mean(Percent_Topicos))%>% 
+  ggplot(aes( x = `Quartil`, y = Percent_Topicos, fill = Topicos)) + 
+  geom_bar(stat = "identity")+ 
+  theme_bw()+
   labs(title = "Tópicos dos projetos, por quartil em relação ao desastre (em percentual)")+
-  scale_fill_brewer(palette = "Dark2")+
+  scale_fill_manual(values = paleta_topicos$Cores, limits = paleta_topicos$Topicos)+
+  ylab('Percentual de proposituras')+
+  xlab('Quartil em relação ao desastre')+
+  theme(legend.position = "bottom")+
+  labs(fill = 'Tópico Principal')+
+  facet_wrap(~Tipo)
+
+topico_propositura_quartil
+
+ggsave(here("Figuras/3.4.3.2Percentual_Topicos_Quartil_Tipo_Propositura.png"), topico_propositura_quartil, width = 15, height = 10)
+
+
+```
+
+```{r}
+topico_propositura_quartil <- df %>% 
+  mutate(Tipo = ifelse(Tipo %in% paleta_proposituras$Tipo, Tipo, "outros")) %>%  
+  group_by(Tipo, Quartil, tópico_principal) %>% 
+  summarise(n = n()) %>% 
+  mutate(Percent_n = n/sum(n)) %>% 
+  ggplot(aes( x = `Quartil`, y = Percent_n, fill = tópico_principal)) + 
+  geom_bar(stat = "identity")+ 
+  theme_bw()+
+  labs(title = "Tópicos dos projetos, por quartil em relação ao desastre (em percentual)")+
+  scale_fill_manual(values = paleta_topicos$Cores, limits = paleta_topicos$Topicos)+
+  ylab('Percentual de proposituras')+
+  xlab('Quartil em relação ao desastre')+
+  theme(legend.position = "bottom")+
+  labs(fill = 'Tópico Principal')+
+  facet_wrap(~Tipo)
+
+topico_propositura_quartil
+
+rm(topico_propositura_quartil)
+```
+
+### 3.4.4 Gráfico Tipos por Desastre
+
+```{r}
+paleta_desastres <- paletas$desastres
+
+topico_desastres <- df %>%  
+  filter(!is.na(desastre_anterior),
+         desastre_anterior %in% paleta_desastres$Tipo) %>% 
+           pivot_longer(starts_with("Tópico "), names_to = "Topicos", values_to = "Percent_Topicos") %>% 
+  group_by(desastre_anterior, Quartil, Topicos) %>% 
+  summarise(Percent_Topicos = mean(Percent_Topicos))%>% 
+  ggplot(aes( x = `Quartil`, y = Percent_Topicos, fill = Topicos)) + 
+  geom_bar(stat = "identity")+ 
+  theme_bw()+
+  labs(title = "Tópicos dos projetos, por quartil em relação ao desastre  e tipo de desastre")+
+  scale_fill_manual(values = paleta_topicos$Cores, limits = paleta_topicos$Topicos)+
   ylab('Percentual de documentos')+
   xlab('Quartil em relação ao desastre')+
   theme(legend.position = "bottom")+
   labs(fill = 'Tópico Principal')+
-  facet_wrap(~Tipo, ncol = 4)
+  facet_grid(Topicos~desastre_anterior)
+
+topico_desastres
+
+ggsave(here("Figuras/3.4.4.1Percentual_Topicos_Quartil_Desastres_Propositura.png"), topico_desastres, height = 10, width = 15)
+
+rm(topicos_desastres)
 ```
 
-### Gráfico Tipos por Desastre
-
 ```{r}
-graf4 <- df %>% 
-  
-  filter(!(desastre_anterior %in% c('Onda de Calor e Baixa Umidade', 'Onda de Frio', 'Tornado', 'Granizo')),
-           Tipo %in% c('Indicacao', 'Mocao', 'Pedido de providencias', 'Projeto de decreto legislativo', 'Projeto de lei ordinaria', 'Projeto executivo municipal', 'Requerimento', 'Oficio')) %>% 
+topico_desastres <- df %>% 
+  filter(!(desastre_anterior %in% c('Onda de Calor e Baixa Umidade', 'Onda de Frio', 'Tornado', 'Granizo', NA))) %>%
   group_by(desastre_anterior, Quartil, tópico_principal) %>% 
   summarise(n = n()) %>%
   group_by(Quartil, desastre_anterior) %>% 
-  mutate(porcent_al = n/ sum(n))
-
-graf4 %>% 
+  mutate(porcent_al = n/ sum(n)) %>% 
   ggplot(aes( x = `Quartil`, y = porcent_al, fill = tópico_principal)) + 
   geom_bar(stat = "identity")+ 
-  theme_linedraw()+
+  theme_bw()+
   labs(title = "Tópicos dos projetos, por quartil em relação ao desastre  e tipo de desastre")+
-  scale_fill_brewer(palette = "Dark2")+
+  scale_fill_manual(values = paleta_topicos$Cores, limits = paleta_topicos$Topicos)+
   ylab('Percentual de documentos')+
   xlab('Quartil em relação ao desastre')+
   theme(legend.position = "bottom")+
   labs(fill = 'Tópico Principal')+
-  facet_wrap(~desastre_anterior, ncol = 3)
+  facet_grid(tópico_principal~desastre_anterior)
+
+topico_desastres
+
+rm(topicos_desastres)
+```
+
+### 3.4.5. Tópicos por ano
+
+```{r}
+Ano_Topicos <- df %>% 
+           pivot_longer(starts_with("Tópico "), names_to = "Topicos", values_to = "Percent_Topicos") %>% 
+  group_by(Ano, Quartil, Topicos) %>% 
+  summarise(Percent_Topicos = mean(Percent_Topicos))%>% 
+  ggplot(aes( x = `Ano`, y = Percent_Topicos, fill = Topicos)) + 
+  geom_bar(stat = "identity")+ 
+  theme_classic()+
+  labs(title = "Tópicos das proposituras, por Ano",
+       fill = 'Tópico Principal')+
+  scale_fill_manual(values = paleta_topicos$Cores, limits = paleta_topicos$Topicos)+
+  scale_x_continuous(n.breaks = 10)+
+  ylab('Percentual de proposituras')
+
+Ano_Topicos
 ```
 
 ```{r, 'topico_ano'}
-A_Tipos <- df %>% 
+Ano_Topicos <- df %>% 
   group_by(tópico_principal, Ano) %>% 
   summarise(n_al = n()) %>%
   group_by(Ano) %>% 
-  mutate(porcent_al = n_al/ sum(n_al)) 
-
-A_Tipos %>% 
+  mutate(porcent_al = n_al/ sum(n_al))  %>% 
   ggplot(aes( x = `Ano`, y = porcent_al, fill = tópico_principal)) + 
   geom_bar(stat = "identity")+ 
-  theme_linedraw()+
-  labs(title = "Tópicos das proposituras, por Ano")+
-  scale_fill_brewer(palette = "Dark2")+
-  labs(fill = 'Tópico Principal')+
-  ylab('Percentual de documentos')
+  theme_classic()+
+  labs(title = "Tópicos das proposituras, por Ano",
+       fill = 'Tópico Principal')+
+  scale_fill_manual(values = paleta_topicos$Cores, limits = paleta_topicos$Topicos)+
+  scale_x_continuous(n.breaks = 10)+
+  ylab('Percentual de proposituras')
+
+Ano_Topicos
+```
+
+### 3.4.6 Por mês
+
+## 3.5 Análise só de projetos colocados para votação
+
+Agora, vamos refazer a análise retirando os documentos de pedidos dos vereadores para os Prefeitos, e focando nas proposituras levadas para votação do plenário
+
+```{r}
+df_pl <- df %>% 
+  filter(!Tipo %in% c("indicacao", "requerimento", "pedido de providencia", "protocolo", "requerimento de informacoes", "oficio", "resposta", "resposta requerimento")) 
 ```
 
 ```{r}
-view(df)
+
+########Modelagem de topicos (Structural Topic Model)
+#processamento do texto e definição do valor K mais adequado
+
+#Selecionando só textos:
+textos <- df_pl$ementa_pr
+
+#Processanto texto (removendo conjunções, separando metadata etc)
+prep_texts <- textProcessor(documents=textos, metadata=data.frame(docnumbers=1:length(textos)), language = "portuguese")
+
+#Preparanto o texto: Remove palavras com poucas aparições e ajusta os índices
+prep_texts <- prepDocuments(prep_texts$documents, prep_texts$vocab, prep_texts$meta)
+
+
+textos <- textos[c(prep_texts$meta$docnumbers)]
+```
+
+```{r}
+#Rodar só se necessário (leva muito tempo)
+#Valor k (número de tópicos em que dividir)
+#K <- 2:30
+
+## searchk procura o melhor número de tópicos
+#kresult <- searchK(prep_texts$documents, prep_texts$vocab, K, data=prep_texts$meta)
+
+#saveRDS(kresult, here("Dados/kresult_pl.RDS"))
+
+#plot(kresult)
+
+#rm(K, kresult) 
+```
+
+Escolhi para este k = 10
+
+```{r}
+#modelagem dos tópicos (10 tópicos)
+stm_result_pl <- stm(prep_texts$documents, prep_texts$vocab, 10, data=prep_texts$meta, verbose = F)
+
+saveRDS(stm_result_pl, here("Dados/stm_result_pl.RDS"))
+
+summary(stm_result_pl)
+```
+
+```{r, 'thoughts'}
+
+#Localização dos textos mais representativos de determinado tópico
+thoughts <-findThoughts(stm_result_pl, texts= textos, topics=c(1:10), n=10)
+
+thoughts_id <- data.frame(thoughts$index)
+
+thoughts_docs <- data.frame(thoughts$docs)
+
+for (i in 1:nrow(thoughts_id)){
+  for (j in 1:ncol(thoughts_id)){
+    thoughts_docs[i,j] <- as.character(df$ementa[thoughts_id[i,j]]) %>%
+      { ifelse(length(.) > 0, ., as.character(NA)) }
+  }
+}
+
+write.csv(thoughts_docs, here("Dados/stm_thoughts_pl10.csv"))
+
+```
+
+```{r, 'adicionando_ao_df'}
+stm_tidy <- tidy(stm_result_pl, matrix = "gamma") %>% 
+  pivot_wider(names_from = topic, values_from = gamma, names_prefix = "Tópico PL")
+
+df_pl <- bind_cols(df_pl, stm_tidy)%>%
+  mutate(tópico_principal_PL = colnames(select(., `Tópico PL1`:`Tópico PL9`))[max.col(select(., `Tópico PL1`:`Tópico PL9`), ties.method = "first")])
+
+df_pl <- df_pl[, max_topicoPL := do.call(pmax, c(.SD, na.rm = TRUE)), .SDcols = paste0("Tópico PL", 1:9)]
+
+saveRDS(df_pl, file = here("Dados/df_STM_PL.RDS"))
+
+rm(textos, prep_texts, stm_tidy, i, j, thoughts_id, thoughts_docs, thoughts)
+
+```
+
+## 3.4 - Cruzando as categorias com os tipos de projeto e desastre
+
+Primeiro, vamos adicionar a paleta de cores para os gráficos com Tópicos:
+
+```{r}
+
+#Criando paleta de cores para os Tipos: 
+
+paleta_topicos <- data.frame(
+  Topicos = c("Tópico 1", "Tópico 2", "Tópico 3", 
+              "Tópico 4", "Tópico 5", "Tópico 6", 
+              "Tópico 7", "Tópico 8", "Tópico 9"),
+  Cores = c("#8E5209", "#09728F", "#8F0909", 
+              "#095B8F", "#8F0952", "#09358F", 
+              "#098F16", "#091D8F", "#2C098F"))
+
+paletas <- c(paletas, list(topicos = paleta_topicos))
+
+saveRDS(paletas, here("Dados/paletas.RDS"))
+```
+
+### 3.4.1 Percentuais atribuídos aos tópicos com maior valor
+
+Depois, vamos analisar quais os percentuais atribuídos aos tópicos com maior percentual
+
+```{r}
+#Valor médio e variância do tópico com maior percentual de cada projeto
+mean_df <- df[, .(mean_val = mean(max_topico, na.rm = TRUE)), by = .(`tópico_principal`)]
+mean_df
+
+box_topicos <- df %>% 
+  ggplot(aes(y = max_topico, x = tópico_principal, fill = tópico_principal)) +
+  geom_boxplot()+
+    labs(
+      title = "Boxplot: distribuição dos percentuais de Tópicos",
+      x = "Tópicos",
+      y = "Percentual atribuído aos tópicos com maior valor",
+      fill = "Tópicos"
+    ) +
+    theme_classic() +
+    theme(legend.position = "none")+
+  ylim(0,1)+
+    scale_fill_manual(values = paleta_topicos$Cores, limits = paleta_topicos$Topicos)
+
+box_topicos
+  
+ggsave(here("Figuras/3.4.1Boxplot_Maior_Topico.png"), box_topicos)
+  
+rm(box_topicos)
+
+```
+
+Quando mais alta a média e menor a variância no boxplot, maior a certeza na classificação do respectivo Tópico
+
+```{r, 'percent_topicos'}
+dist_maior_topic <-  df %>% 
+    ggplot(aes(x = max_topico, fill = tópico_principal)) +
+    geom_histogram() +
+  geom_vline(data = as.data.frame(mean_df), aes(xintercept = mean_val), linetype = "dashed", color = "black") +
+  geom_text(data = as.data.frame(mean_df), aes(x = mean_val, y = Inf, label = sprintf("%.2f", mean_val)), vjust = 5,  color = "black", size = 3) +
+    labs(
+      title = "Distribuição dos percentuais de Tópicos",
+      x = "Percentual atribuído aos tópicos",
+      y = "Número de proposituras",
+      fill = "Tópicos"
+    ) +
+    theme_classic() +
+    theme(legend.position = "none")+
+    scale_fill_manual(values = paleta_topicos$Cores, limits = paleta_topicos$Topicos)+
+    facet_wrap(~tópico_principal, ncol = 3)
+
+dist_maior_topic
+
+ggsave(here("Figuras/3.4.1Histograma_Maior_Topico.png"), dist_maior_topic)
+  
+rm(dist_maior_topic)
+```
+
+Interpretamos o gráfico anterior da seguinte forma: quanto mais valores próximos a 1 (direita), menor a incerteza sobre a qual tópico eles pertencem
+
+### 3.4.2 Gráfico Dias desde o último desastre x Tipos
+
+Agora, podemos comparar a soma dos percentuais atribuídos aos projetos em cada dia após o desastre, por tópico
+
+```{r, 'graf_dias_tipo'}
+
+topico_dias <- df %>% 
+  pivot_longer(starts_with("Tópico "), names_to = "Topicos", values_to = "Percent_Topicos") %>% 
+  group_by(dias_desastre_anterior, Topicos) %>% 
+  summarise(Percent_Topicos = sum(Percent_Topicos)/n()) %>% 
+  filter(dias_desastre_anterior<= (quartil_3 + 365)) %>% 
+  ggplot(aes( x = `dias_desastre_anterior`, y = Percent_Topicos, fill = Topicos)) +
+  geom_bar(stat = "identity")+
+  geom_vline(xintercept = quartil_1, linetype = "dashed")+
+  geom_vline(xintercept = quartil_2, linetype = "dashed")+
+  geom_vline(xintercept = quartil_3, linetype = "dashed")+
+  theme_classic()+
+  labs(title = "Percentual atribuído por tópico, por dias após desastre")+
+  ylab('Soma dos percentuais atribuídos às proposituras')+
+  xlab('Dias desde o desastre anterior')+
+  labs(fill = 'Tópico Principal')+
+  theme(legend.position = "bottom")+
+  scale_fill_manual(values = paleta_topicos$Cores, limits = paleta_topicos$Topicos)+
+  facet_wrap(~Topicos,  ncol = 3)
+
+topico_dias 
+
+
+ggsave(here("Figuras/3.4.2.1.Percentual_Topicos_Dias.png"), topico_dias)
+  
+rm(topico_dias)
+```
+
+```{r, 'Por Quartil'}
+topico_quartil <- df %>% 
+  pivot_longer(starts_with("Tópico "), names_to = "Topicos", values_to = "Percent_Topicos") %>% 
+  group_by(Quartil, Topicos) %>% 
+  summarise(Percent_Topicos = mean(Percent_Topicos)) %>% 
+  ggplot(aes( x = `Quartil`, y = Percent_Topicos, fill = Topicos)) +
+  geom_bar(stat = "identity")+
+  theme_classic()+
+  labs(title = "Percentual atribuído por tópico, por quartil em relação ao desastre")+
+  ylab('Soma dos percentuais atribuídos às proposituras')+
+  xlab('Quartis em relação ao desastre anterior')+
+  labs(fill = 'Tópico Principal')+
+  theme(legend.position = "bottom")+
+  scale_fill_manual(values = paleta_topicos$Cores, limits = paleta_topicos$Topicos)
+
+topico_quartil
+
+ggsave(here("Figuras/3.4.2.2Percentual_Topicos_Quartil.png"), topico_quartil)
+  
+rm(topico_quartil)
+```
+
+```{r}
+topico_quartil <- df %>% 
+  group_by(Quartil, tópico_principal) %>% 
+  summarise(n = n(),
+            Percent_n = n()/sum(n)) %>% 
+  ggplot(aes( x = `Quartil`, y = n, fill = tópico_principal)) +
+  geom_bar(stat = "identity")+
+  theme_classic()+
+  labs(title = "Percentual atribuído por tópico, por quartil em relação ao desastre")+
+  ylab('Soma dos percentuais atribuídos às proposituras')+
+  xlab('Quartis em relação ao desastre anterior')+
+  labs(fill = 'Tópico Principal')+
+  theme(legend.position = "bottom")+
+  scale_fill_manual(values = paleta_topicos$Cores, limits = paleta_topicos$Topicos)
+
+topico_quartil
+
+#ggsave(here("Figuras/3.4.4.Percentual_Topicos_Quartil.png"), topico_quartil)
+  
+#rm(topico_quartil)
+```
+
+### 3.4.3 Por tipo de propositura
+
+```{r}
+paleta_proposituras <- paletas$proposituras
+
+
+
+topico_propositura <- df %>% 
+  mutate(Tipo = ifelse(Tipo %in% paleta_proposituras$Tipo, Tipo, "outros")) %>%   
+           pivot_longer(starts_with("Tópico "), names_to = "Topicos", values_to = "Percent_Topicos") %>% 
+  group_by(Tipo, dias_desastre_anterior, Topicos) %>% 
+  summarise(Percent_Topicos = mean(Percent_Topicos))%>% 
+  filter(dias_desastre_anterior<= (quartil_3 + 100)) %>% 
+  ggplot(aes( x = `dias_desastre_anterior`, y = Percent_Topicos, fill = Topicos)) + 
+  geom_bar(stat = "identity")+ 
+  geom_vline(xintercept = quartil_1, linetype = "dashed")+
+  geom_vline(xintercept = quartil_2, linetype = "dashed")+
+  geom_vline(xintercept = quartil_3, linetype = "dashed")+
+  theme_bw()+
+  labs(title = "Tópicos dos projetos, por dia em relação ao desastre (em percentual)")+
+  scale_fill_manual(values = paleta_topicos$Cores, limits = paleta_topicos$Topicos)+
+  ylab('Percentual de proposituras')+
+  xlab('Dias desde o desastre')+
+  theme(legend.position = "bottom")+
+  labs(fill = 'Tópico Principal')+
+  facet_grid(Topicos~Tipo)
+
+topico_propositura
+
+ggsave(here("Figuras/3.4.3.1Percentual_Topicos_Dias_Tipo_Propositura.png"), topico_propositura, width = 15, height = 10)
+
+rm(topico_propositura)
+```
+
+```{r}
+topico_propositura_quartil <- df %>% 
+  mutate(Tipo = ifelse(Tipo %in% paleta_proposituras$Tipo, Tipo, "outros")) %>%   
+           pivot_longer(starts_with("Tópico "), names_to = "Topicos", values_to = "Percent_Topicos") %>% 
+  group_by(Tipo, Quartil, Topicos) %>% 
+  summarise(Percent_Topicos = mean(Percent_Topicos))%>% 
+  ggplot(aes( x = `Quartil`, y = Percent_Topicos, fill = Topicos)) + 
+  geom_bar(stat = "identity")+ 
+  theme_bw()+
+  labs(title = "Tópicos dos projetos, por quartil em relação ao desastre (em percentual)")+
+  scale_fill_manual(values = paleta_topicos$Cores, limits = paleta_topicos$Topicos)+
+  ylab('Percentual de proposituras')+
+  xlab('Quartil em relação ao desastre')+
+  theme(legend.position = "bottom")+
+  labs(fill = 'Tópico Principal')+
+  facet_wrap(~Tipo)
+
+topico_propositura_quartil
+
+ggsave(here("Figuras/3.4.3.2Percentual_Topicos_Quartil_Tipo_Propositura.png"), topico_propositura_quartil, width = 15, height = 10)
+
+
+```
+
+```{r}
+topico_propositura_quartil <- df %>% 
+  mutate(Tipo = ifelse(Tipo %in% paleta_proposituras$Tipo, Tipo, "outros")) %>%  
+  group_by(Tipo, Quartil, tópico_principal) %>% 
+  summarise(n = n()) %>% 
+  mutate(Percent_n = n/sum(n)) %>% 
+  ggplot(aes( x = `Quartil`, y = Percent_n, fill = tópico_principal)) + 
+  geom_bar(stat = "identity")+ 
+  theme_bw()+
+  labs(title = "Tópicos dos projetos, por quartil em relação ao desastre (em percentual)")+
+  scale_fill_manual(values = paleta_topicos$Cores, limits = paleta_topicos$Topicos)+
+  ylab('Percentual de proposituras')+
+  xlab('Quartil em relação ao desastre')+
+  theme(legend.position = "bottom")+
+  labs(fill = 'Tópico Principal')+
+  facet_wrap(~Tipo)
+
+topico_propositura_quartil
+
+rm(topico_propositura_quartil)
+```
+
+### 3.4.4 Gráfico Tipos por Desastre
+
+```{r}
+paleta_desastres <- paletas$desastres
+
+topico_desastres <- df %>%  
+  filter(!is.na(desastre_anterior),
+         desastre_anterior %in% paleta_desastres$Tipo) %>% 
+           pivot_longer(starts_with("Tópico "), names_to = "Topicos", values_to = "Percent_Topicos") %>% 
+  group_by(desastre_anterior, Quartil, Topicos) %>% 
+  summarise(Percent_Topicos = mean(Percent_Topicos))%>% 
+  ggplot(aes( x = `Quartil`, y = Percent_Topicos, fill = Topicos)) + 
+  geom_bar(stat = "identity")+ 
+  theme_bw()+
+  labs(title = "Tópicos dos projetos, por quartil em relação ao desastre  e tipo de desastre")+
+  scale_fill_manual(values = paleta_topicos$Cores, limits = paleta_topicos$Topicos)+
+  ylab('Percentual de documentos')+
+  xlab('Quartil em relação ao desastre')+
+  theme(legend.position = "bottom")+
+  labs(fill = 'Tópico Principal')+
+  facet_grid(Topicos~desastre_anterior)
+
+topico_desastres
+
+ggsave(here("Figuras/3.4.4.1Percentual_Topicos_Quartil_Desastres_Propositura.png"), topico_desastres, height = 10, width = 15)
+
+rm(topicos_desastres)
+```
+
+```{r}
+topico_desastres <- df %>% 
+  filter(!(desastre_anterior %in% c('Onda de Calor e Baixa Umidade', 'Onda de Frio', 'Tornado', 'Granizo', NA))) %>%
+  group_by(desastre_anterior, Quartil, tópico_principal) %>% 
+  summarise(n = n()) %>%
+  group_by(Quartil, desastre_anterior) %>% 
+  mutate(porcent_al = n/ sum(n)) %>% 
+  ggplot(aes( x = `Quartil`, y = porcent_al, fill = tópico_principal)) + 
+  geom_bar(stat = "identity")+ 
+  theme_bw()+
+  labs(title = "Tópicos dos projetos, por quartil em relação ao desastre  e tipo de desastre")+
+  scale_fill_manual(values = paleta_topicos$Cores, limits = paleta_topicos$Topicos)+
+  ylab('Percentual de documentos')+
+  xlab('Quartil em relação ao desastre')+
+  theme(legend.position = "bottom")+
+  labs(fill = 'Tópico Principal')+
+  facet_grid(tópico_principal~desastre_anterior)
+
+topico_desastres
+
+rm(topicos_desastres)
+```
+
+### 3.4.5. Tópicos por ano
+
+```{r}
+Ano_Topicos <- df %>% 
+           pivot_longer(starts_with("Tópico "), names_to = "Topicos", values_to = "Percent_Topicos") %>% 
+  group_by(Ano, Quartil, Topicos) %>% 
+  summarise(Percent_Topicos = mean(Percent_Topicos))%>% 
+  ggplot(aes( x = `Ano`, y = Percent_Topicos, fill = Topicos)) + 
+  geom_bar(stat = "identity")+ 
+  theme_classic()+
+  labs(title = "Tópicos das proposituras, por Ano",
+       fill = 'Tópico Principal')+
+  scale_fill_manual(values = paleta_topicos$Cores, limits = paleta_topicos$Topicos)+
+  scale_x_continuous(n.breaks = 10)+
+  ylab('Percentual de proposituras')
+
+Ano_Topicos
+```
+
+```{r, 'topico_ano'}
+Ano_Topicos <- df %>% 
+  group_by(tópico_principal, Ano) %>% 
+  summarise(n_al = n()) %>%
+  group_by(Ano) %>% 
+  mutate(porcent_al = n_al/ sum(n_al))  %>% 
+  ggplot(aes( x = `Ano`, y = porcent_al, fill = tópico_principal)) + 
+  geom_bar(stat = "identity")+ 
+  theme_classic()+
+  labs(title = "Tópicos das proposituras, por Ano",
+       fill = 'Tópico Principal')+
+  scale_fill_manual(values = paleta_topicos$Cores, limits = paleta_topicos$Topicos)+
+  scale_x_continuous(n.breaks = 10)+
+  ylab('Percentual de proposituras')
+
+Ano_Topicos
 ```
