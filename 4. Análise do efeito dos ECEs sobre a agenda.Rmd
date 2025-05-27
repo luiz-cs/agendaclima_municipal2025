@@ -5,7 +5,7 @@ output: html_notebook
 
 # 4. Análise do efeito dos ECEs sobre a agenda
 
-Agora que já identificamos quais os tópicos dos documentos, vamos fazer uma análise da produção em relação ao total da produção. \
+Agora que já identificamos quais os tópicos dos documentos, vamos fazer uma análise da produção em relação ao total da produção.\
 \
 Na primeira, faremos a análise com toda a produção que menciona os termos procurados. Na segunda, vamos nos restringir à produção em projetos de lei
 
@@ -13,7 +13,7 @@ Na primeira, faremos a análise com toda a produção que menciona os termos pro
 
 ```{r}
 #install.packages(dplyr)
-
+#install.packages("viridis")
 ```
 
 ```{r}
@@ -25,178 +25,35 @@ library(ggplot2)
 library(lubridate)
 ```
 
-## 4.1. Limpando a base df
+## 4.1. Recuperando a base df_ols
 
 Antes de começar, vamos simplificar a base DF para manter só as informações essenciais que serão utilizadas na análise:
 
 ```{r, echo = FALSE}
-df <- readRDS(here("Dados/df_agendaclima_municipal.RDS"))
+df_ols <- readRDS(here("Dados/df_ols.RDS"))
 
-df_ols <- df %>% 
- group_by(Data, Ano, Cod_IBGE_Mun,
-          data_desastre_anterior, desastre_anterior, dias_desastre_anterior, obitos_desastre_anterior,
-          Receitas_Mun, proxima_eleicao, dias_proxima_eleicao, n_OSCs, 
-          across(AB2_Recursos_Hídricos_Seca: AB4_Desastres_Hidrológicos_Capacidade_Adaptativa)) %>%
-  summarise(n = n())
-  
-```
-
-```{r}
-#Recuperando base Cidades AL
-CidadesAL <- readRDS(here("Dados/CidadesAL13_24.RDS"))
-
-
-#Criando base com total de projetos por dia
-
-total_prop <- CidadesAL %>%
-  group_by(Data, Municipio_UF) %>% 
-  summarise(total_proj_dia= n())
-
-
-#Adicionando Código IBGE:
-AdaptaBrasil <- readRDS(here("Dados/AdaptaBrasil.RDS")) %>% 
-  select(Cod_IBGE_Mun, Municipio_UF)
-
-total_prop <- merge(total_prop, AdaptaBrasil, by = c("Municipio_UF"), all.x = T)%>% 
-  select(!Municipio_UF) %>% 
-  filter(Cod_IBGE_Mun %in% df_ols$Cod_IBGE_Mun)
-
-df_ols <- merge(df_ols, total_prop, by = c("Data", "Cod_IBGE_Mun"), all = T) 
-
-rm(CidadesAL, AdaptaBrasil, total_prop)
-```
-
-```{r}
-
-# Convertendo df_ols para data.table:
-setDT(df_ols)
-
-# Adicionando a coluna "agenda_clima":
-df_ols[, `:=`(
-  agenda_clima = n / total_proj_dia,
-  Data = as.Date(Data)
-)]
-
-# Criando lista completa de datas para cada município
-lista_municipios_datas <- CJ(
-  Cod_IBGE_Mun = unique(df_ols$Cod_IBGE_Mun),
-  Data = unique(df_ols$Data)
-)[, `:=`(
-    Data = as.Date(Data),
-    Ano = year(Data)
-  )]
-
-
-# Separa informações das cidades
-
-dados_cidades <- df_ols %>% 
-  group_by(Cod_IBGE_Mun, across(AB2_Recursos_Hídricos_Seca: AB4_Desastres_Hidrológicos_Capacidade_Adaptativa)) %>% 
-  summarise() %>% 
-  filter(!is.na(AB2_Recursos_Hídricos_Seca)) %>% 
-  data.table()
-
-lista_municipios_datas <- merge(
-  dados_cidades, lista_municipios_datas, 
-  by = c("Cod_IBGE_Mun"), all = TRUE
-)
-
-
-# Juntando base de cidades à original
-
-df_ols <- merge(
-  df_ols, lista_municipios_datas,
-  by = names(lista_municipios_datas),
-  all = T)
-
-rm(lista_municipios_datas, dados_cidades, dados_receitas)
-```
-
-```{r}
-
-# Separa dados de eventos
-dados_desastres <- unique(
-  df_ols[, .(Cod_IBGE_Mun, Data = as.Date(data_desastre_anterior), 
-             Tipo_Desastre = desastre_anterior, 
-             Obitos = obitos_desastre_anterior)]
-)[!is.na(Data)][, Desastre := 1L]
-
-dados_eleicao <- unique(
-  df_ols[, .(Cod_IBGE_Mun, Data = as.Date(proxima_eleicao))]
-)[!is.na(Data)][, Eleicao := 1L]
-
-dados_eventos <- merge(
-  dados_desastres, dados_eleicao, 
-  by = c("Cod_IBGE_Mun", "Data"), all = T
-)
-
-#Junta à base de dados original:
-df_ols <-  merge(df_ols, dados_eventos, by = c("Data", "Cod_IBGE_Mun"), all.x = T)
-
-
-rm(dados_desastres, dados_eleicao, dados_eventos)
-
-
-```
-
-```{r}
-#Transformando colunas
-df_ols[, (c("n", "agenda_clima", "Obitos", "Desastre", "Eleicao")) := 
-          lapply(.SD, function(x) fifelse(is.na(x), 0, x)),
-        .SDcols = c("n", "agenda_clima", "Obitos", "Desastre", "Eleicao")]
-
-#Completando informações de orçamento:
-orcamento <- readRDS(here("Dados/orcamento2013_2024.RDS")) %>% 
-  mutate(Cod_IBGE_Mun = as.character(Cod_IBGE_Mun)) 
-
-df_ols <- merge(df_ols, orcamento, by = c("Cod_IBGE_Mun", "Ano"), all.x = T)
-
-#Completando informações de eleição:
-
-eleicoes <- setDT(readRDS(here("Dados/eleicoes.RDS")))
-
-eleicoes_dt <- data.table(proxima_eleicao = as.Date(eleicoes$eleicoes))
-
-data_dt <- data.table(Data = sort(unique(df_ols$Data)))
-
-# Rolling join: find smallest proxima_eleicao ≥ Data
-setkey(eleicoes_dt, proxima_eleicao)
-setkey(data_dt, Data)
-
-result <- eleicoes_dt[data_dt, roll = -Inf, on = .(proxima_eleicao = Data)]
-
-# Now proxima_eleicao column contains the next election date for each Data
-result[, dias_proxima_eleicao := as.integer(proxima_eleicao - Data)]
-
-eleicoes_dt <- eleicoes_dt[, .SD[which.min(proxima_eleicao)], by = Data]
-
-# Calculate dias_proxima_eleicao
-eleicoes_dt[, dias_proxima_eleicao := as.integer(as.Date(proxima_eleicao) - as.Date(Data))]
-
-df <- merge(df, eleicoes, by = "Data", all.x = T)
-
-#Separa dados anuais
-dados_receitas <-  unique(
-  df_ols[, .(Cod_IBGE_Mun, Ano, Receitas_Mun)]
-)
-
-lista_municipios_datas <- merge(
-  lista_municipios_datas, dados_receitas, 
-  by = c("Cod_IBGE_Mun", "Ano"), all = TRUE)
-
-# Salva resultado
-saveRDS(df_ols, here::here("Dados/df_ols.RDS"))
-rm(orcamento)
 ```
 
 \
 
 ```{r}
-
+library(viridis)
 #Heatmap
-df_ols %>% 
-  ggplot(aes(x = Data, y = reorder(Cod_IBGE_Mun, agenda_clima), fill = agenda_clima))+
-  geom_tile()+
-  theme_classic()+
-  labs()
+heatmap <- df_ols %>% 
+  ggplot(aes(x = Data, y = reorder(Cod_IBGE_Mun, agenda_clima))) +
+  geom_tile(aes(fill = agenda_clima)) +   
+  geom_tile(data = df_ols[df_ols$Desastre == 1, ], 
+            aes(fill = NULL), 
+            color = "red") +  
+  scale_fill_viridis() +
+  theme_classic() +
+  theme(legend.position = "bottom") +
+  labs(title = "Distribuição da apresentação de projetos, por município e data",
+       y = "Código IBGE do Município", 
+       x = "Data", 
+       fill = "Percentual de projetos climáticos apresentados")
   
+heatmap
+
+ggsave(here("Figuras/4.1Heatmap_projetos_climaticos.png"), heatmap, height = 25, width = 10)
 ```

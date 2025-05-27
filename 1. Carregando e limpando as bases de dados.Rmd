@@ -862,6 +862,9 @@ ALClima13_24 <- readRDS(here("Dados/ALClima13_24.RDS"))
 
 CidadesAL <- readRDS(here("Dados/CidadesAL13_24.RDS"))
 
+#Selecionando só municípios da seleção:
+CidadesAL <- CidadesAL[Municipio_UF %in% ALClima13_24$Municipio_UF]
+
 #Criando base com total de projetos por dia
 
 df_ols <- ALClima13_24[, .(n_proj_clima = .N), by = .(Data, Municipio_UF)]
@@ -870,10 +873,6 @@ total_prop <- CidadesAL[, .(total_proj_dia = .N), by = .(Data, Municipio_UF)]
 
 df_ols <- merge(df_ols, total_prop, by = c("Data", "Municipio_UF"), all = T) 
 
-#Substituindo NA por 0
-df_ols[, "n_proj_clima" := 
-          lapply(.SD, function(x) fifelse(is.na(x), 0, x)),
-        .SDcols = "n_proj_clima"]
 
 # Adicionando razão entre projetos climáticos e total de projetos
 
@@ -885,7 +884,7 @@ df_ols[, `:=`(
 rm(CidadesAL, total_prop)
 ```
 
-### ALClima + AdaptaBrasil
+### + AdaptaBrasil
 
 Em seguida, adicionamos as informações do AdaptaBrasil à nossa base de ALClima para os anos analisados
 
@@ -907,17 +906,18 @@ Agora, vamos adicionar as informações sobre os desastres
 
 Para isso, adicionamos a informação sobre a distância entre a data do desastres mais recente (ou do desastre seguinte) em relação à apresentação do projeto. Esta informação irá ajudar a compreender melhor o contexto em que um projeto foi apresentado
 
-# PAREI AQUI
-
 ```{r}
 
 Desastres <- readRDS(here("Dados/Desastres.RDS"))
 
-# Merge df with Desastres to get all combinations by Cod_IBGE_Mun
+#Selectionando os desastres anteriores:
+
+## Juntando as duas bases:
 df_prev <- merge(df, Desastres, by = "Cod_IBGE_Mun", allow.cartesian = TRUE, suffixes = c("", "_desastre"))
-# Filter where disaster happened before project
+
+# Filtra desastes com data menor que a atual
 df_prev <- df_prev[Data_desastre < Data]
-# Keep the latest disaster per (UF, Municipio_UF, Cod_IBGE_Mun, Nome_Municipio, Data)
+# Mantém o desastre mais recente (UF, Municipio_UF, Cod_IBGE_Mun, Nome_Municipio, Data):
 df_prev <- df_prev[, .SD[which.max(Data_desastre)], by = .(UF, Municipio_UF, Cod_IBGE_Mun, Nome_Municipio, Data)]
 # Select and rename columns
 df_prev <- df_prev[, .(UF, Municipio_UF, Cod_IBGE_Mun, Nome_Municipio, Data,
@@ -925,98 +925,89 @@ df_prev <- df_prev[, .(UF, Municipio_UF, Cod_IBGE_Mun, Nome_Municipio, Data,
                        desastre_anterior = Desastre,
                        obitos_desastre_anterior = DH_MORTOS)]
 
-# Repeat for next disaster
+# Repete para próximo desastre
 df_next <- merge(df, Desastres, by = "Cod_IBGE_Mun", allow.cartesian = TRUE, suffixes = c("", "_desastre"))
+
 df_next <- df_next[Data_desastre >= Data]
+
 df_next <- df_next[, .SD[which.min(Data_desastre)], by = .(UF, Municipio_UF, Cod_IBGE_Mun, Nome_Municipio, Data)]
+
 df_next <- df_next[, .(UF, Municipio_UF, Cod_IBGE_Mun, Data,
                        data_desastre_proximo = Data_desastre,
                        desastre_proximo = Desastre,
                        obitos_desastre_proximo = DH_MORTOS)]
 
-# Merge df with df_prev and df_next
+# Junta as duas à base original
 setkeyv(df, c("UF", "Municipio_UF", "Cod_IBGE_Mun", "Data"))
 setkeyv(df_prev, c("UF", "Municipio_UF", "Cod_IBGE_Mun", "Data"))
 setkeyv(df_next, c("UF", "Municipio_UF", "Cod_IBGE_Mun", "Data"))
 
-df <- merge(df, df_prev, by = c("UF", "Municipio_UF", "Cod_IBGE_Mun", "Data"), all.x = TRUE)
-df <- merge(df, df_next, by = c("UF", "Municipio_UF", "Cod_IBGE_Mun", "Data"), all.x = TRUE)
+df <- df %>% 
+  merge(df_prev, by = c("UF", "Municipio_UF", "Cod_IBGE_Mun", "Data"), all.x = TRUE) %>% 
+  merge(df_next, by = c("UF", "Municipio_UF", "Cod_IBGE_Mun", "Data"), all.x = TRUE)
 
-# Add calculated columns
+# Adiciona colunas com dias até o próximo desastre:
 df[, `:=`(
-  dias_desastre_anterior = as.integer(Data - data_desastre_anterior),
-  dias_desastre_proximo = as.integer(Data - data_desastre_proximo)
-)]
-```
+  dias_desastre_anterior = as.integer(as.Date(Data) - as.Date(data_desastre_anterior)),
+  dias_desastre_proximo = as.integer(as.Date(Data) - as.Date(data_desastre_proximo)))]
 
-```{r, 'dias_ultimo_desastre'}
-
-Desastres <- readRDS(here("Dados/Desastres.RDS"))
-  
-
-# Criando base de dados alinhando combinações de projetos e deastres que aconteceram antes deles
-df_prev <- df %>%
-  left_join(Desastres, by = "Cod_IBGE_Mun", suffix = c("", "_desastre")) %>%  #Cria todas as combinações de projetos e desastres por município
-  filter(Data_desastre < Data) %>% #Filtra só as linhas em que a data do desastre antecede a data do projeto
-  group_by(UF, Municipio_UF, Cod_IBGE_Mun, Nome_Municipio, Data) %>% #Agrupa pelas informações de município e data  
-  slice_max(Data_desastre, with_ties = FALSE) %>% #mantêm apenas a primeira versão de cada combinação em cada cidade
-  ungroup() %>%
-  select(UF, Municipio_UF, Cod_IBGE_Mun, Nome_Municipio, Data, data_desastre_anterior = Data_desastre, desastre_anterior = Desastre, obitos_desastre_anterior = DH_MORTOS) #Seleciona as colunas que serão integradas depois, renomeando as novas
-
-#Repete o anterior, mas para o desastre seguinte
-df_next <- df %>%
-  left_join(Desastres, by = "Cod_IBGE_Mun", suffix = c("", "_desastre")) %>%
-  filter(Data_desastre >= Data) %>%
-  group_by(UF, Municipio_UF, Cod_IBGE_Mun, Nome_Municipio, Data) %>%
-  slice_min(Data_desastre, with_ties = FALSE) %>%
-  ungroup() %>%
-  select(UF, Municipio_UF, Cod_IBGE_Mun, Data, data_desastre_proximo = Data_desastre, desastre_proximo = Desastre, obitos_desastre_proximo = DH_MORTOS)
-
-#Junta os arquivos na base original:
-df <- df %>%
-  left_join(df_prev, by = c("UF", "Municipio_UF", "Cod_IBGE_Mun", "Data")) %>%
-  left_join(df_next, by = c("UF", "Municipio_UF", "Cod_IBGE_Mun", "Data")) %>%
-  mutate(
-    dias_desastre_anterior = as.integer(Data - data_desastre_anterior),
-    dias_desastre_proximo = as.integer(Data - data_desastre_proximo)
-  )
-
-
-
+rm(df_next, df_prev)
 ```
 
 ```{r}
 #Agora com o df_ols
 
-#Desastres anteriores:
-df_prev <- df_ols %>%
-  left_join(Desastres, by = "Cod_IBGE_Mun", suffix = c("", "_desastre")) %>%  
-  filter(Data_desastre < Data) %>% 
-  group_by(UF, Municipio_UF, Cod_IBGE_Mun, Nome_Municipio, Data) %>%   
-  slice_max(Data_desastre, with_ties = FALSE) %>% 
-  ungroup() %>%
-  select(UF, Municipio_UF, Cod_IBGE_Mun, Nome_Municipio, Data, data_desastre_anterior = Data_desastre, desastre_anterior = Desastre, obitos_desastre_anterior = DH_MORTOS) 
+#Separando datas desastres
+dados_desastres <- unique(
+  Desastres[, .(Cod_IBGE_Mun, Data = as.Date(Data), 
+             Tipo_Desastre = Desastre, 
+             Obitos = DH_MORTOS)]
+)[, Desastre := 1L]
+#Limpando só os municípios e datas selecionadas:
+dados_desastres <- dados_desastres[Cod_IBGE_Mun %in% df_ols$Cod_IBGE_Mun & Data >= as.Date("2013-01-01")]
 
-#Desastres seguintes
-df_next <- df_ols %>%
-  left_join(Desastres, by = "Cod_IBGE_Mun", suffix = c("", "_desastre")) %>%
-  filter(Data_desastre >= Data) %>%
-  group_by(UF, Municipio_UF, Cod_IBGE_Mun, Nome_Municipio, Data) %>%
-  slice_min(Data_desastre, with_ties = FALSE) %>%
-  ungroup() %>%
-  select(UF, Municipio_UF, Cod_IBGE_Mun, Data, data_desastre_proximo = Data_desastre, desastre_proximo = Desastre, obitos_desastre_proximo = DH_MORTOS)
+dados_munic <- df_ols %>% 
+  group_by(Cod_IBGE_Mun, Municipio_UF, across(AB2_Recursos_Hídricos_Seca: AB4_Desastres_Hidrológicos_Sensibilidade)) %>% 
+  summarise() %>% 
+  filter(!is.na(AB2_Recursos_Hídricos_Seca))
 
-#Junta os arquivos na base original:
-df_ols <- df_ols %>%
-  left_join(df_prev, by = c("Municipio_UF", "Cod_IBGE_Mun", "Data")) %>%
-  left_join(df_next, by = c("Municipio_UF", "Cod_IBGE_Mun", "Data")) %>%
-  mutate(
-    dias_desastre_anterior = as.integer(Data - data_desastre_anterior),
-    dias_desastre_proximo = as.integer(Data - data_desastre_proximo)
-  )
+dados_desastres <- merge(dados_desastres, dados_munic, by = c("Cod_IBGE_Mun"), all.x = T)
+  
+cols = dados_desastres %>% 
+  select(!c(Tipo_Desastre, Obitos, Desastre)) %>% 
+  names()
+
+#Juntando as bases:
+df_ols <- merge(df_ols, dados_desastres, by = c(cols), all = T) 
+
+
+
+
+# Adiciona colunas com dias desde último desastre:
+
+df_prev <- merge(df_ols, Desastres, by = "Cod_IBGE_Mun", allow.cartesian = TRUE, suffixes = c("", "_desastre"))
+
+# Filtra desastes com data menor que a atual
+df_prev <- df_prev[Data_desastre < Data]
+# Mantém o desastre mais recente (Municipio_UF, Cod_IBGE_Mun, Nome_Municipio, Data):
+df_prev <- df_prev[, .SD[which.max(Data_desastre)], by = .(Cod_IBGE_Mun, Data)]
+
+# Select and rename columns
+df_prev <- df_prev[, .(Cod_IBGE_Mun, Data,
+                       data_desastre_anterior = Data_desastre,
+                       desastre_anterior = Desastre,
+                       obitos_desastre_anterior = DH_MORTOS)]
+
+setkeyv(df_ols, c("Cod_IBGE_Mun", "Data"))
+setkeyv(df_prev, c("Cod_IBGE_Mun", "Data"))
+
+df_ols <- merge(df_ols, df_prev, by = c("Cod_IBGE_Mun", "Data"), all.x = TRUE)
+
+# Adiciona colunas com dias até o próximo desastre:
+df_ols[, dias_desastre_anterior := (as.integer(as.Date(Data) - as.Date(data_desastre_anterior)))]
 
 # Remove os objetos que não serão mais utilizados
-rm(df_prev, df_next, Desastres)
+rm(Desastres, dados_desastres, dados_munic, cols, df_prev)
 ```
 
 ### +Orçamento Municipal
@@ -1026,6 +1017,10 @@ orcamento <- readRDS(here("Dados/orcamento2013_2024.RDS")) %>%
   mutate(Cod_IBGE_Mun = as.character(Cod_IBGE_Mun)) 
 
 df <- merge(df, orcamento, by = c("Cod_IBGE_Mun", "Ano"), all.x = T)
+
+df_ols[,Ano := year(Data)]
+
+df_ols <- merge(df_ols, orcamento, by = c("Cod_IBGE_Mun", "Ano"), all.x = T)
 
 rm(orcamento)
 ```
@@ -1037,8 +1032,8 @@ rm(orcamento)
 eleicoes <- readRDS(here("Dados/eleicoes.RDS")) %>% 
   data.table()
 
-# 1. Criando base de dados alinhando combinações de projetos e deastres que aconteceram antes deles
-eleicoes <- expand_grid(
+# Criando base de dados alinhando combinações de projetos e deastres que aconteceram antes deles
+eleicoes_grid <- expand_grid(
   Data = seq(as.Date("2013-01-01"), as.Date("2024-12-31"), by = "day"),
   proxima_eleicao = eleicoes$eleicoes) %>%
   filter(proxima_eleicao >= Data) %>%
@@ -1049,10 +1044,22 @@ eleicoes <- expand_grid(
          dias_proxima_eleicao = as.integer(dias_proxima_eleicao)) %>% 
   data.table()
 
-df <- merge(df, eleicoes, by = "Data", all.x = T)
+df <- merge(df, eleicoes_grid, by = "Data", all.x = T)
+
+#ols
+
+eleicoes <- eleicoes %>% 
+  rename(Data = eleicoes) %>% 
+  mutate(Data = as.Date(Data),
+         eleicao = 1)
+
+df_ols <- df_ols %>% 
+  merge(eleicoes, by = "Data", all.x = T) %>% 
+  merge(eleicoes_grid, by = "Data", all.x = T)
+
 
 # Remove os objetos que não serão mais utilizados
-rm(eleicoes)
+rm(eleicoes, eleicoes_grid)
 ```
 
 ### +OSCs
@@ -1061,6 +1068,8 @@ rm(eleicoes)
 OSCsClima <- readRDS(here("Dados/OSCsClima.RDS"))
 
 df <- merge(df, OSCsClima, by = c("Cod_IBGE_Mun", "Data"), all.x = T)
+
+df_ols <- merge(df_ols, OSCsClima, by = c("Cod_IBGE_Mun", "Data"), all.x = T)
 
 rm(OSCsClima)
 ```
@@ -1077,16 +1086,40 @@ Populacao <- readRDS(here("Dados/Populacao.RDS")) %>%
 
 df <- merge(df, Populacao, by = c("Cod_IBGE_Mun", "Ano"), all.x = T)
 
+df_ols <- merge(df_ols, Populacao, by = c("Cod_IBGE_Mun", "Ano"), all.x = T)
+
 rm(Populacao)
+```
+
+### Últimas adições:
+
+```{r}
+#Adicionando 0 onde faltam: 
+df_ols <- df_ols[, (c("Obitos", "Desastre", "n_proj_clima", "eleicao")) := lapply(.SD, function(x) fifelse(is.na(x), 0, x)), .SDcols = c("Obitos", "Desastre", "n_proj_clima", "eleicao")]
+
+
+#Adicionando coluna com mês
+df[, `:=`(Mes = lubridate::month(as.Date(Data)))]
+
+df_ols[, Mes := month(Data)]
+
+#Adicionando dia em relação ao período total
+Dias <- unique(df_ols[, .(Data)]) %>% 
+  arrange(Data)
+Dias[, Dia := seq_len(.N)]
+
+df_ols <- merge(df_ols, Dias, by = "Data", all.x = T)
+
+rm(Dias)
 ```
 
 ### Salvando base de dados final
 
 ```{r}
-
+#df:
 df<- df %>% 
   mutate(Nome_Municipio = ifelse(is.na(Nome_Municipio), Municipio_UF, Nome_Municipio)) %>% 
-  select(Data, Ano, Dia, 
+  select(Data, Ano, Mes, Dia, 
          Cod_IBGE_Mun, Nome_Municipio, UF, 
          Nome_Propositura, Tipo,  Tipo_Projeto, ementa, API_URL, total_tipo_proj_dia, 
          clima_termos,
@@ -1118,6 +1151,41 @@ saveRDS(df, here("Dados/df_agendaclima_municipal.RDS"))
 
 
 rm(df)
+```
+
+```{r}
+#Salvando df_ols
+
+df_ols <- df_ols %>% 
+  select(Data, Ano, Mes, Dia, Cod_IBGE_Mun, Municipio_UF,
+         n_proj_clima, total_proj_dia, agenda_clima, 
+         Desastre, Tipo_Desastre, Obitos, eleicao, Receitas_Mun, n_OSCs, Populacao, 
+         data_desastre_anterior, desastre_anterior, obitos_desastre_anterior, dias_desastre_anterior,proxima_eleicao, dias_proxima_eleicao, 
+         AB2_Recursos_Hídricos_Seca, 
+           AB3_Recursos_Hídricos_Ameaça_Climática,
+           AB3_Recursos_Hídricos_Exposição,
+           AB3_Recursos_Hídricos_Vulnerabilidade, 
+            AB4_Recursos_Hídricos_Sensibilidade,
+            AB4_Recursos_Hídricos_Capacidade_Adaptativa,
+         AB2_Segurança_Alimentar_Seca, 
+         AB2_Segurança_Alimentar_Chuva,
+           AB3_Segurança_Alimentar_Ameaça_Climática,
+           AB3_Segurança_Alimentar_Exposição,
+           AB3_Segurança_Alimentar_Vulnerabilidade,
+            AB4_Segurança_Alimentar_Sensibilidade,
+            AB4_Segurança_Alimentar_Capacidade_Adaptativa,
+         AB2_Desastres_Hidrológicos_Inundações_enxurradas_e_alagamentos,
+         AB2_Desastres_Hidrológicos_Deslizamento_de_terra,
+          AB3_Desastres_Hidrológicos_Ameaça, 
+          AB3_Desastres_Hidrológicos_Exposição,
+          AB3_Desastres_Hidrológicos_Vulnerabilidade, 
+           AB4_Desastres_Hidrológicos_Sensibilidade,
+           AB4_Desastres_Hidrológicos_Capacidade_Adaptativa)
+
+saveRDS(df_ols, here("Dados/df_ols.RDS"))
+
+
+rm(df_ols)
 ```
 
 **PROSSIGA PARA ARQUIVO "2. Análise descritiva do banco de dados"**
