@@ -852,22 +852,53 @@ rm(Pop2022, Pop2023, Populacao)
 
 ## 1.8 Juntando as bases de dados
 
-Agora, vamos juntar todas as bases de dados.
+Agora, vamos juntar todas as bases de dados. Vamos criar duas bases: ALClima (que será utilizada para análise substantiva dos dados) e df_OLS (que será utilizada para a análise quantitativa)
 
-### ALClima + AdaptaBrasil
-
-Vamos começar adicionando as informações do AdaptaBrasil à nossa base de ALClima para os anos analisados
+### + Cria df_ols
 
 ```{r}
 #Recuperando as duas bases
-ALClima13_24 <- readRDS(here("Dados/ALClima13_24.RDS")) 
+ALClima13_24 <- readRDS(here("Dados/ALClima13_24.RDS"))
+
+CidadesAL <- readRDS(here("Dados/CidadesAL13_24.RDS"))
+
+#Criando base com total de projetos por dia
+
+df_ols <- ALClima13_24[, .(n_proj_clima = .N), by = .(Data, Municipio_UF)]
+  
+total_prop <- CidadesAL[, .(total_proj_dia = .N), by = .(Data, Municipio_UF)]
+
+df_ols <- merge(df_ols, total_prop, by = c("Data", "Municipio_UF"), all = T) 
+
+#Substituindo NA por 0
+df_ols[, "n_proj_clima" := 
+          lapply(.SD, function(x) fifelse(is.na(x), 0, x)),
+        .SDcols = "n_proj_clima"]
+
+# Adicionando razão entre projetos climáticos e total de projetos
+
+df_ols[, `:=`(
+  agenda_clima = n_proj_clima / total_proj_dia,
+  Data = as.Date(Data)
+)]
+
+rm(CidadesAL, total_prop)
+```
+
+### ALClima + AdaptaBrasil
+
+Em seguida, adicionamos as informações do AdaptaBrasil à nossa base de ALClima para os anos analisados
+
+```{r}
 
 AdaptaBrasil <- readRDS(here("Dados/AdaptaBrasil.RDS"))
 
-#Juntando as duas bases
+#Juntando as bases:
 df <- merge(ALClima13_24, AdaptaBrasil, by = c("Municipio_UF"), all.x = T)
 
-rm(AdaptaBrasil, ALClima13_24)
+df_ols <- merge(df_ols, AdaptaBrasil, by = c("Municipio_UF"), all.x = T)
+
+rm(ALClima13_24, AdaptaBrasil)
 ```
 
 ### + Desastres
@@ -876,12 +907,54 @@ Agora, vamos adicionar as informações sobre os desastres
 
 Para isso, adicionamos a informação sobre a distância entre a data do desastres mais recente (ou do desastre seguinte) em relação à apresentação do projeto. Esta informação irá ajudar a compreender melhor o contexto em que um projeto foi apresentado
 
+# PAREI AQUI
+
+```{r}
+
+Desastres <- readRDS(here("Dados/Desastres.RDS"))
+
+# Merge df with Desastres to get all combinations by Cod_IBGE_Mun
+df_prev <- merge(df, Desastres, by = "Cod_IBGE_Mun", allow.cartesian = TRUE, suffixes = c("", "_desastre"))
+# Filter where disaster happened before project
+df_prev <- df_prev[Data_desastre < Data]
+# Keep the latest disaster per (UF, Municipio_UF, Cod_IBGE_Mun, Nome_Municipio, Data)
+df_prev <- df_prev[, .SD[which.max(Data_desastre)], by = .(UF, Municipio_UF, Cod_IBGE_Mun, Nome_Municipio, Data)]
+# Select and rename columns
+df_prev <- df_prev[, .(UF, Municipio_UF, Cod_IBGE_Mun, Nome_Municipio, Data,
+                       data_desastre_anterior = Data_desastre,
+                       desastre_anterior = Desastre,
+                       obitos_desastre_anterior = DH_MORTOS)]
+
+# Repeat for next disaster
+df_next <- merge(df, Desastres, by = "Cod_IBGE_Mun", allow.cartesian = TRUE, suffixes = c("", "_desastre"))
+df_next <- df_next[Data_desastre >= Data]
+df_next <- df_next[, .SD[which.min(Data_desastre)], by = .(UF, Municipio_UF, Cod_IBGE_Mun, Nome_Municipio, Data)]
+df_next <- df_next[, .(UF, Municipio_UF, Cod_IBGE_Mun, Data,
+                       data_desastre_proximo = Data_desastre,
+                       desastre_proximo = Desastre,
+                       obitos_desastre_proximo = DH_MORTOS)]
+
+# Merge df with df_prev and df_next
+setkeyv(df, c("UF", "Municipio_UF", "Cod_IBGE_Mun", "Data"))
+setkeyv(df_prev, c("UF", "Municipio_UF", "Cod_IBGE_Mun", "Data"))
+setkeyv(df_next, c("UF", "Municipio_UF", "Cod_IBGE_Mun", "Data"))
+
+df <- merge(df, df_prev, by = c("UF", "Municipio_UF", "Cod_IBGE_Mun", "Data"), all.x = TRUE)
+df <- merge(df, df_next, by = c("UF", "Municipio_UF", "Cod_IBGE_Mun", "Data"), all.x = TRUE)
+
+# Add calculated columns
+df[, `:=`(
+  dias_desastre_anterior = as.integer(Data - data_desastre_anterior),
+  dias_desastre_proximo = as.integer(Data - data_desastre_proximo)
+)]
+```
+
 ```{r, 'dias_ultimo_desastre'}
 
 Desastres <- readRDS(here("Dados/Desastres.RDS"))
   
 
-# 1. Criando base de dados alinhando combinações de projetos e deastres que aconteceram antes deles
+# Criando base de dados alinhando combinações de projetos e deastres que aconteceram antes deles
 df_prev <- df %>%
   left_join(Desastres, by = "Cod_IBGE_Mun", suffix = c("", "_desastre")) %>%  #Cria todas as combinações de projetos e desastres por município
   filter(Data_desastre < Data) %>% #Filtra só as linhas em que a data do desastre antecede a data do projeto
@@ -908,9 +981,42 @@ df <- df %>%
     dias_desastre_proximo = as.integer(Data - data_desastre_proximo)
   )
 
+
+
+```
+
+```{r}
+#Agora com o df_ols
+
+#Desastres anteriores:
+df_prev <- df_ols %>%
+  left_join(Desastres, by = "Cod_IBGE_Mun", suffix = c("", "_desastre")) %>%  
+  filter(Data_desastre < Data) %>% 
+  group_by(UF, Municipio_UF, Cod_IBGE_Mun, Nome_Municipio, Data) %>%   
+  slice_max(Data_desastre, with_ties = FALSE) %>% 
+  ungroup() %>%
+  select(UF, Municipio_UF, Cod_IBGE_Mun, Nome_Municipio, Data, data_desastre_anterior = Data_desastre, desastre_anterior = Desastre, obitos_desastre_anterior = DH_MORTOS) 
+
+#Desastres seguintes
+df_next <- df_ols %>%
+  left_join(Desastres, by = "Cod_IBGE_Mun", suffix = c("", "_desastre")) %>%
+  filter(Data_desastre >= Data) %>%
+  group_by(UF, Municipio_UF, Cod_IBGE_Mun, Nome_Municipio, Data) %>%
+  slice_min(Data_desastre, with_ties = FALSE) %>%
+  ungroup() %>%
+  select(UF, Municipio_UF, Cod_IBGE_Mun, Data, data_desastre_proximo = Data_desastre, desastre_proximo = Desastre, obitos_desastre_proximo = DH_MORTOS)
+
+#Junta os arquivos na base original:
+df_ols <- df_ols %>%
+  left_join(df_prev, by = c("Municipio_UF", "Cod_IBGE_Mun", "Data")) %>%
+  left_join(df_next, by = c("Municipio_UF", "Cod_IBGE_Mun", "Data")) %>%
+  mutate(
+    dias_desastre_anterior = as.integer(Data - data_desastre_anterior),
+    dias_desastre_proximo = as.integer(Data - data_desastre_proximo)
+  )
+
 # Remove os objetos que não serão mais utilizados
 rm(df_prev, df_next, Desastres)
-
 ```
 
 ### +Orçamento Municipal

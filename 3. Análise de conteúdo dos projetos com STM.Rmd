@@ -898,3 +898,10 @@ ggsave(here("Figuras/3.5.6N_TopicosPL_Ano.png"), Ano_Topicos)
 
 rm(Ano_Topicos)
 ```
+
+```{r}
+#Removendo todos os arquivos
+rm(list = ls(all.names = TRUE))
+```
+
+Prossiga para o arquivo "4. Análise dos efeitos dos ECEs sobre a agenda em políticas climáticas"
