@@ -12,42 +12,47 @@ Na primeira, faremos a análise com toda a produção que menciona os termos pro
 ## Pacotes e bases de dado
 
 ```{r}
-#install.packages(dplyr)
 #install.packages("viridis")
+#install.packages("plm")
 ```
 
-```{r}
+```{r, echo = FALSE}
 library(dplyr)
 library(here)
 library(tidyr)
 library(data.table)
+library(stringr)
 library(ggplot2)
 library(lubridate)
+library(viridis)
+library(plm)
 ```
-
-## 4.1. Recuperando a base df_ols
-
-Antes de começar, vamos simplificar a base DF para manter só as informações essenciais que serão utilizadas na análise:
 
 ```{r, echo = FALSE}
-df_ols <- readRDS(here("Dados/df_ols.RDS"))
+df_ols <- readRDS(here("Dados/df_ols.RDS")) %>% 
+  pdata.frame(index = c("Cod_IBGE_Mun", "Dia"))
 
+df_ols <- df_ols %>% 
+  mutate(Dia = as.integer(Dia))
 ```
 
-\
+## 4.1 Observando as características da série
+
+### 4.1.1 Distribuição da agenda climática
 
 ```{r}
-library(viridis)
+
 #Heatmap
 heatmap <- df_ols %>% 
-  ggplot(aes(x = Data, y = reorder(Cod_IBGE_Mun, agenda_clima))) +
+  mutate(Regiao = str_sub(Cod_IBGE_Mun, 1, 1)) %>% 
+  ggplot(aes(x = Data, y = Cod_IBGE_Mun)) +
   geom_tile(aes(fill = agenda_clima)) +   
   geom_tile(data = df_ols[df_ols$Desastre == 1, ], 
             aes(fill = NULL), 
             color = "red") +  
   scale_fill_viridis() +
   theme_classic() +
-  theme(legend.position = "bottom") +
+  theme(legend.position = "top") +
   labs(title = "Distribuição da apresentação de projetos, por município e data",
        y = "Código IBGE do Município", 
        x = "Data", 
@@ -55,5 +60,58 @@ heatmap <- df_ols %>%
   
 heatmap
 
-ggsave(here("Figuras/4.1Heatmap_projetos_climaticos.png"), heatmap, height = 25, width = 10)
+ggsave(here("Figuras/4.1.1Heatmap_projetos_climaticos.png"), heatmap, height = 30, width = 10)
+
+rm(heatmap)
+```
+
+## 4.2 Testando as condições da variável destino para análise de séries temporais
+
+### 4.2.1 Analisando a existência de tendências na variável destino
+
+```{r}
+TesteTend <- lm(agenda_clima ~ Dia, data = df_ols)
+
+saveRDS(TesteTend, here("Dados/TesteTend.RDS"))
+summary(TesteTend)
+```
+
+### 4.2.2 Testes de autocorrelação serial (raiz unitária)
+
+```{r}
+# Teste de Breusch-Godfrey com "pbgtest"
+
+TesteBG <- pbgtest(agenda_clima ~ lag(agenda_clima), data = df_ols)
+
+
+TesteBG
+```
+
+O resultado sugere que não há autocorrelação serial significativa na série temporal analisada.
+
+### 4.2.3 Testes de sazonalidade
+
+## 4.3 Rodando a regressão com série temporal
+
+```{r}
+
+names(df_ols)
+modelo1 <- plm(agenda_clima ~ lag(agenda_clima) + Desastre + dias_proxima_eleicao + , data = df_ols, model = "pooling")
+
+summary(modelo1)
+```
+
+### Teste de autocorrelação nas unidades (Pesaran)
+
+```{r}
+
+TestePesaran1 <- pcdtest(modelo1, test = "cd")
+print(cd_test)
+```
+
+### Teste de autocorrelação serial de Durbin-Watson
+
+```{r}
+#Teste de Durbin-Watson:
+TesteDW1 <- pdwtest(modelo1)
 ```

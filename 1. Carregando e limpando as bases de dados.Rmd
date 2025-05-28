@@ -1111,6 +1111,15 @@ Dias[, Dia := seq_len(.N)]
 df_ols <- merge(df_ols, Dias, by = "Data", all.x = T)
 
 rm(Dias)
+
+#Removendo duplicatas de df_ols
+
+df_ols<- df_ols[
+  order(Cod_IBGE_Mun, Dia, -Obitos),  # Ordena por Cod_IBGE_Mun, Dia, e Obitos
+  .SD[1],                             # Pega a coluna com maior número de óbitos
+  by = .(Cod_IBGE_Mun, Dia)           # Agrupa por Cod_IBGE_Mun and Dia
+]
+
 ```
 
 ### Salvando base de dados final
