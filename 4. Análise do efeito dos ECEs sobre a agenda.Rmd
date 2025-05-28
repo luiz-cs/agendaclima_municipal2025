@@ -16,7 +16,7 @@ Na primeira, faremos a análise com toda a produção que menciona os termos pro
 #install.packages("plm")
 ```
 
-```{r, echo = FALSE}
+```{r, echo = FALSE, warning=FALSE}
 library(dplyr)
 library(here)
 library(tidyr)
@@ -30,9 +30,6 @@ library(plm)
 
 ```{r, echo = FALSE}
 df_ols <- readRDS(here("Dados/df_ols.RDS")) %>% 
-  pdata.frame(index = c("Cod_IBGE_Mun", "Dia"))
-
-df_ols <- df_ols %>% 
   mutate(Dia = as.integer(Dia))
 ```
 
@@ -72,9 +69,10 @@ rm(heatmap)
 ```{r}
 TesteTend <- lm(agenda_clima ~ Dia, data = df_ols)
 
-saveRDS(TesteTend, here("Dados/TesteTend.RDS"))
 summary(TesteTend)
 ```
+
+Existe uma linha de tendência significativa, mas pequena (0,000006148)
 
 ### 4.2.2 Testes de autocorrelação serial (raiz unitária)
 
@@ -91,12 +89,78 @@ O resultado sugere que não há autocorrelação serial significativa na série 
 
 ### 4.2.3 Testes de sazonalidade
 
+```{r}
+
+sazonalidade <- df_ols %>% 
+  group_by(Mes) %>% 
+  summarise(agenda_clima = mean(agenda_clima)) %>% 
+  ggplot(aes(x = Mes, y = agenda_clima)) +
+  geom_col(fill = "black")+
+  theme_bw()+
+  labs(title = "Percentual médio de produção legislativa relacionada ao clima, por mês",
+       x= "Mês", 
+       y = "Percentual de produção legislativa")+
+  scale_x_continuous(n.breaks = 12)
+sazonalidade
+```
+
+Como é possível observar, há um aumento do percentual de produção em políticas climáticas nos meses de verão,, em especial fevereiro e março, e uma queda considerável em dezembro.
+
 ## 4.3 Rodando a regressão com série temporal
 
 ```{r}
+#Checando por autocorrelações na matriz das variáveis: 
 
-names(df_ols)
-modelo1 <- plm(agenda_clima ~ lag(agenda_clima) + Desastre + dias_proxima_eleicao + , data = df_ols, model = "pooling")
+cor_matrix <- cor(df_ols[, c("agenda_clima", "Desastre", "Obitos",
+                             "dias_proxima_eleicao", "Receitas_Mun", "n_OSCs",
+                             "AB2_Recursos_Hídricos_Seca", 
+                             "AB2_Segurança_Alimentar_Seca", "AB2_Segurança_Alimentar_Chuva",
+                             "AB2_Desastres_Hidrológicos_Inundações_enxurradas_e_alagamentos",
+                             "AB2_Desastres_Hidrológicos_Deslizamento_de_terra")],
+                  use = "complete.obs") %>% 
+  data.table()
+
+```
+
+```{r}
+#Checando missing values:
+
+colSums(is.na(df_ols))
+
+Receitas_erro <- df_ols %>% 
+  filter(is.na(Receitas_Mun)) %>% 
+  group_by(Cod_IBGE_Mun) %>% 
+  summarise()
+
+orcamento_sum <- orcamento %>% 
+  filter(Cod_IBGE_Mun %in% Receitas_erro$Cod_IBGE_Mun,
+         Ano %in% Receitas_erro$Ano)
+```
+
+\
+
+#  PAREI AQUI
+
+```{r}
+#Remoção dos municípios sem informações de Receita Municipal:
+df_ols <- df_ols %>%  filter(!Cod_IBGE_Mun %in% Receitas_erro$Cod_IBGE_Mun)
+
+#Criando variável com lag1: 
+
+df_ols <- df_ols[, lag_agenda_clima := shift(agenda_clima, 1, type="lag"), by = Cod_IBGE_Mun]
+
+df_ols <- pdata.frame(df_ols, index = c("Cod_IBGE_Mun", "Dia"))
+  
+
+modelo1 <- plm(agenda_clima ~ lag(agenda_clima) + 
+                 Desastre + Obitos +
+                 dias_proxima_eleicao +  
+                 Receitas_Mun + n_OSCs + 
+                 AB2_Recursos_Hídricos_Seca + 
+                 AB2_Segurança_Alimentar_Seca + AB2_Segurança_Alimentar_Chuva +
+                 AB2_Desastres_Hidrológicos_Inundações_enxurradas_e_alagamentos +
+                 AB2_Desastres_Hidrológicos_Deslizamento_de_terra, 
+               data = df_ols, model = "pooling")
 
 summary(modelo1)
 ```

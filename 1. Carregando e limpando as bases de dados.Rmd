@@ -805,7 +805,7 @@ Outra variável relevante é a proximidade de eleições. Elas afetam o comporta
 <https://www.tse.jus.br/eleicoes/calendario-eleitoral/calendario-eleitoral>
 
 ```{r}
-eleicoes <- data.frame("eleicoes" = c("1992-10-03", "1996-10-03", "2000-10-01", "2004-10-03", "2008-10-05", "2012-10-07", "2016-10-02", "2020-11-15", "2024-10-06"))
+eleicoes <- data.frame("eleicoes" = c("1992-10-03", "1996-10-03", "2000-10-01", "2004-10-03", "2008-10-05", "2012-10-07", "2016-10-02", "2020-11-15", "2024-10-06", "2028-10-08"))
 
 saveRDS(eleicoes, here("Dados/eleicoes.RDS"))
 
@@ -1095,7 +1095,7 @@ rm(Populacao)
 
 ```{r}
 #Adicionando 0 onde faltam: 
-df_ols <- df_ols[, (c("Obitos", "Desastre", "n_proj_clima", "eleicao")) := lapply(.SD, function(x) fifelse(is.na(x), 0, x)), .SDcols = c("Obitos", "Desastre", "n_proj_clima", "eleicao")]
+df_ols[, (c( "n_proj_clima", "total_proj_dia", "agenda_clima", "Obitos", "Desastre", "eleicao")) := lapply(.SD, function(x) fifelse(is.na(x), 0, x)), .SDcols = c("n_proj_clima", "total_proj_dia", "agenda_clima", "Obitos", "Desastre", "eleicao")]
 
 
 #Adicionando coluna com mês
@@ -1119,6 +1119,25 @@ df_ols<- df_ols[
   .SD[1],                             # Pega a coluna com maior número de óbitos
   by = .(Cod_IBGE_Mun, Dia)           # Agrupa por Cod_IBGE_Mun and Dia
 ]
+
+```
+
+```{r}
+#Preenchendo valores de NA restantes:
+# -- Forward fill de n_OSCs nos faltantes
+df_ols[, n_OSCs := nafill(n_OSCs, type = "locf"), by = Cod_IBGE_Mun]
+
+df_ols[, "n_OSCs" := lapply(.SD, function(x) fifelse(is.na(x), 0, x)), .SDcols = "n_OSCs"]
+
+# Preenchendo os "Receita_Mun" faltantes
+lookup_receitas <- df_ols[!is.na(Receitas_Mun), .(Cod_IBGE_Mun, Ano, Receitas_Mun)]
+setkeyv(df_ols, c("Cod_IBGE_Mun", "Ano"))
+setkeyv(lookup_receitas, c("Cod_IBGE_Mun", "Ano"))
+
+df_ols[lookup_receitas, on = c("Cod_IBGE_Mun", "Ano"), Receitas_Mun := i.Receitas_Mun]
+
+
+rm(lookup_receitas)
 
 ```
 
