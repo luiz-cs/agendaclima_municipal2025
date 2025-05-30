@@ -26,11 +26,14 @@ library(ggplot2)
 library(lubridate)
 library(viridis)
 library(plm)
+library(stargazer)
 ```
 
 ```{r, echo = FALSE}
 df_ols <- readRDS(here("Dados/df_ols.RDS")) %>% 
-  mutate(Dia = as.integer(Dia))
+  mutate(Dia = as.integer(Dia)) #Corrigindo Dia como integral
+
+df_stm <- readRDS(here("Dados/df_ols.RDS"))
 ```
 
 ## 4.1 Observando as características da série
@@ -67,17 +70,21 @@ rm(heatmap)
 ### 4.2.1 Analisando a existência de tendências na variável destino
 
 ```{r}
+df_ols <- pdata.frame(df_ols, index = c("Cod_IBGE_Mun", "Dia"))%>% 
+  mutate(Dia = as.integer(Dia)) #Corrigindo Dia como integral
+
 TesteTend <- lm(agenda_clima ~ Dia, data = df_ols)
 
 summary(TesteTend)
 ```
 
-Existe uma linha de tendência significativa, mas pequena (0,000006148)
+Existe uma linha de tendência significativa, mas de magnitude pequena
 
 ### 4.2.2 Testes de autocorrelação serial (raiz unitária)
 
 ```{r}
 # Teste de Breusch-Godfrey com "pbgtest"
+
 
 TesteBG <- pbgtest(agenda_clima ~ lag(agenda_clima), data = df_ols)
 
@@ -95,7 +102,7 @@ sazonalidade <- df_ols %>%
   group_by(Mes) %>% 
   summarise(agenda_clima = mean(agenda_clima)) %>% 
   ggplot(aes(x = Mes, y = agenda_clima)) +
-  geom_col(fill = "black")+
+  geom_col(fill = "darkgreen")+
   theme_bw()+
   labs(title = "Percentual médio de produção legislativa relacionada ao clima, por mês",
        x= "Mês", 
@@ -106,63 +113,72 @@ sazonalidade
 
 Como é possível observar, há um aumento do percentual de produção em políticas climáticas nos meses de verão,, em especial fevereiro e março, e uma queda considerável em dezembro.
 
-## 4.3 Rodando a regressão com série temporal
+### 4.2.4 Checando por autocorrelação nas variáveis
 
 ```{r}
 #Checando por autocorrelações na matriz das variáveis: 
 
 cor_matrix <- cor(df_ols[, c("agenda_clima", "Desastre", "Obitos",
-                             "dias_proxima_eleicao", "Receitas_Mun", "n_OSCs",
+                             "dias_proxima_eleicao", "Receitas_pCap", "n_OSCs",
                              "AB2_Recursos_Hídricos_Seca", 
                              "AB2_Segurança_Alimentar_Seca", "AB2_Segurança_Alimentar_Chuva",
                              "AB2_Desastres_Hidrológicos_Inundações_enxurradas_e_alagamentos",
                              "AB2_Desastres_Hidrológicos_Deslizamento_de_terra")],
                   use = "complete.obs") %>% 
-  data.table()
+  data.table() %>% 
+  mutate(Coluna = c("agenda_clima", "Desastre", "Obitos",
+                             "dias_proxima_eleicao", "Receitas_pCap", "n_OSCs",
+                             "AB2_Recursos_Hídricos_Seca", 
+                             "AB2_Segurança_Alimentar_Seca", "AB2_Segurança_Alimentar_Chuva",
+                             "AB2_Desastres_Hidrológicos_Inundações_enxurradas_e_alagamentos",
+                             "AB2_Desastres_Hidrológicos_Deslizamento_de_terra")) 
+cor_matrix %>% 
+  pivot_longer(cols = 1:(length(cor_matrix)-1), names_to = "Linha", values_to = "Valores") %>% 
+  ggplot(aes(x= Linha, y = Coluna, fill = Valores)) + 
+  geom_tile()
 
 ```
+
+Como é possível observar, a maioria das variáveis não tem um nível de correlação muito elevado, exceto as da mesma categoria do Índice de Risco Climático.
 
 ```{r}
 #Checando missing values:
 
 colSums(is.na(df_ols))
 
-Receitas_erro <- df_ols %>% 
+Receitas_NA <- df_ols %>% 
   filter(is.na(Receitas_Mun)) %>% 
   group_by(Cod_IBGE_Mun) %>% 
   summarise()
-
-orcamento_sum <- orcamento %>% 
-  filter(Cod_IBGE_Mun %in% Receitas_erro$Cod_IBGE_Mun,
-         Ano %in% Receitas_erro$Ano)
 ```
 
-\
+Como é possível observar, temos 14 cidades com Missing Values para a receita. Estes municípios terão que ser removidos da seleção para fazer a análise.\
 
-#  PAREI AQUI
+## 4.3 Rodando a regressão com série temporal
 
 ```{r}
-#Remoção dos municípios sem informações de Receita Municipal:
-df_ols <- df_ols %>%  filter(!Cod_IBGE_Mun %in% Receitas_erro$Cod_IBGE_Mun)
+#Preparando base de dados 
+df_ols <- df_ols %>% 
+  filter(!Cod_IBGE_Mun %in% Receitas_NA$Cod_IBGE_Mun)
 
-#Criando variável com lag1: 
 
-df_ols <- df_ols[, lag_agenda_clima := shift(agenda_clima, 1, type="lag"), by = Cod_IBGE_Mun]
+```
 
-df_ols <- pdata.frame(df_ols, index = c("Cod_IBGE_Mun", "Dia"))
-  
+```{r}
+
+#Primeito modelo: agenda mensurada como percentual com menção a termos climáticos
 
 modelo1 <- plm(agenda_clima ~ lag(agenda_clima) + 
-                 Desastre + Obitos +
+                 Desastre + lag(Desastre) + Obitos + lag(Obitos) + 
                  dias_proxima_eleicao +  
-                 Receitas_Mun + n_OSCs + 
+                 Receitas_pCap + n_OSCs +
                  AB2_Recursos_Hídricos_Seca + 
                  AB2_Segurança_Alimentar_Seca + AB2_Segurança_Alimentar_Chuva +
                  AB2_Desastres_Hidrológicos_Inundações_enxurradas_e_alagamentos +
                  AB2_Desastres_Hidrológicos_Deslizamento_de_terra, 
-               data = df_ols, model = "pooling")
+               data = df_ols, model = "pooling", pooling = T)
 
-summary(modelo1)
+stargazer(modelo1, type = "text")
 ```
 
 ### Teste de autocorrelação nas unidades (Pesaran)
@@ -170,7 +186,7 @@ summary(modelo1)
 ```{r}
 
 TestePesaran1 <- pcdtest(modelo1, test = "cd")
-print(cd_test)
+print(TestePesaran1)
 ```
 
 ### Teste de autocorrelação serial de Durbin-Watson
@@ -178,4 +194,14 @@ print(cd_test)
 ```{r}
 #Teste de Durbin-Watson:
 TesteDW1 <- pdwtest(modelo1)
+
+print(TesteDW1)
+```
+
+## 4.4 Teste com agenda climática estrita
+
+Agora, vamos repetir a análise, utilizando apenas os projetos identificados na segunda modelagem de tópicos como condizentes com a agenda em adaptação climática.
+
+```{r}
+
 ```

@@ -35,6 +35,7 @@ library(here)
 library(dplyr)
 library(lubridate)
 library(data.table)
+library(tidyr)
 ```
 
 ## 1.2 Base de Dados sobre Desastres
@@ -1022,6 +1023,7 @@ df_ols[,Ano := year(Data)]
 
 df_ols <- merge(df_ols, orcamento, by = c("Cod_IBGE_Mun", "Ano"), all.x = T)
 
+
 rm(orcamento)
 ```
 
@@ -1120,6 +1122,11 @@ df_ols<- df_ols[
   by = .(Cod_IBGE_Mun, Dia)           # Agrupa por Cod_IBGE_Mun and Dia
 ]
 
+
+#Adicionando Receita per Capita:
+
+df[, Receitas_pCap := (Receitas_Mun/Populacao)]
+df_ols[, Receitas_pCap := (Receitas_Mun/Populacao)]
 ```
 
 ```{r}
@@ -1153,7 +1160,7 @@ df<- df %>%
          clima_termos,
          data_desastre_anterior, desastre_anterior, obitos_desastre_anterior, dias_desastre_anterior,
          data_desastre_proximo, desastre_proximo, obitos_desastre_proximo, dias_desastre_proximo, 
-         Receitas_Mun, Populacao, proxima_eleicao, dias_proxima_eleicao, n_OSCs, 
+         Receitas_Mun, Receitas_pCap, Populacao, proxima_eleicao, dias_proxima_eleicao, n_OSCs, 
          AB2_Recursos_Hídricos_Seca, 
            AB3_Recursos_Hídricos_Ameaça_Climática,
            AB3_Recursos_Hídricos_Exposição,
@@ -1187,7 +1194,7 @@ rm(df)
 df_ols <- df_ols %>% 
   select(Data, Ano, Mes, Dia, Cod_IBGE_Mun, Municipio_UF,
          n_proj_clima, total_proj_dia, agenda_clima, 
-         Desastre, Tipo_Desastre, Obitos, eleicao, Receitas_Mun, n_OSCs, Populacao, 
+         Desastre, Tipo_Desastre, Obitos, eleicao, Receitas_Mun, Receitas_pCap, n_OSCs, Populacao, 
          data_desastre_anterior, desastre_anterior, obitos_desastre_anterior, dias_desastre_anterior,proxima_eleicao, dias_proxima_eleicao, 
          AB2_Recursos_Hídricos_Seca, 
            AB3_Recursos_Hídricos_Ameaça_Climática,
