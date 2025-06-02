@@ -537,6 +537,52 @@ ggsave(here("Figuras/2.2.6P_Tipos_Proposituras_Termos_Climáticos.png"), tiproj_
 rm(tiproj_termosclima, climatermos)
 ```
 
+### 2.2.10 - Sazonalidade
+
+```{r}
+sazonalidade <- df %>% 
+  group_by(Mes) %>% 
+  summarise(n = n()) %>% 
+  ggplot(aes(x = Mes, y = n)) +
+  geom_col(fill = "darkgreen")+
+  theme_bw()+
+  labs(title = "Produção legislativa relacionada ao clima, por mês",
+       x= "Mês", 
+       y = "Produção legislativa")+
+  scale_x_continuous(n.breaks = 12)
+
+
+sazonalidade
+
+ggsave(here("Figuras/2.2.910Sazonalidade_Proposituras.png"), sazonalidade)
+
+rm(sazonalidade)
+```
+
+```{r}
+psazonalidade <- df %>% 
+  group_by(Cod_IBGE_Mun, Mes) %>% 
+  summarise(n = n(), 
+            total_projetos = sum(total_tipo_proj_dia), 
+            agenda_clima = n/total_projetos) %>% 
+  group_by(Mes) %>% 
+  summarise(agenda_clima = mean(agenda_clima)) %>% #Segundo agrupamento, para evitar o viés pelos munícipios que produzem mais num período
+  ggplot(aes(x = Mes, y = agenda_clima)) +
+  geom_col(fill = "darkgreen")+
+  theme_bw()+
+  labs(title = "Percentual médio de produção legislativa relacionada ao clima, por mês",
+       x= "Mês", 
+       y = "Percentual da Produção legislativa")+
+  scale_x_continuous(n.breaks = 12)
+
+
+psazonalidade
+
+ggsave(here("Figuras/2.2.911Sazonalidade_Proposituras.png"), psazonalidade)
+
+rm(psazonalidade)
+```
+
 ## 2.3 Variáveis explicativas:
 
 ## 2.3.1 Desastres
@@ -1618,7 +1664,60 @@ ggsave(here("Figuras/2.4.4.2.Tipos_proposituras_Orcamento.png"),tipos_propositur
 rm(tipos_proposituras_orcamento)
 ```
 
-### Salvar paletas e remover demais
+## 2.5 Nº de Proposituras x Dias para Eleição
+
+```{r}
+prop_dias_eleicao <- df %>% 
+  mutate(dias_proxima_eleicao = -1*dias_proxima_eleicao) %>% 
+  ggplot(aes(x = dias_proxima_eleicao, fill = T)) +
+  geom_histogram(binwidth = 30)+ #Cada um representa aproximadamente 1 mês
+  geom_vline(xintercept = 0)+
+  geom_vline(xintercept = -365, linetype = "dashed")+
+  geom_vline(xintercept = -730, linetype = "dashed")+
+  geom_vline(xintercept = -1095, linetype = "dashed")+
+  labs(title = "Histograma: apresentação de proposituras climáticas em relação aos dias até a próxima eleição", 
+       y = "Número de Proposituras",
+       x = "Dias desde o desastre mais recente")+
+  theme_bw()+
+  theme(legend.position = "none")+
+  xlim(-1461,0)
+
+prop_dias_eleicao
+
+ggsave(here("Figuras/2.5.1 Histograma proposituras até próxima eleição.png"), prop_dias_eleicao)
+
+rm(prop_dias_eleicao)
+```
+
+```{r}
+prop_densi_eleicao <- df %>% 
+  mutate(dias_proxima_eleicao = -1*dias_proxima_eleicao) %>% 
+  group_by(dias_proxima_eleicao) %>% 
+  summarise(Proposituras_Clima = n(),
+            Proposituras_Totais = sum(total_tipo_proj_dia)) %>% 
+  pivot_longer(cols = starts_with("Proposituras_"), names_prefix = "Proposituras_", names_to = "Origem", values_to = "N_Proposituras") %>%
+  ggplot(aes(x = dias_proxima_eleicao, y = N_Proposituras, fill = Origem)) +
+  geom_col()+ #Cada um representa aproximadamente 1 mês
+  geom_vline(xintercept = 0)+
+  geom_vline(xintercept = -365, linetype = "dashed")+
+  geom_vline(xintercept = -730, linetype = "dashed")+
+  geom_vline(xintercept = -1095, linetype = "dashed")+
+  labs(title = "Histograma: apresentação de proposituras climáticas em relação aos dias até a próxima eleição", 
+       y = "Número de Proposituras",
+       x = "Dias desde o desastre mais recente")+
+  theme_bw()+
+  theme(legend.position = "none")+
+  xlim(-1461,0)+
+  facet_wrap(~Origem, ncol = 1, scales = "free_y")
+
+prop_densi_eleicao
+
+ggsave(here("Figuras/2.5.2 Densidade proposituras até próxima eleição.png"), prop_densi_eleicao)
+
+rm(prop_densi_eleicao)
+```
+
+## 2.6 Salvar paletas e remover demais
 
 ```{r}
 paletas <- list(climatermos = paleta_climatermos,

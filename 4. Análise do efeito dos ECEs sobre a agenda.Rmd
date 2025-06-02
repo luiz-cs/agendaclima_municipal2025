@@ -31,8 +31,6 @@ options(digits=5)
 ```{r, echo = FALSE}
 df_ols <- readRDS(here("Dados/df_ols.RDS")) %>% 
   mutate(Dia = as.integer(Dia)) #Corrigindo Dia como integral
-
-df_stm <- readRDS(here("Dados/df_ols.RDS"))
 ```
 
 ## 4.1 Observando as características da série
@@ -73,15 +71,14 @@ rm(heatmap)
 
 library(plm)
 
-```
-
-```{r}
 df_ols <- pdata.frame(df_ols, index = c("Cod_IBGE_Mun", "Dia"))%>% 
   mutate(Dia = as.integer(Dia)) #Corrigindo Dia como integral
 
 TesteTend <- lm(agenda_clima ~ Dia, data = df_ols)
 
 summary(TesteTend)
+
+rm(TesteTend)
 ```
 
 Existe uma linha de tendência significativa, mas de magnitude pequena
@@ -96,6 +93,8 @@ TesteBG <- pbgtest(agenda_clima ~ lag(agenda_clima), data = df_ols)
 
 
 TesteBG
+
+rm(TesteBG)
 ```
 
 O resultado sugere que não há autocorrelação serial significativa na série temporal analisada.
@@ -105,6 +104,11 @@ O resultado sugere que não há autocorrelação serial significativa na série 
 ```{r}
 
 sazonalidade <- df_ols %>% 
+  group_by(Mes, Cod_IBGE_Mun) %>% 
+  summarise(n_proj_clima = sum(n_proj_clima), 
+            total_proj_mes = sum(total_proj_dia), 
+            agenda_clima = n_proj_clima/total_proj_mes) %>% 
+  mutate(agenda_clima = ifelse(agenda_clima == "NaN", 0, agenda_clima)) %>% 
   group_by(Mes) %>% 
   summarise(agenda_clima = mean(agenda_clima)) %>% 
   ggplot(aes(x = Mes, y = agenda_clima)) +
@@ -114,7 +118,11 @@ sazonalidade <- df_ols %>%
        x= "Mês", 
        y = "Percentual de produção legislativa")+
   scale_x_continuous(n.breaks = 12)
+
+
 sazonalidade
+
+rm(sazonalidade)
 ```
 
 Como é possível observar, há um aumento do percentual de produção em políticas climáticas nos meses de verão,, em especial fevereiro e março, e uma queda considerável em dezembro.
@@ -156,7 +164,7 @@ Como é possível observar, a maioria das variáveis não tem um nível de corre
 colSums(is.na(df_ols))
 
 Receitas_NA <- df_ols %>% 
-  filter(is.na(Receitas_Mun)) %>% 
+  filter(is.na(Receitas_pCap)) %>% 
   group_by(Cod_IBGE_Mun) %>% 
   summarise()
 ```
@@ -165,33 +173,33 @@ Como é possível observar, temos 14 cidades com Missing Values para a receita. 
 
 ## 4.3 Rodando a regressão com série temporal
 
-### 4.3.1 Análise com todas as variáveis
+### 4.3.1 Análise com todas as variáveis - Modelo Pooling
 
 ```{r}
 #Preparando base de dados 
 df_ols <- df_ols %>% 
-  filter(!Cod_IBGE_Mun %in% Receitas_NA$Cod_IBGE_Mun)
+  filter(!Cod_IBGE_Mun %in% Receitas_NA$Cod_IBGE_Mun) %>% #remove municípios incompletos 
+  pdata.frame(index = c("Cod_IBGE_Mun", "Dia"))
 
-
+rm(Receitas_NA)
 ```
+
+### Modelo 1: Pooling
 
 ```{r}
 library(stargazer)
 
 #Primeito modelo: agenda mensurada como percentual com menção a termos climáticos
 
-modelo1 <- plm(agenda_clima ~ lag(agenda_clima) + 
+modelo1 <- plm(agenda_clima ~ lag(agenda_clima)+
                  Desastre + lag(Desastre) + Obitos + lag(Obitos) + 
                  dias_proxima_eleicao +  
                  Receitas_pCap + n_OSCs +
                  AB2_Recursos_Hídricos_Seca + 
-                 AB2_Segurança_Alimentar_Seca + AB2_Segurança_Alimentar_Chuva +
-                 AB2_Desastres_Hidrológicos_Inundações_enxurradas_e_alagamentos +
-                 AB2_Desastres_Hidrológicos_Deslizamento_de_terra, 
+                 AB2_Segurança_Alimentar_Seca + AB2_Segurança_Alimentar_Chuva +                AB2_Desastres_Hidrológicos_Inundações_enxurradas_e_alagamentos + AB2_Desastres_Hidrológicos_Deslizamento_de_terra, 
                data = df_ols, model = "pooling", pooling = T)
 
 stargazer(modelo1, type = "text")
-summary(modelo1)
 ```
 
 ### Visualizando os resultados
@@ -243,7 +251,7 @@ M1plot <- ggplot(m1_plot, aes(x = Variavel, y = Estimativa, color = Significanci
 
 M1plot
 
-rm(coefs, variaveis, estimativas, erros_padrao, t_values, pvalores, nivel_sig)
+rm(coefs, variaveis, estimativas, erros_padrao, t_values, pvalores, nivel_sig, M1plot, m1_plot)
 ```
 
 ### Teste de autocorrelação nas unidades (Pesaran)
@@ -264,7 +272,96 @@ TesteDW1 <- pdwtest(modelo1)
 
 print(TesteDW1)
 
-rm(TesteDW1)
+rm(TesteDW1, modelo1)
+```
+
+### 4.3.2 - Modelo "Within"
+
+```{r}
+#Segunda modelo: agenda mensurada como percentual com menção a termos climáticos, dentro dos municípios
+
+modelo2 <- plm(agenda_clima ~ lag(agenda_clima)+
+                 Desastre + lag(Desastre) + Obitos + lag(Obitos) + 
+                 dias_proxima_eleicao +  
+                 Receitas_pCap + n_OSCs +
+                 AB2_Recursos_Hídricos_Seca + 
+                 AB2_Segurança_Alimentar_Seca + AB2_Segurança_Alimentar_Chuva +                AB2_Desastres_Hidrológicos_Inundações_enxurradas_e_alagamentos + AB2_Desastres_Hidrológicos_Deslizamento_de_terra, 
+               data = df_ols, model = "within")
+
+stargazer(modelo2, type = "text")
+```
+
+### Visualizando os resultados
+
+```{r}
+# Extrair coeficientes e erros padrão diretamente do objeto plm
+coefs <- modelo2$coefficients
+variaveis <- names(coefs)
+estimativas <- coefs
+
+# Extrair erros padrão da matriz de variâncias-covariâncias
+erros_padrao <- sqrt(diag(modelo2$vcov))
+
+# Calcular p-valores (opcional, com base na distribuição normal)
+t_values <- estimativas / erros_padrao
+pvalores <- 1.96 * (1 - pnorm(abs(t_values)))
+
+# Definir nível de significância
+nivel_sig <- cut(pvalores, breaks = c(-Inf, 0.001, 0.01, 0.05, 0.1, Inf), 
+                 labels = c("***", "**", "*", ".", " "))
+
+# Construir data.frame
+m2_plot <- data.frame(
+  Variavel = factor(variaveis, levels = variaveis), # manter a ordem
+  Estimativa = estimativas,
+  Erro_Padrao = erros_padrao,
+  IC_inferior = estimativas - 1.96 * erros_padrao,
+  IC_superior = estimativas + 1.96 * erros_padrao,
+  Significancia = nivel_sig
+)
+
+# Remover intercepto para focar nos preditores
+#m1_plot <- subset(m1_plot, Variavel != "(Intercept)")
+
+# Plot com ggplot2
+M2plot <- ggplot(m2_plot, aes(x = Variavel, y = Estimativa, color = Significancia)) +
+  geom_pointrange(aes(ymin = IC_inferior, ymax = IC_superior)) +
+  geom_hline(yintercept = 0, color = "black") +
+  scale_color_manual(values = c("***"="#6E0000", "**"="#CB8400", "*"="#FFD028", "."="#F7FF00", " "="gray"),
+                     name = "Nível de\nSignificância") +
+  coord_flip() +
+  theme_bw() +
+  theme(legend.position = "bottom")+
+  labs(
+    title = "Modelo 1 - Coeficientes (95%)",
+    x = "Variável",
+    y = "Estimativa"
+  )
+
+M2plot
+
+rm(coefs, variaveis, estimativas, erros_padrao, t_values, pvalores, nivel_sig, M2plot, m2_plot)
+```
+
+### Teste de autocorrelação nas unidades (Pesaran)
+
+```{r}
+
+TestePesaran2 <- pcdtest(modelo2, test = "cd")
+print(TestePesaran2)
+
+rm(TestePesaran2)
+```
+
+### Teste de autocorrelação serial de Durbin-Watson
+
+```{r}
+#Teste de Durbin-Watson:
+TesteDW2 <- pdwtest(modelo2)
+
+print(TesteDW2)
+
+rm(TesteDW2, modelo2)
 ```
 
 ## 4.4 Teste com agenda climática estrita
@@ -284,10 +381,14 @@ df_stm <- merge(df_ols, df_stm, by = c("Data", "Cod_IBGE_Mun"), all.x = T) %>%
   mutate(N_PLsClima = ifelse(is.na(N_PLsClima), 0, N_PLsClima),
          PL_agendaclima = ifelse(is.na(PL_agendaclima), 0, PL_agendaclima))%>% 
   mutate(Ano_Mes = paste0(Ano, "-", Mes)) %>% 
-  group_by(Ano_Mes, Cod_IBGE_Mun, Ano, Mes, eleicao, Receitas_pCap, n_OSCs, AB2_Recursos_Hídricos_Seca, AB2_Segurança_Alimentar_Seca, AB2_Segurança_Alimentar_Chuva,       AB2_Desastres_Hidrológicos_Inundações_enxurradas_e_alagamentos, AB2_Desastres_Hidrológicos_Deslizamento_de_terra) %>% 
+  group_by(Ano_Mes, Cod_IBGE_Mun, Ano, Mes, Receitas_pCap, AB2_Recursos_Hídricos_Seca, AB2_Segurança_Alimentar_Seca, AB2_Segurança_Alimentar_Chuva,       AB2_Desastres_Hidrológicos_Inundações_enxurradas_e_alagamentos, AB2_Desastres_Hidrológicos_Deslizamento_de_terra) %>% 
   summarise(N_PLsClima = sum(N_PLsClima),
+            Total_PLs = sum(Total_PLs),
             Desastre = sum(Desastre),
-            Obitos = sum(Obitos))
+            Obitos = sum(Obitos),
+            n_OSCs = max(n_OSCs),
+            eleicao = sum(eleicao),
+            total_proj_dia = sum(total_proj_dia))
 ```
 
 ```{r}
@@ -318,6 +419,8 @@ rm(heatmap2)
 ```{r}
 
 sazonalidade2 <- df_stm %>% 
+  group_by(Cod_IBGE_Mun, Mes) %>% 
+  summarise(N_PLsClima = sum(N_PLsClima)) %>% 
   group_by(Mes) %>% 
   summarise(N_PLsClima = mean(N_PLsClima)) %>% 
   ggplot(aes(x = Mes, y = N_PLsClima)) +
@@ -329,25 +432,25 @@ sazonalidade2 <- df_stm %>%
   scale_x_continuous(n.breaks = 12)
 
 sazonalidade2
-```
 
-Como é possível observar, há um aumento do percentual de produção em políticas climáticas nos meses de verão,, em especial fevereiro e março, e uma queda considerável em dezembro.
+rm(sazonalidade2)
+```
 
 ### PAREI AQUI 4.4.4 Checando por autocorrelação nas variáveis
 
 ```{r}
 #Checando por autocorrelações na matriz das variáveis: 
 
-cor_matrix <- cor(df_stm[, c("agenda_clima", "Desastre", "Obitos",
-                             "dias_proxima_eleicao", "Receitas_pCap", "n_OSCs",
+cor_matrix <- cor(df_stm[, c("N_PLsClima", "Desastre", "Obitos",
+                             "eleicao", "Receitas_pCap", "n_OSCs",
                              "AB2_Recursos_Hídricos_Seca", 
                              "AB2_Segurança_Alimentar_Seca", "AB2_Segurança_Alimentar_Chuva",
                              "AB2_Desastres_Hidrológicos_Inundações_enxurradas_e_alagamentos",
                              "AB2_Desastres_Hidrológicos_Deslizamento_de_terra")],
                   use = "complete.obs") %>% 
   data.table() %>% 
-  mutate(Coluna = c("agenda_clima", "Desastre", "Obitos",
-                             "dias_proxima_eleicao", "Receitas_pCap", "n_OSCs",
+  mutate(Coluna = c("N_PLsClima", "Desastre", "Obitos",
+                             "eleicao", "Receitas_pCap", "n_OSCs",
                              "AB2_Recursos_Hídricos_Seca", 
                              "AB2_Segurança_Alimentar_Seca", "AB2_Segurança_Alimentar_Chuva",
                              "AB2_Desastres_Hidrológicos_Inundações_enxurradas_e_alagamentos",
@@ -367,12 +470,7 @@ Como é possível observar, a maioria das variáveis não tem um nível de corre
 ```{r}
 #Checando missing values:
 
-colSums(is.na(df_ols))
-
-Receitas_NA <- df_ols %>% 
-  filter(is.na(Receitas_Mun)) %>% 
-  group_by(Cod_IBGE_Mun) %>% 
-  summarise()
+colSums(is.na(df_stm))
 ```
 
 Como é possível observar, temos 14 cidades com Missing Values para a receita. Estes municípios terão que ser removidos da seleção para fazer a análise.\
@@ -382,19 +480,13 @@ Como é possível observar, temos 14 cidades com Missing Values para a receita. 
 ### 4.3.1 Análise com todas as variáveis
 
 ```{r}
-#Preparando base de dados 
-df_ols <- df_ols %>% 
-  filter(!Cod_IBGE_Mun %in% Receitas_NA$Cod_IBGE_Mun)
-
-
-```
-
-```{r}
 library(stargazer)
 
+df_stm <- pdata.frame(df_stm, index = c("Cod_IBGE_Mun", "Ano_Mes"))
+table(index(df_stm), useNA = "ifany")
 #Primeito modelo: agenda mensurada como percentual com menção a termos climáticos
 
-modelo1 <- plm(agenda_clima ~ lag(agenda_clima) + 
+modelo2 <- plm(N_PLsClima ~ lag(N_PLsClima) + 
                  Desastre + lag(Desastre) + Obitos + lag(Obitos) + 
                  dias_proxima_eleicao +  
                  Receitas_pCap + n_OSCs +
@@ -402,22 +494,22 @@ modelo1 <- plm(agenda_clima ~ lag(agenda_clima) +
                  AB2_Segurança_Alimentar_Seca + AB2_Segurança_Alimentar_Chuva +
                  AB2_Desastres_Hidrológicos_Inundações_enxurradas_e_alagamentos +
                  AB2_Desastres_Hidrológicos_Deslizamento_de_terra, 
-               data = df_ols, model = "pooling", pooling = T)
+               data = df_stm, model = "pooling", pooling = T)
 
-stargazer(modelo1, type = "text")
-summary(modelo1)
+stargazer(modelo2, type = "text")
+summary(modelo2)
 ```
 
 ### Visualizando os resultados
 
 ```{r}
 # Extrair coeficientes e erros padrão diretamente do objeto plm
-coefs <- modelo1$coefficients
+coefs <- modelo2$coefficients
 variaveis <- names(coefs)
 estimativas <- coefs
 
 # Extrair erros padrão da matriz de variâncias-covariâncias
-erros_padrao <- sqrt(diag(modelo1$vcov))
+erros_padrao <- sqrt(diag(modelo2$vcov))
 
 # Calcular p-valores (opcional, com base na distribuição normal)
 t_values <- estimativas / erros_padrao
@@ -428,7 +520,7 @@ nivel_sig <- cut(pvalores, breaks = c(-Inf, 0.001, 0.01, 0.05, 0.1, Inf),
                  labels = c("***", "**", "*", ".", " "))
 
 # Construir data.frame
-m1_plot <- data.frame(
+m2_plot <- data.frame(
   Variavel = factor(variaveis, levels = variaveis), # manter a ordem
   Estimativa = estimativas,
   Erro_Padrao = erros_padrao,
@@ -441,7 +533,7 @@ m1_plot <- data.frame(
 #m1_plot <- subset(m1_plot, Variavel != "(Intercept)")
 
 # Plot com ggplot2
-M1plot <- ggplot(m1_plot, aes(x = Variavel, y = Estimativa, color = Significancia)) +
+M2plot <- ggplot(m1_plot, aes(x = Variavel, y = Estimativa, color = Significancia)) +
   geom_pointrange(aes(ymin = IC_inferior, ymax = IC_superior)) +
   geom_hline(yintercept = 0, color = "black") +
   scale_color_manual(values = c("***"="#6E0000", "**"="#CB8400", "*"="#FFD028", "."="#F7FF00", " "="gray"),
@@ -455,7 +547,23 @@ M1plot <- ggplot(m1_plot, aes(x = Variavel, y = Estimativa, color = Significanci
     y = "Estimativa"
   )
 
-M1plot
+M2plot
 
 rm(coefs, variaveis, estimativas, erros_padrao, t_values, pvalores, nivel_sig)
+```
+
+```{r}
+TestePesaran2 <- pcdtest(modelo2, test = "cd")
+print(TestePesaran2)
+
+rm(TestePesaran2)
+```
+
+```{r}
+#Teste de Durbin-Watson:
+TesteDW2 <- pdwtest(modelo2)
+
+print(TesteDW2)
+
+rm(TesteDW2)
 ```
