@@ -866,13 +866,22 @@ CidadesAL <- readRDS(here("Dados/CidadesAL13_24.RDS"))
 #Selecionando só municípios da seleção:
 CidadesAL <- CidadesAL[Municipio_UF %in% ALClima13_24$Municipio_UF]
 
+
 #Criando base com total de projetos por dia
 
 df_ols <- ALClima13_24[, .(n_proj_clima = .N), by = .(Data, Municipio_UF)]
-  
+
+df_grid <- CJ( #Cria grid de datas
+  Data = unique(CidadesAL$Data),
+  Municipio_UF = unique(CidadesAL$Municipio_UF)
+)
+
+df_ols <- merge(df_grid, df_ols, by = c("Data", "Municipio_UF"), all = T)  
+
 total_prop <- CidadesAL[, .(total_proj_dia = .N), by = .(Data, Municipio_UF)]
 
 df_ols <- merge(df_ols, total_prop, by = c("Data", "Municipio_UF"), all = T) 
+
 
 
 # Adicionando razão entre projetos climáticos e total de projetos
@@ -882,7 +891,9 @@ df_ols[, `:=`(
   Data = as.Date(Data)
 )]
 
-rm(CidadesAL, total_prop)
+saveRDS(total_prop, here("Dados/total_proposituras.RDS"))
+
+rm(CidadesAL, total_prop, df_grid)
 ```
 
 ### + AdaptaBrasil

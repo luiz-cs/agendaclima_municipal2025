@@ -12,8 +12,9 @@ Na primeira, faremos a análise com toda a produção que menciona os termos pro
 ## Pacotes e bases de dado
 
 ```{r}
-#install.packages("viridis")
+#install.packages("patchwork")
 #install.packages("plm")
+
 ```
 
 ```{r, echo = FALSE, warning=FALSE}
@@ -24,8 +25,11 @@ library(data.table)
 library(stringr)
 library(ggplot2)
 library(lubridate)
-library(viridis)
-options(digits=5)
+library(patchwork)
+library(scales)
+library(plm)
+library(stargazer)
+
 ```
 
 ```{r, echo = FALSE}
@@ -38,38 +42,70 @@ df_ols <- readRDS(here("Dados/df_ols.RDS")) %>%
 ### 4.1.1 Distribuição da agenda climática
 
 ```{r}
-
 #Heatmap
-heatmap <- df_ols %>% 
-  mutate(Regiao = str_sub(Cod_IBGE_Mun, 1, 1)) %>% 
-  ggplot(aes(x = Data, y = Cod_IBGE_Mun)) +
-  geom_tile(aes(fill = agenda_clima)) +   
-  geom_tile(data = df_ols[df_ols$Desastre == 1, ], 
-            aes(fill = NULL), 
-            color = "red") +  
-  scale_fill_viridis() +
-  theme_classic() +
-  theme(legend.position = "top") +
-  labs(title = "Distribuição da apresentação de projetos, por município e data",
-       y = "Código IBGE do Município", 
-       x = "Data", 
-       fill = "Percentual de projetos climáticos apresentados")
+#Limpar datas:
+
+datas <- df_ols %>% 
+  group_by(Data) %>%
+  summarise(n = n()) %>% 
+  filter(n == max(n))
   
-heatmap
+df_heatmap <- df_ols %>% 
+  filter(Data %in% datas$Data) %>% 
+  mutate(Cod_Reg = str_sub(Cod_IBGE_Mun, 1, 1),
+         Regiao = case_when(
+           Cod_Reg == 1 ~ "Norte",
+           Cod_Reg == 2 ~ "Nordeste",
+           Cod_Reg == 3 ~ "Sudeste",
+           Cod_Reg == 4 ~ "Sul",
+           Cod_Reg == 5 ~ "Centro-Oeste"),
+         log_agenda_clima = log1p(agenda_clima))
 
-ggsave(here("Figuras/4.1.1Heatmap_projetos_climaticos.png"), heatmap, height = 30, width = 10)
+df_desastres <- df_heatmap %>% 
+  filter(Desastre == 1)
 
-rm(heatmap)
+regioes <- df_heatmap %>% 
+  select(Cod_Reg, Regiao) %>% 
+  unique()
+
+# Geração + salvamento dos plots
+heatmaps1 <- lapply(c(1:5), function(reg) {
+  dados_reg <- df_heatmap %>% filter(Cod_Reg == reg)
+  dados_desastres <- dados_reg %>% filter(Desastre == 1)
+  Regiao <- regioes %>% 
+    filter(Cod_Reg == reg) %>% 
+    select(Regiao)
+
+  p <- ggplot(dados_reg, aes(x = Data, y = Cod_IBGE_Mun)) +
+    geom_tile(aes(fill = log_agenda_clima)) +
+    geom_tile(data = dados_desastres, aes(fill = NULL), color = "red") +
+    scale_fill_gradient(low = "lightgreen", high = "darkgreen", na.value = "white") +
+    theme_classic() +
+    theme(
+      legend.position = "none",
+      axis.title.x = element_blank(),
+      axis.title.y = element_blank()
+    ) +
+    ggtitle(paste("Percentual de Agenda Climática: Região ", Regiao))
+
+  # Salvar
+  ggsave(
+    filename = here(paste0("Figuras/4.1", reg, "heatmap_regiao_", Regiao, ".png")),
+    plot = p,
+    width = 10, height = 4 + n_distinct(dados_reg$Cod_IBGE_Mun) / 20)
+
+  return(p)  # opcional, se quiser reusar depois
+})
+
+rm(heatmaps1, datas, df_heatmap, df_desastres, regioes)
 ```
 
-## 4.2 Testando as condições da variável destino para análise de séries temporais
+## RODAR DE NOVO DO INÍCIO: DESCOBRIR ONDE TRAVA4.2 Testando as condições da variável destino para análise de séries temporais
 
 ### 4.2.1 Analisando a existência de tendências na variável destino
 
 ```{r}
 #Subindo pacotes de análise de séries temporais: 
-
-library(plm)
 
 df_ols <- pdata.frame(df_ols, index = c("Cod_IBGE_Mun", "Dia"))%>% 
   mutate(Dia = as.integer(Dia)) #Corrigindo Dia como integral
@@ -187,7 +223,6 @@ rm(Receitas_NA)
 ### Modelo 1: Pooling
 
 ```{r}
-library(stargazer)
 
 #Primeito modelo: agenda mensurada como percentual com menção a termos climáticos
 
@@ -199,6 +234,8 @@ modelo1 <- plm(agenda_clima ~ lag(agenda_clima)+
                  AB2_Segurança_Alimentar_Seca + AB2_Segurança_Alimentar_Chuva +                AB2_Desastres_Hidrológicos_Inundações_enxurradas_e_alagamentos + AB2_Desastres_Hidrológicos_Deslizamento_de_terra, 
                data = df_ols, model = "pooling", pooling = T)
 
+
+summary(modelo1)
 stargazer(modelo1, type = "text")
 ```
 
@@ -369,6 +406,7 @@ rm(TesteDW2, modelo2)
 Agora, vamos repetir a análise, utilizando apenas os projetos identificados na segunda modelagem de tópicos como condizentes com a agenda em adaptação climática.
 
 ```{r}
+
 df_stm <- readRDS(here("Dados/df_STM_PL.RDS")) %>% 
   filter(!topico_principalPL %in% c("Tópico PL1", "Tópico PL5", "Tópico PL6", "Tópico PL7", "Tópico PL8")) %>% #Removendo tópicos que não dizem respeito à política climática
   group_by(Data, Cod_IBGE_Mun) %>% 
@@ -381,37 +419,83 @@ df_stm <- merge(df_ols, df_stm, by = c("Data", "Cod_IBGE_Mun"), all.x = T) %>%
   mutate(N_PLsClima = ifelse(is.na(N_PLsClima), 0, N_PLsClima),
          PL_agendaclima = ifelse(is.na(PL_agendaclima), 0, PL_agendaclima))%>% 
   mutate(Ano_Mes = paste0(Ano, "-", Mes)) %>% 
-  group_by(Ano_Mes, Cod_IBGE_Mun, Ano, Mes, Receitas_pCap, AB2_Recursos_Hídricos_Seca, AB2_Segurança_Alimentar_Seca, AB2_Segurança_Alimentar_Chuva,       AB2_Desastres_Hidrológicos_Inundações_enxurradas_e_alagamentos, AB2_Desastres_Hidrológicos_Deslizamento_de_terra) %>% 
+  data.table()
+
+#Adicionando meses até próxima eleição
+df_stm[, meses_proxima_eleicao := interval(Data, proxima_eleicao) %/% months(1)]
+
+
+df_stm <- df_stm %>% 
+  group_by(Ano_Mes, Cod_IBGE_Mun, Ano, Mes, Receitas_pCap, proxima_eleicao, AB2_Recursos_Hídricos_Seca, AB2_Segurança_Alimentar_Seca, AB2_Segurança_Alimentar_Chuva,       AB2_Desastres_Hidrológicos_Inundações_enxurradas_e_alagamentos, AB2_Desastres_Hidrológicos_Deslizamento_de_terra) %>% 
   summarise(N_PLsClima = sum(N_PLsClima),
             Total_PLs = sum(Total_PLs),
             Desastre = sum(Desastre),
             Obitos = sum(Obitos),
             n_OSCs = max(n_OSCs),
             eleicao = sum(eleicao),
-            total_proj_dia = sum(total_proj_dia))
+            meses_proxima_eleicao = max(meses_proxima_eleicao),
+            total_proj_dia = sum(total_proj_dia)) %>% 
+  filter(meses_proxima_eleicao != 0)
+
+
 ```
 
 ```{r}
-#Heatmap2
-heatmap2 <- df_stm %>% 
-  mutate(Regiao = str_sub(Cod_IBGE_Mun, 1, 1)) %>% 
-  ggplot(aes(x = Ano_Mes, y = Cod_IBGE_Mun)) +
-  geom_tile(aes(fill = N_PLsClima)) +   
-  geom_tile(data = df_stm[df_stm$Desastre == 1, ], 
-            aes(fill = NULL), 
-            color = "red") +  
-  theme_classic() +
-  theme(legend.position = "top") +
-  labs(title = "Distribuição da apresentação de projetos, por município e data",
-       y = "Código IBGE do Município", 
-       x = "Data", 
-       fill = "Número de projetos climáticos apresentados")
+#Heatmap 2 
+#Limpar datas:
+
   
-heatmap2
+df_heatmap <- df_stm %>% 
+  mutate(Cod_Reg = str_sub(Cod_IBGE_Mun, 1, 1),
+         Regiao = case_when(
+           Cod_Reg == 1 ~ "Norte",
+           Cod_Reg == 2 ~ "Nordeste",
+           Cod_Reg == 3 ~ "Sudeste",
+           Cod_Reg == 4 ~ "Sul",
+           Cod_Reg == 5 ~ "Centro-Oeste"))%>% 
+  arrange(desc(Cod_IBGE_Mun))
 
-ggsave(here("Figuras/4.4.1Heatmap_NPlsClima.png"), heatmap2, height = 30, width = 10)
 
-rm(heatmap2)
+df_desastres <- df_heatmap %>% 
+  filter(Desastre == 1) %>% 
+  arrange(desc(Cod_IBGE_Mun))
+
+regioes <- df_heatmap %>% 
+  ungroup() %>% 
+  select(Cod_Reg, Regiao) %>% 
+  unique()
+
+# Geração + salvamento dos plots
+heatmaps2 <- lapply(c(1:5), function(reg) {
+  dados_reg <- df_heatmap %>% filter(Cod_Reg == reg)
+  dados_desastres <- dados_reg %>% filter(Desastre == 1)
+  Regiao <- regioes %>% 
+    filter(Cod_Reg == reg) %>% 
+    select(Regiao)
+
+  p <- ggplot(dados_reg, aes(x = Ano_Mes, y = Cod_IBGE_Mun)) +
+    geom_tile(aes(fill = N_PLsClima)) +
+    geom_tile(data = dados_desastres, aes(fill = N_PLsClima), color = "red", size = 0.25) +
+    scale_fill_gradient(low = "lightgreen", high = "darkgreen", na.value = "white") +
+    theme_classic() +
+    theme(
+      legend.position = "bottom",
+      axis.title.x = element_blank(),
+      axis.title.y = element_blank()
+    ) +
+    scale_x_discrete(breaks = function(x) x[seq(1, length(x), by = 6)])+
+    ggtitle(paste("Produção de Políticas Climáticas: Região ", Regiao))
+
+  # Salvar
+  ggsave(
+    filename = here(paste0("Figuras/4.4.", reg, "PLheatmap_regiao_", Regiao, ".png")),
+    plot = p,
+    width = 10, height = 4 + n_distinct(dados_reg$Cod_IBGE_Mun) / 20)
+
+  return(p) 
+})
+
+rm(heatmaps2, datas, df_heatmap, df_desastres, regioes)
 ```
 
 ### 4.4.3 Testes de sazonalidade
@@ -436,7 +520,7 @@ sazonalidade2
 rm(sazonalidade2)
 ```
 
-### PAREI AQUI 4.4.4 Checando por autocorrelação nas variáveis
+### 4.4.4 Checando por autocorrelação nas variáveis
 
 ```{r}
 #Checando por autocorrelações na matriz das variáveis: 
@@ -473,22 +557,32 @@ Como é possível observar, a maioria das variáveis não tem um nível de corre
 colSums(is.na(df_stm))
 ```
 
-Como é possível observar, temos 14 cidades com Missing Values para a receita. Estes municípios terão que ser removidos da seleção para fazer a análise.\
-
-## 4.3 Rodando a regressão com série temporal
-
-### 4.3.1 Análise com todas as variáveis
+### 4.4.5 Teste de Autocorrelação Serial
 
 ```{r}
-library(stargazer)
+# Teste de Breusch-Godfrey com "pbgtest"
 
 df_stm <- pdata.frame(df_stm, index = c("Cod_IBGE_Mun", "Ano_Mes"))
-table(index(df_stm), useNA = "ifany")
+
+TesteBG2 <- pbgtest(N_PLsClima ~ lag(N_PLsClima), data = df_stm)
+
+
+TesteBG2
+
+rm(TesteBG2)
+```
+
+### 4.4.6 Modelo PL1: Pooled
+
+```{r}
+check <- df_stm %>% 
+  group_by(Ano_Mes) %>% 
+  summarise( n = n())
 #Primeito modelo: agenda mensurada como percentual com menção a termos climáticos
 
-modelo2 <- plm(N_PLsClima ~ lag(N_PLsClima) + 
+mPL1 <- plm(N_PLsClima ~ lag(N_PLsClima) + 
                  Desastre + lag(Desastre) + Obitos + lag(Obitos) + 
-                 dias_proxima_eleicao +  
+                 eleicao +  lag(eleicao) + 
                  Receitas_pCap + n_OSCs +
                  AB2_Recursos_Hídricos_Seca + 
                  AB2_Segurança_Alimentar_Seca + AB2_Segurança_Alimentar_Chuva +
@@ -496,8 +590,96 @@ modelo2 <- plm(N_PLsClima ~ lag(N_PLsClima) +
                  AB2_Desastres_Hidrológicos_Deslizamento_de_terra, 
                data = df_stm, model = "pooling", pooling = T)
 
-stargazer(modelo2, type = "text")
-summary(modelo2)
+summary(mPL1)
+stargazer(mPL1, type = "text")
+```
+
+### Visualizando os resultados
+
+```{r}
+# Extrair coeficientes e erros padrão diretamente do objeto plm
+coefs <- modelo2$coefficients
+variaveis <- names(coefs)
+estimativas <- coefs
+
+# Extrair erros padrão da matriz de variâncias-covariâncias
+erros_padrao <- sqrt(diag(modelo2$vcov))
+
+# Calcular p-valores (opcional, com base na distribuição normal)
+t_values <- estimativas / erros_padrao
+pvalores <- 1.96 * (1 - pnorm(abs(t_values)))
+
+# Definir nível de significância
+nivel_sig <- cut(pvalores, breaks = c(-Inf, 0.001, 0.01, 0.05, 0.1, Inf), 
+                 labels = c("***", "**", "*", ".", " "))
+
+# Construir data.frame
+m2_plot <- data.frame(
+  Variavel = factor(variaveis, levels = variaveis), # manter a ordem
+  Estimativa = estimativas,
+  Erro_Padrao = erros_padrao,
+  IC_inferior = estimativas - 1.96 * erros_padrao,
+  IC_superior = estimativas + 1.96 * erros_padrao,
+  Significancia = nivel_sig
+)
+
+# Remover intercepto para focar nos preditores
+#m1_plot <- subset(m1_plot, Variavel != "(Intercept)")
+
+# Plot com ggplot2
+M2plot <- ggplot(m1_plot, aes(x = Variavel, y = Estimativa, color = Significancia)) +
+  geom_pointrange(aes(ymin = IC_inferior, ymax = IC_superior)) +
+  geom_hline(yintercept = 0, color = "black") +
+  scale_color_manual(values = c("***"="#6E0000", "**"="#CB8400", "*"="#FFD028", "."="#F7FF00", " "="gray"),
+                     name = "Nível de\nSignificância") +
+  coord_flip() +
+  theme_bw() +
+  theme(legend.position = "bottom")+
+  labs(
+    title = "Modelo 1 - Coeficientes (95%)",
+    x = "Variável",
+    y = "Estimativa"
+  )
+
+M2plot
+
+rm(coefs, variaveis, estimativas, erros_padrao, t_values, pvalores, nivel_sig)
+```
+
+```{r}
+TestePesaran2 <- pcdtest(modelo2, test = "cd")
+print(TestePesaran2)
+
+rm(TestePesaran2)
+```
+
+```{r}
+#Teste de Durbin-Watson:
+TesteDW2 <- pdwtest(modelo2)
+
+print(TesteDW2)
+
+rm(TesteDW2)
+```
+
+### 4.4.7 Modelo 2: Within
+
+```{r}
+
+#Primeito modelo: agenda mensurada como percentual com menção a termos climáticos
+
+mPL1 <- plm(N_PLsClima ~ lag(N_PLsClima) + 
+                 Desastre + lag(Desastre) + Obitos + lag(Obitos) + 
+                 eleicao +  lag(eleicao) + 
+                 Receitas_pCap + n_OSCs +
+                 AB2_Recursos_Hídricos_Seca + 
+                 AB2_Segurança_Alimentar_Seca + AB2_Segurança_Alimentar_Chuva +
+                 AB2_Desastres_Hidrológicos_Inundações_enxurradas_e_alagamentos +
+                 AB2_Desastres_Hidrológicos_Deslizamento_de_terra, 
+               data = df_stm, model = "within", pooling = T)
+
+summary(mPL1)
+stargazer(mPL1, type = "text")
 ```
 
 ### Visualizando os resultados
