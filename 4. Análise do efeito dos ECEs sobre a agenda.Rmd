@@ -100,7 +100,7 @@ heatmaps1 <- lapply(c(1:5), function(reg) {
 rm(heatmaps1, datas, df_heatmap, df_desastres, regioes)
 ```
 
-## RODAR DE NOVO DO INÍCIO: DESCOBRIR ONDE TRAVA4.2 Testando as condições da variável destino para análise de séries temporais
+## 4.2 Testando as condições da variável destino para análise de séries temporais
 
 ### 4.2.1 Analisando a existência de tendências na variável destino
 
@@ -119,18 +119,18 @@ rm(TesteTend)
 
 Existe uma linha de tendência significativa, mas de magnitude pequena
 
-### 4.2.2 Testes de autocorrelação serial (raiz unitária)
+### 4.2.2 Testes de autocorrelação serial (raiz unitária) (TRAVANDO)
 
 ```{r}
 # Teste de Breusch-Godfrey com "pbgtest"
 
 
-TesteBG <- pbgtest(agenda_clima ~ lag(agenda_clima), data = df_ols)
+#TesteBG <- pbgtest(agenda_clima ~ lag(agenda_clima), data = df_ols)
 
 
-TesteBG
+#TesteBG
 
-rm(TesteBG)
+#rm(TesteBG)
 ```
 
 O resultado sugere que não há autocorrelação serial significativa na série temporal analisada.
@@ -157,6 +157,8 @@ sazonalidade <- df_ols %>%
 
 
 sazonalidade
+
+ggsave(here("Figuras/4.2.3Teste_Sazonalidade.png"), sazonalidade)
 
 rm(sazonalidade)
 ```
@@ -207,7 +209,7 @@ Receitas_NA <- df_ols %>%
 
 Como é possível observar, temos 14 cidades com Missing Values para a receita. Estes municípios terão que ser removidos da seleção para fazer a análise.\
 
-## 4.3 Rodando a regressão com série temporal
+## 4.3 NORMALIZAR DIVIDINDO POR SD, Rodando a regressão com série temporal
 
 ### 4.3.1 Análise com todas as variáveis - Modelo Pooling
 
@@ -235,7 +237,6 @@ modelo1 <- plm(agenda_clima ~ lag(agenda_clima)+
                data = df_ols, model = "pooling", pooling = T)
 
 
-summary(modelo1)
 stargazer(modelo1, type = "text")
 ```
 
@@ -256,7 +257,7 @@ pvalores <- 1.96 * (1 - pnorm(abs(t_values)))
 
 # Definir nível de significância
 nivel_sig <- cut(pvalores, breaks = c(-Inf, 0.001, 0.01, 0.05, 0.1, Inf), 
-                 labels = c("***", "**", "*", ".", " "))
+                 labels = c("0,1%***", "1%**", "5%*", "10%.", " "))
 
 # Construir data.frame
 m1_plot <- data.frame(
@@ -275,18 +276,20 @@ m1_plot <- data.frame(
 M1plot <- ggplot(m1_plot, aes(x = Variavel, y = Estimativa, color = Significancia)) +
   geom_pointrange(aes(ymin = IC_inferior, ymax = IC_superior)) +
   geom_hline(yintercept = 0, color = "black") +
-  scale_color_manual(values = c("***"="#6E0000", "**"="#CB8400", "*"="#FFD028", "."="#F7FF00", " "="gray"),
+  scale_color_manual(values = c("0,1%***"="#6E0000", "1%**"="#CB8400", "5%*"="#FFD028", "10%."="#F7FF00", " "="gray"),
                      name = "Nível de\nSignificância") +
   coord_flip() +
   theme_bw() +
   theme(legend.position = "bottom")+
   labs(
-    title = "Modelo 1 - Coeficientes (95%)",
+    title = "Coeficientes Modelo 1 (Pooled)",
     x = "Variável",
     y = "Estimativa"
   )
 
 M1plot
+
+ggsave(here("Figuras/Modelo1.png"))
 
 rm(coefs, variaveis, estimativas, erros_padrao, t_values, pvalores, nivel_sig, M1plot, m1_plot)
 ```
@@ -298,6 +301,8 @@ rm(coefs, variaveis, estimativas, erros_padrao, t_values, pvalores, nivel_sig, M
 TestePesaran1 <- pcdtest(modelo1, test = "cd")
 print(TestePesaran1)
 
+saveRDS(TestePesaran1, here("Dados/PesaranM1.RDS"))
+
 rm(TestePesaran1)
 ```
 
@@ -308,6 +313,8 @@ rm(TestePesaran1)
 TesteDW1 <- pdwtest(modelo1)
 
 print(TesteDW1)
+
+saveRDS(TesteDW1, here("Dados/M1DurbinWatson.RDS"))
 
 rm(TesteDW1, modelo1)
 ```
@@ -345,7 +352,7 @@ pvalores <- 1.96 * (1 - pnorm(abs(t_values)))
 
 # Definir nível de significância
 nivel_sig <- cut(pvalores, breaks = c(-Inf, 0.001, 0.01, 0.05, 0.1, Inf), 
-                 labels = c("***", "**", "*", ".", " "))
+                 labels = c("0,1%***", "1%**", "5%*", "10%.", " "))
 
 # Construir data.frame
 m2_plot <- data.frame(
@@ -364,7 +371,7 @@ m2_plot <- data.frame(
 M2plot <- ggplot(m2_plot, aes(x = Variavel, y = Estimativa, color = Significancia)) +
   geom_pointrange(aes(ymin = IC_inferior, ymax = IC_superior)) +
   geom_hline(yintercept = 0, color = "black") +
-  scale_color_manual(values = c("***"="#6E0000", "**"="#CB8400", "*"="#FFD028", "."="#F7FF00", " "="gray"),
+  scale_color_manual(values = c("0,1%***"="#6E0000", "1%**"="#CB8400", "5%*"="#FFD028", "10%."="#F7FF00", " "="gray"),
                      name = "Nível de\nSignificância") +
   coord_flip() +
   theme_bw() +
@@ -590,7 +597,6 @@ mPL1 <- plm(N_PLsClima ~ lag(N_PLsClima) +
                  AB2_Desastres_Hidrológicos_Deslizamento_de_terra, 
                data = df_stm, model = "pooling", pooling = T)
 
-summary(mPL1)
 stargazer(mPL1, type = "text")
 ```
 
@@ -598,12 +604,12 @@ stargazer(mPL1, type = "text")
 
 ```{r}
 # Extrair coeficientes e erros padrão diretamente do objeto plm
-coefs <- modelo2$coefficients
+coefs <- mPL1$coefficients
 variaveis <- names(coefs)
 estimativas <- coefs
 
 # Extrair erros padrão da matriz de variâncias-covariâncias
-erros_padrao <- sqrt(diag(modelo2$vcov))
+erros_padrao <- sqrt(diag(mPL1$vcov))
 
 # Calcular p-valores (opcional, com base na distribuição normal)
 t_values <- estimativas / erros_padrao
@@ -611,7 +617,7 @@ pvalores <- 1.96 * (1 - pnorm(abs(t_values)))
 
 # Definir nível de significância
 nivel_sig <- cut(pvalores, breaks = c(-Inf, 0.001, 0.01, 0.05, 0.1, Inf), 
-                 labels = c("***", "**", "*", ".", " "))
+                 labels = c("0,1%***", "1%**", "5%*", "10%.", " "))
 
 # Construir data.frame
 m2_plot <- data.frame(
@@ -627,16 +633,16 @@ m2_plot <- data.frame(
 #m1_plot <- subset(m1_plot, Variavel != "(Intercept)")
 
 # Plot com ggplot2
-M2plot <- ggplot(m1_plot, aes(x = Variavel, y = Estimativa, color = Significancia)) +
+M2plot <- ggplot(m2_plot, aes(x = Variavel, y = Estimativa, color = Significancia)) +
   geom_pointrange(aes(ymin = IC_inferior, ymax = IC_superior)) +
   geom_hline(yintercept = 0, color = "black") +
-  scale_color_manual(values = c("***"="#6E0000", "**"="#CB8400", "*"="#FFD028", "."="#F7FF00", " "="gray"),
+  scale_color_manual(values = c("0,1%***"="#6E0000", "1%**"="#CB8400", "5%*"="#FFD028", "10%."="#F7FF00", " "="gray"),
                      name = "Nível de\nSignificância") +
   coord_flip() +
   theme_bw() +
   theme(legend.position = "bottom")+
   labs(
-    title = "Modelo 1 - Coeficientes (95%)",
+    title = "Coeficientes Modelo PL 1 (Pooled)",
     x = "Variável",
     y = "Estimativa"
   )
@@ -647,7 +653,7 @@ rm(coefs, variaveis, estimativas, erros_padrao, t_values, pvalores, nivel_sig)
 ```
 
 ```{r}
-TestePesaran2 <- pcdtest(modelo2, test = "cd")
+TestePesaran2 <- pcdtest(mPL1, test = "cd")
 print(TestePesaran2)
 
 rm(TestePesaran2)
@@ -655,7 +661,7 @@ rm(TestePesaran2)
 
 ```{r}
 #Teste de Durbin-Watson:
-TesteDW2 <- pdwtest(modelo2)
+TesteDW2 <- pdwtest(mPL1)
 
 print(TesteDW2)
 
@@ -668,7 +674,7 @@ rm(TesteDW2)
 
 #Primeito modelo: agenda mensurada como percentual com menção a termos climáticos
 
-mPL1 <- plm(N_PLsClima ~ lag(N_PLsClima) + 
+mPL2 <- plm(N_PLsClima ~ lag(N_PLsClima) + 
                  Desastre + lag(Desastre) + Obitos + lag(Obitos) + 
                  eleicao +  lag(eleicao) + 
                  Receitas_pCap + n_OSCs +
@@ -678,20 +684,20 @@ mPL1 <- plm(N_PLsClima ~ lag(N_PLsClima) +
                  AB2_Desastres_Hidrológicos_Deslizamento_de_terra, 
                data = df_stm, model = "within", pooling = T)
 
-summary(mPL1)
-stargazer(mPL1, type = "text")
+
+stargazer(mPL2, type = "text")
 ```
 
 ### Visualizando os resultados
 
 ```{r}
 # Extrair coeficientes e erros padrão diretamente do objeto plm
-coefs <- modelo2$coefficients
+coefs <- mPL2$coefficients
 variaveis <- names(coefs)
 estimativas <- coefs
 
 # Extrair erros padrão da matriz de variâncias-covariâncias
-erros_padrao <- sqrt(diag(modelo2$vcov))
+erros_padrao <- sqrt(diag(mPL2$vcov))
 
 # Calcular p-valores (opcional, com base na distribuição normal)
 t_values <- estimativas / erros_padrao
@@ -699,7 +705,7 @@ pvalores <- 1.96 * (1 - pnorm(abs(t_values)))
 
 # Definir nível de significância
 nivel_sig <- cut(pvalores, breaks = c(-Inf, 0.001, 0.01, 0.05, 0.1, Inf), 
-                 labels = c("***", "**", "*", ".", " "))
+                 labels = c("0,1%***", "1%**", "5%*", "10%.", " "))
 
 # Construir data.frame
 m2_plot <- data.frame(
@@ -715,10 +721,10 @@ m2_plot <- data.frame(
 #m1_plot <- subset(m1_plot, Variavel != "(Intercept)")
 
 # Plot com ggplot2
-M2plot <- ggplot(m1_plot, aes(x = Variavel, y = Estimativa, color = Significancia)) +
+M2plot <- ggplot(m2_plot, aes(x = Variavel, y = Estimativa, color = Significancia)) +
   geom_pointrange(aes(ymin = IC_inferior, ymax = IC_superior)) +
   geom_hline(yintercept = 0, color = "black") +
-  scale_color_manual(values = c("***"="#6E0000", "**"="#CB8400", "*"="#FFD028", "."="#F7FF00", " "="gray"),
+  scale_color_manual(values = c("0,1%***"="#6E0000", "1%**"="#CB8400", "5%*"="#FFD028", "10%."="#F7FF00", " "="gray"),
                      name = "Nível de\nSignificância") +
   coord_flip() +
   theme_bw() +
@@ -735,7 +741,7 @@ rm(coefs, variaveis, estimativas, erros_padrao, t_values, pvalores, nivel_sig)
 ```
 
 ```{r}
-TestePesaran2 <- pcdtest(modelo2, test = "cd")
+TestePesaran2 <- pcdtest(mPL2, test = "cd")
 print(TestePesaran2)
 
 rm(TestePesaran2)
@@ -743,7 +749,7 @@ rm(TestePesaran2)
 
 ```{r}
 #Teste de Durbin-Watson:
-TesteDW2 <- pdwtest(modelo2)
+TesteDW2 <- pdwtest(mPL2)
 
 print(TesteDW2)
 
