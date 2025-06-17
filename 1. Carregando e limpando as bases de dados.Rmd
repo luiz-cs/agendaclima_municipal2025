@@ -27,6 +27,8 @@ Antes de começar, estes são os pacotes que serão necessários para manipulaç
 #install.packages("purrr")
 #install.packages("readxl")
 #install.packages("ggplot2")
+#install.packages("extrafont")
+
 ```
 
 ```{r, 'packages', warning=FALSE}
@@ -36,6 +38,10 @@ library(dplyr)
 library(lubridate)
 library(data.table)
 library(tidyr)
+library(ggplot2)
+library(extrafont)
+
+loadfonts(device = "win")
 ```
 
 ## 1.2 Base de Dados sobre Desastres
@@ -69,6 +75,42 @@ Desastres <- Desastres  %>%
            Municipio_UF = paste(Municipio, UF, sep = "_")) %>%  #Cria um identificador único de nome do município e UF, para impedir a fusão de municípios homônimos
           mutate(Cod_IBGE_Mun = as.character(Cod_IBGE_Mun)) %>% 
   data.table()
+
+```
+
+```{r, 'grafico_desastres'}
+#Criando paleta de cores para os projetos mais comuns
+paleta_desastres <- data.table(Tipo = c("Estiagem e Seca", "Enxurradas", "Chuvas Intensas", "Inundações",  "Vendavais e Ciclones", "Movimento de Massa", "Alagamentos", "Granizo", "Incêndio Florestal", "Erosão", "Onda de Calor e Baixa Umidade", "Onda de Frio", "Tornado"),
+                    Cores = c("#E9D200", "#00E89F", "#009BE8", "#001BE8",  "#C500E8", "#D46600", "#00C213", "#2AEEF5", "#B00000", "#6D2AF5", "#C5F52A", "#4AABD1", "#71CEF3"))
+
+
+ndes_ano <- Desastres %>%
+  group_by(Desastre, Ano) %>% 
+  summarise(n = n()) %>% 
+  ggplot(aes(y = n, x = Ano, fill = Desastre)) +
+  geom_col() +
+  labs(
+    title = "Número de desastres no Brasil, por categoria e ano",
+    y = "Número de desastres",
+    x = "Ano",
+    fill = "Categorias de Desastres",
+    caption = "Fonte dos dados: Atlas Digital de Desastres no Brasil. Elaboração do Autor."
+  ) +
+  theme_linedraw() +
+  theme(legend.position = "bottom",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 14),
+        legend.text = element_text(size = 10))+
+  scale_fill_manual(values = paleta_desastres$Cores, limits = paleta_desastres$Tipo)
+
+ndes_ano
+ggsave(here("Figuras/1.2Desastres_Anos_Brasil.png"), ndes_ano, width = 10, height = 5)
+  
+rm(ndes_ano, paleta_desastres)
+```
+
+```{r, 'salvando_desastres'}
 
 saveRDS(Desastres, file = here("Dados/Desastres.RDS")) #Salva a base de dados tratada na pasta Dados
 
@@ -362,7 +404,7 @@ Uma vez que já limpamos a base de dados de projetos, podemos definir o recorte 
 Para utilizar um critério objetivo, será analisada a proporção de municípios presentes no SAPL que estão presentes em cada ano, o volume de produção legislativa em cada período, e a disponibilidade de dados.
 
 ```{r, 'Tabela_contagem_AL_tempo'}
-
+#CidadesAL <- readRDS(file = here("Dados/CidadesAL.RDS"))
 # Conferir que os tipos estão corretos.
 CidadesAL[, Ano := as.integer(Ano)]
 CidadesAL[, Municipio_UF := as.character(Municipio_UF)]
@@ -396,7 +438,6 @@ rm(all_anos, municipios_por_ano, result)
 ```
 
 ```{r, 'plotando_contagem_tempo', warning = FALSE}
-library(ggplot2)
 
 # Criar o gráfico
 sapl_mun_years <- df_contagem %>% 
@@ -417,15 +458,19 @@ sapl_mun_years <- df_contagem %>%
   scale_x_continuous(n.breaks = 10)+
   # Personalizar cores e temas
   theme_linedraw()+
-  labs(title = "Nº de municípios na base de dados por ano x Total de proposituras nos anos subsequentes")+
+  labs(title = "Número de municípios na base de dados por ano x Total de proposituras nos anos subsequentes", 
+       y = "Número de municípios", 
+       x = "Ano", 
+       caption = "Dados levantados através dos sites das Câmaras Municipais que utilizam o SAPL. Elaboração do autor.")+
   theme(title = element_text(size = 9),
-        axis.text.y.left = element_text(color = "#1B9E77", size = 10),   # Cor do texto do eixo Y à esquerda
-        axis.title.y.left = element_text(color = "#1B9E77"))   # Cor do título do eixo Y à esquerda
-
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 14),
+        legend.text = element_text(size = 10))   # Cor do título do eixo Y à esquerda
 
 sapl_mun_years
 
-ggsave(here("Figuras/1. SAPL recorte temporal.png"), sapl_mun_years)
+ggsave(here("Figuras/1.4SAPL_recorte_temporal.png"), sapl_mun_years, width = 10, height = 5)
 
 # Exibir o gráfico
 print(sapl_mun_years)
@@ -518,7 +563,7 @@ O "Sistema Adapta Brasil", produzido pelo Ministério de Ciência e Tecnologia, 
 
 Iremos importar essa base para todos os municípios, incluindo dados segmentados sobre Vulnerabilidades, Nível de Ameaça Climática, Sensibilidade e Nível de Adaptação.
 
-```{r}
+```{r, 'pacotes_api'}
 #Importando os pacotes necessários:
 library(httr)
 library(jsonlite)
@@ -528,7 +573,7 @@ library(purrr)
 
 Primeiro, certifique-se de baixar e deixar o arquivo "adaptaBrasilAPIEstrutura.csv" dentro da pasta "Dados". Ela pode ser produzida ou baixada no Github oficial do projeto AdaptaBrasil: <https://github.com/AdaptaBrasil/AdaptaBrasilAPIAccess?tab=readme-ov-file>
 
-```{r}
+```{r, 'base_adapta_brasil'}
 #Subindo e limpando a base de links (disponível em: https://github.com/AdaptaBrasil/AdaptaBrasilAPIAccess?tab=readme-ov-file )
 AdaptaBrasil <- read.csv(here("Dados/adaptaBrasilAPIEstrutura.csv"), sep = "|") %>%
   filter(nivel %in% c(2:4),
@@ -537,7 +582,7 @@ AdaptaBrasil <- read.csv(here("Dados/adaptaBrasilAPIEstrutura.csv"), sep = "|") 
 
 ```
 
-```{r}
+```{r, 'baixando_dados_AB'}
 # Lista para armazenar os data.frames resultantes
 AdaptaBrasilInd <- list()
 
@@ -582,7 +627,7 @@ for (i in seq_len(nrow(AdaptaBrasil))) {
 rm(conteudo_json, dados, gerar_nome_df, i, nivel, nome, nome_df, resposta, setor, url)
 ```
 
-```{r}
+```{r, 'limpando_dados_AB'}
 library(tidyr)
 # Adiciona uma coluna "indicador_origem" com o nome da lista para identificar a origem de cada dataframe
 AdaptaBrasil <- imap(AdaptaBrasilInd, ~ mutate(.x, indicador_origem = .y))
@@ -603,6 +648,55 @@ AdaptaBrasil <- bind_rows(AdaptaBrasil) %>%
     Municipio_UF = stri_trans_general(Municipio_UF, "Latin-ASCII")) %>% 
   data.table()
 
+
+```
+
+Agora, faremos mapas dos indicadores de Risco Climático
+
+```{r, 'mapas_risco_climatico', warning=FALSE}
+#Pacotes para mapas
+library(sf)
+library(geobr)
+#Listando os municípios presentes na seleção:
+
+# Lê todos os municípios de 2024 apenas uma vez
+mapa_brasil <- read_municipality(year = 2024)
+
+#Cria uma base reduzida para análise com mapa:
+mapaAB <- AdaptaBrasil %>% 
+  select(Cod_IBGE_Mun, starts_with("AB2_")) %>% 
+  pivot_longer(cols = starts_with("AB2_"), names_prefix = "AB2_", names_to = "Categoria", values_to = "Índice de Risco") %>% 
+mutate(
+  Categoria = sub("^([^_]+)_([^_]+)_", "\\1_\\2: ", Categoria),
+  Categoria = gsub("_", " ", Categoria)) %>% 
+  rename("code_muni" = Cod_IBGE_Mun)
+
+mapaAB <- merge(mapa_brasil, mapaAB, by = "code_muni", all.x = TRUE) %>% 
+  rename("geom" = geometry) %>% 
+  mutate(Categoria = gsub("Desastres Hidrológicos: ", "", Categoria))
+
+mapa_ab <- mapaAB %>% 
+  filter(!is.na(`Índice de Risco`)) %>% 
+  ggplot(aes(fill= `Índice de Risco`)) +
+  geom_sf(color = NA)+
+  labs(title="Índice de Risco Climático - Adapta Brasil",
+       caption='Fonte: MCTI/Adapta Brasil. Elaboração própria', size=8)+
+  scale_fill_gradient2(low = "darkgreen", mid = "yellow", high = "darkred", midpoint = 0.5, name = "Índice de Risco")+
+  theme_linedraw()+
+  theme(
+    legend.position = c(0.8, 0.05),        
+    legend.justification = c(0, 0),        
+    text = element_text(family = "Times New Roman"))+
+  facet_wrap(~Categoria)
+
+mapa_ab
+
+ggsave(here("Figuras/1.7.1 Mapa_AdaptaBrasil.png"), mapa_ab)
+
+rm(mapa_brasil, mapaAB, mapa_ab)
+```
+
+```{r}
 saveRDS(AdaptaBrasil, here("Dados/AdaptaBrasil.RDS"))
 
 rm(AdaptaBrasilInd, AdaptaBrasil)

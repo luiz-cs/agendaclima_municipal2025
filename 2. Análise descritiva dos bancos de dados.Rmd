@@ -24,6 +24,9 @@ library(dplyr)
 library(data.table)
 library(ggplot2)
 library(formattable)
+library(extrafont)
+
+loadfonts(device = "win")
 ```
 
 ```{r, 'upando_df'}
@@ -64,12 +67,16 @@ mapa_sapl <- ggplot() +
   geom_sf(data=mapa_brasil, alpha = 0.5, fill= "#666666", color = NA, size= .15)+
   geom_sf(data=mapa_munic, fill= "#D95F02", size=.15)+
   labs(title="Mapa dos Municípios selecionados para análise",
-       caption='Fonte: Elaboração própria', size=8)+
-  theme_linedraw()
+       caption='Fonte: Elaboração do autor', size=8)+
+  theme_linedraw()+
+  theme(text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 14),
+        legend.text = element_text(size = 10))
 
 mapa_sapl
 
-ggsave(here("Figuras/2.1.1 MapaMunicipios.png"), mapa_sapl)
+ggsave(here("Figuras/2.1.1 MapaMunicipios.png"), mapa_sapl, width = 5, height = 5)
 
 rm(mapa_brasil, mapa_munic, mapa_sapl)
 ```
@@ -105,7 +112,6 @@ uf <- merge(uf, AB_UF, by = "UF", all = T) %>%
 regioes <- data.table(
   UF = c("AC", "AL", "AM", "AP", "BA", "CE", "DF", "ES", "GO", "MA", "MG", "MS", "MT", "PA", "PB", "PE", "PI", "PR", "RJ", "RN", "RO", "RR", "RS", "SC", "SE", "SP", "TO"), 
   Regiao = c("Norte", "Nordeste", "Norte", "Norte", "Nordeste", "Nordeste", "Centro-Oeste", "Sudeste", "Centro-Oeste", "Nordeste", "Sudeste", "Centro-Oeste", "Centro-Oeste", "Norte", "Nordeste", "Nordeste", "Nordeste", "Sul", "Sudeste", "Nordeste", "Norte", "Norte", "Sul", "Sul", "Nordeste", "Sudeste", "Norte")
-)
 
 cores <- data.table(Regiao = c("Norte", "Nordeste", "Centro-Oeste", "Sudeste", "Sul"),
                     Cores = c("#45D14A", "#D17C46", "#D1D145", "#D14568", "#45C3D1"))
@@ -130,21 +136,26 @@ library(scales)
 uf_num <- uf %>%
   ggplot(aes(x = reorder(UF, n_selecionados), y = n_selecionados, fill = Regiao)) +
   geom_col() +
-  scale_fill_manual(values = paleta_regiao$Cores, limits = paleta_regiao$UF) +
+  scale_fill_manual(values = paleta_regiao$Cores, limits = paleta_regiao$Regiao) +
   geom_text(aes(label = n_selecionados), vjust = -0.1,
               position = position_dodge(width = 0.5)) +
   labs(
     title = "Número de municípios presentes na seleção, por UF",
     x = "Unidades Federativas",
     y = "Número de Municípios",
-    fill = "Regiões"
+    fill = "Regiões",
+    caption='Fonte: Elaboração do autor', size=8
   ) +
   theme_classic() +
-  theme(legend.position = "bottom")
+  theme(legend.position = "bottom",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 14),
+        legend.text = element_text(size = 10))
 
 uf_num
 
-ggsave(here("Figuras/2.1.2N_Municipios_UF.png"), uf_num)
+ggsave(here("Figuras/2.1.2N_Municipios_UF.png"), uf_num, width = 10, height = 5)
 
 rm(uf_num)
 ```
@@ -155,20 +166,25 @@ rm(uf_num)
 uf_percent <- uf %>%
   ggplot(aes(x = reorder(UF, Percentual_UF), y = Percentual_UF, fill = Regiao)) +
   geom_col() +
-  scale_fill_manual(values = paleta_regiao$Cores, limits = paleta_regiao$UF) +
+  scale_fill_manual(values = paleta_regiao$Cores, limits = paleta_regiao$Regiao) +
   scale_y_continuous(labels = label_percent(accuracy = 1)) +
   labs(
     title = "Percentual de municípios presentes na seleção, por UF",
     x = "Unidades Federativas",
     y = "Percentual de Municípios",
-    fill = "Regiões"
+    fill = "Regiões", 
+       caption='Fonte: Elaboração do autor', size= 8 
   ) +
   theme_classic() +
-  theme(legend.position = "bottom")
+  theme(legend.position = "bottom",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 14),
+        legend.text = element_text(size = 10))
 
 uf_percent
 
-ggsave(here("Figuras/2.1.2P_Municipios_UF.png"), uf_percent)
+ggsave(here("Figuras/2.1.2P_Municipios_UF.png"), uf_percent, width = 10, height = 5)
 
 rm(uf_percent)
 ```
@@ -192,14 +208,19 @@ regiao_num <- regiao %>%
     title = "Número de municípios presentes na seleção, por Região",
     x = "Unidades Federativas",
     y = "Número de Municípios",
-    fill = "Regiões"
+    fill = "Regiões", 
+       caption='Fonte: Elaboração do autor', size= 8 
   ) +
   theme_classic() +
-  theme(legend.position = "bottom")
+  theme(legend.position = "bottom",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 14),
+        legend.text = element_text(size = 10))
 
 regiao_num
 
-ggsave(here("Figuras/2.1.2N_Municipios_Regiao.png"), regiao_num)
+ggsave(here("Figuras/2.1.2N_Municipios_Regiao.png"), regiao_num, width = 10, height = 5)
 
 rm(regiao_num)
 ```
@@ -216,14 +237,19 @@ regiao_percent <- regiao %>%
     title = "Percentual de municípios presentes na seleção, por UF",
     x = "Unidades Federativas",
     y = "Percentual de Municípios",
-    fill = "Regiões"
+    fill = "Regiões", 
+       caption='Fonte: Elaboração do autor', size= 8 
   ) +
-  theme_linedraw() +
-  theme(legend.position = "bottom")
+  theme_classic() +
+  theme(legend.position = "bottom",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 14),
+        legend.text = element_text(size = 10))
 
 regiao_percent
 
-ggsave(here("Figuras/2.1.2P_Municipios_Regiao.png"), regiao_percent)
+ggsave(here("Figuras/2.1.2P_Municipios_Regiao.png"), regiao_percent, width = 10, height = 5)
 
 rm(regiao_percent, uf, regiao)
 ```
@@ -250,16 +276,22 @@ pop_gg <- Populacao %>%
     title = "Distribuição da população dos municípios, em 2024",
     y = "Frequência",
     x = "População (escala log)",
-    fill = "Origem"
+    fill = "Origem", 
+       caption='Fonte: Elaboração do autor', size= 8 
   ) +
   scale_y_continuous(labels = scales::label_percent()) +
   scale_x_log10(labels = scales::label_number_si()) +
   theme_bw() +
-  theme(legend.position = "bottom")
+  theme_classic() +
+  theme(legend.position = "bottom",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 14),
+        legend.text = element_text(size = 10))
 
 pop_gg
 
-ggsave(here("Figuras/2.1.3.Distribuição da População.png"), pop_gg)
+ggsave(here("Figuras/2.1.3.Distribuição_da_População.png"), pop_gg, width = 8, height = 5)
   
 rm(pop_gg, Populacao)
 ```
@@ -294,13 +326,18 @@ tiproj_n <- tiproj %>%
     title = "Número de proposituras climáticas, por tipo",
     x = "Número de proposituras apresentadas",
     y = "Tipos de proposituras",
-    fill = "Tipos de proposituras"
+    fill = "Tipos de proposituras", 
+       caption='Fonte: Elaboração do autor', size= 8 
   ) +
   theme_classic() +
-  theme(legend.position = "none")+
-  scale_fill_manual(values = paleta_proposituras$Cores, limits = paleta_proposituras$Tipo)
+  scale_fill_manual(values = paleta_proposituras$Cores, limits = paleta_proposituras$Tipo)+
+  theme(legend.position = "none",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 14),
+        legend.text = element_text(size = 10))
 
-ggsave(here("Figuras/2.2.1N_Proposituras_Tipo.png"), tiproj_n)
+ggsave(here("Figuras/2.2.1N_Proposituras_Tipo.png"), tiproj_n, height = 10, width = 10)
   
 rm(tiproj_n)
 ```
@@ -316,11 +353,17 @@ tiproj_ano <- tiproj %>%
   theme_classic()+
   labs(title = "Número de proposituras climáticas, por ano", 
        x = "Anos",
-       y = "Número de proposituras")+
-  theme(legend.position = "bottom")+
-  scale_fill_manual(values = paleta_proposituras$Cores, limits = paleta_proposituras$Tipo)
+       y = "Número de proposituras", 
+       caption='Fonte: Elaboração do autor', size= 8 )+
+  scale_fill_manual(values = paleta_proposituras$Cores, limits = paleta_proposituras$Tipo)+
+    theme(legend.position = "bottom",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 14),
+        legend.text = element_text(size = 10))+
+  scale_x_continuous(n.breaks = 10)
 
-ggsave(here("Figuras/2.2.2N_Proposituras_Ano.png"), tiproj_ano)
+ggsave(here("Figuras/2.2.2N_Proposituras_Ano.png"), tiproj_ano, width =10, height = 5)
   
 rm(tiproj_ano)
 
@@ -343,12 +386,18 @@ tiproj_pano <- tiproj %>%
   geom_bar(stat = "identity")+ 
   theme_classic()+
   labs(title = "Distribuição dos tipos de proposituras climáticas, por ano", 
-       y = 'Percentual de proposituras')+
+       y = 'Percentual de proposituras', 
+       caption='Fonte: Elaboração do autor', size= 8)+
   scale_y_continuous(labels = label_percent(accuracy = 1)) +
-  theme(legend.position = "bottom")+
-  scale_fill_manual(values = paleta_proposituras$Cores, limits = paleta_proposituras$Tipo)
+  scale_fill_manual(values = paleta_proposituras$Cores, limits = paleta_proposituras$Tipo)+
+    theme(legend.position = "bottom",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 14),
+        legend.text = element_text(size = 10))+
+  scale_x_continuous(n.breaks = 10)
 
-ggsave(here("Figuras/2.2.3P_Tipos_Proposituras.png"), tiproj_pano)
+ggsave(here("Figuras/2.2.3P_Tipos_Proposituras.png"), tiproj_pano, width = 10, height = 5)
 
 rm(tiproj_pano)
 ```
@@ -368,22 +417,36 @@ tiproj <- df %>%
             p_proj_clima_ano = n_proj_clima/total_tipo_proj_ano) %>% 
   data.table()
 
-ptipano <- tiproj %>% 
-  ggplot(aes( x = Ano, y = p_proj_clima_ano, fill = Tipo)) + 
-  geom_bar(position = "dodge2", stat = "identity")+
-  theme_classic()+
-  labs(title = "Proporção dos tipos de proposituras climáticas em relação ao total de projetos deste tipo, por ano", 
-       y = 'Percentual de proposituras', 
-       x = "Ano")+
-  scale_y_continuous(labels = label_percent(accuracy = 1))+ 
-  scale_x_continuous(labels = label_number(accuracy = 1))+
-  theme(legend.position = "bottom")+
-  scale_fill_manual(values = paleta_proposituras$Cores, limits = paleta_proposituras$Tipo)+
-  facet_wrap(vars(Tipo))
 
-ggsave(here("Figuras/2.2.4P_Tipos_Prop_Ano.png"), ptipano)
+#Gráfico
+ptipano <- tiproj %>%
+  ggplot(aes(x = Ano, y = p_proj_clima_ano, fill = Tipo)) + 
+  geom_bar(position = "dodge2", stat = "identity") +
+  theme_classic() +
+  labs(
+    title = "Proporção dos tipos de proposituras climáticas em relação ao total de projetos deste tipo, por ano", 
+    y = "Percentual de proposituras", 
+    x = "Ano", 
+       caption='Fonte: Elaboração do autor', size= 8
+  ) +
+  scale_y_continuous(labels = scales::label_percent(accuracy = 1)) +
+  scale_x_continuous(labels = scales::label_number(accuracy = 1), n.breaks = 6) +
+  scale_fill_manual(
+    values = paleta_proposituras$Cores,
+    limits = paleta_proposituras$Tipo) +
+  facet_wrap(~Tipo) +
+  theme(
+    legend.position = "bottom",
+    text = element_text(family = "Times New Roman"),
+    axis.title = element_text(size = 14),
+    axis.text = element_text(size = 10),
+    legend.text = element_text(size = 10)
+  )
 
-rm(ptipano, tiproj)
+ptipano
+ggsave(here("Figuras/2.2.4P_Tipos_Prop_Ano.png"), ptipano, width = 10, height = 8)
+
+rm(ptipano, tiproj, strip_colors)
 ```
 
 ### 2.2.5. Presença de termos climáticos
@@ -431,8 +494,6 @@ paleta_climatermos <- climatermos %>%
     Categoria == "Incêndios" ~ "#FF2424",
     Categoria == "Defesa Civil" ~ "#45FF24"))
   
-
-rm(df)
 ```
 
 ### 2.2.6 Contagem termos climáticos
@@ -444,24 +505,31 @@ n_ct <- climatermos %>%
   group_by(clima_termos, Categoria) %>% 
   summarise(n = sum(n)) %>% 
   ggplot(aes(y = reorder(clima_termos, n), x = n, fill = Categoria)) +
-  geom_col() +
+  geom_col(color = "black") +
   labs(
     title = "Número de menções a termos climáticos nas proposituras",
     x = "Número de menções",
     y = "Termos climáticos",
-    fill = "Categorias"
+    fill = "Categorias", 
+       caption='Fonte: Elaboração do autor', size=
   ) +
-  scale_x_continuous(breaks = 11)+
   theme_classic() +
-  theme(legend.position = "bottom")+
-  scale_fill_manual(values = paleta_climatermos$Cores, limits = paleta_climatermos$Categoria)
+  scale_fill_manual(values = paleta_climatermos$Cores, limits = paleta_climatermos$Categoria)+
+    theme(
+    legend.position = "bottom",
+    text = element_text(family = "Times New Roman"),
+    axis.title = element_text(size = 14),
+    axis.text = element_text(size = 10),
+    legend.text = element_text(size = 10))
 
-ggsave(here("Figuras/2.2.5N_climatermos.png"), n_ct)
+n_ct
+
+ggsave(here("Figuras/2.2.5N_climatermos.png"), n_ct, width = 8, height = 8)
   
 rm(n_ct)
 ```
 
-### 2.2.7 Contagem termos climáticos, por ano
+### 2.2.6 Contagem termos climáticos, por ano
 
 ```{r, contagem_termos_ano}
 
@@ -472,20 +540,30 @@ ct_nano <- climatermos %>%
     title = "Número de menções a termos climáticos nas proposituras, por ano",
     x = "Ano",
     y = "Número de menções",
-    fill = "Categorias de Termos"
+    fill = "Categorias de Termos", 
+       caption='Fonte: Elaboração do autor', size=
   ) +
   theme_classic() +
-  theme(legend.position = "bottom")+
-  scale_fill_manual(values = paleta_climatermos$Cores, limits = paleta_climatermos$Categoria)
+  scale_fill_manual(values = paleta_climatermos$Cores, limits = paleta_climatermos$Categoria)+
+      theme(
+    legend.position = "bottom",
+    text = element_text(family = "Times New Roman"),
+    axis.title = element_text(size = 14),
+    axis.text = element_text(size = 10),
+    legend.text = element_text(size = 10))+
+  scale_x_continuous(n.breaks = 10)
 
-ggsave(here("Figuras/2.2.6N_climatermos_ano.png"), ct_nano)
+ct_nano 
+
+ggsave(here("Figuras/2.2.6N_climatermos_ano.png"), width = 10, height = 5, ct_nano)
   
 rm(ct_nano)
 ```
 
-### 2.2.8 Percentual de proposituras climáticas, por ano e tipo
+### 2.2.7 Percentual de proposituras climáticas, por ano e tipo
 
 ```{r, 'percentual_tipo_Clima'}
+library(scales)
 #Percentual de proposituras climáticas, por tipo
 
 ct_pano <- climatermos %>% 
@@ -497,19 +575,27 @@ ct_pano <- climatermos %>%
   geom_bar(stat = "identity")+ 
   theme_classic()+
   labs(title = "Distribuição das ocorrências dos termos climáticos, por ano", 
-       y = 'Percentual dos termos')+
+       y = 'Percentual dos termos', 
+       caption='Fonte: Elaboração do autor', size= 8)+
   scale_y_continuous(labels = label_percent(accuracy = 1)) +
-  scale_x_continuous(labels = label_number(accuracy = 1))+
-  theme(legend.position = "bottom")+
-  scale_fill_manual(values = paleta_climatermos$Cores, limits = paleta_climatermos$Categoria)
+  scale_x_continuous(labels = label_number(accuracy = 1), n.breaks = 10)+
+  scale_fill_manual(values = paleta_climatermos$Cores, limits = paleta_climatermos$Categoria)+
+      theme(
+    legend.position = "bottom",
+    text = element_text(family = "Times New Roman"),
+    axis.title = element_text(size = 14),
+    axis.text = element_text(size = 10),
+    legend.text = element_text(size = 10))
+
+ct_pano
 
 
-ggsave(here("Figuras/2.2.7P_Categorias_Termos_ano.png"), ct_pano)
+ggsave(here("Figuras/2.2.7P_Categorias_Termos_ano.png"), ct_pano,  width = 10, height = 5)
 
 rm(ct_pano)
 ```
 
-### 2.2.9 Tipos de propositura x Termos climáticos
+### 2.2.8 Tipos de propositura x Termos climáticos
 
 Agora, vamos cruzar as duas informações para compreender como elas se relacionam.
 
@@ -527,17 +613,24 @@ tiproj_termosclima <- climatermos %>%
   theme_classic()+
   labs(title = "Distribuição dos termos climáticas, por tipo de propositura", 
        x = 'Percentual', 
-       y = "Tipos de proposituras")+
+       y = "Tipos de proposituras", 
+       caption='Fonte: Elaboração do autor', size= 8)+
   scale_x_continuous(labels = label_percent(accuracy = 1)) +
-  theme(legend.position = "bottom")+
-  scale_fill_manual(values = paleta_climatermos$Cores, limits = paleta_climatermos$Categoria)
+  scale_fill_manual(values = paleta_climatermos$Cores, limits = paleta_climatermos$Categoria)+
+    theme(legend.position = "bottom",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 16),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 12))
 
-ggsave(here("Figuras/2.2.6P_Tipos_Proposituras_Termos_Climáticos.png"), tiproj_termosclima)
+tiproj_termosclima
 
-rm(tiproj_termosclima, climatermos)
+ggsave(here("Figuras/2.2.8P_Tipos_Proposituras_Termos_Climáticos.png"), tiproj_termosclima, height = 10, width = 10)
+
+#rm(tiproj_termosclima, climatermos)
 ```
 
-### 2.2.10 - Sazonalidade
+### 2.2.9 - Sazonalidade
 
 ```{r}
 sazonalidade <- df %>% 
@@ -548,13 +641,20 @@ sazonalidade <- df %>%
   theme_bw()+
   labs(title = "Produção legislativa relacionada ao clima, por mês",
        x= "Mês", 
-       y = "Produção legislativa")+
-  scale_x_continuous(n.breaks = 12)
+       y = "Produção legislativa",
+       caption='Fonte: Elaboração do autor', size= 8)+
+  scale_x_continuous(n.breaks = 10)+
+    theme(legend.position = "bottom",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 14),
+        legend.text = element_text(size = 10))
+
 
 
 sazonalidade
 
-ggsave(here("Figuras/2.2.910Sazonalidade_Proposituras.png"), sazonalidade)
+ggsave(here("Figuras/2.2.9.1Sazonalidade_Proposituras.png"), sazonalidade, width = 10, height = 5)
 
 rm(sazonalidade)
 ```
@@ -572,18 +672,24 @@ psazonalidade <- df %>%
   theme_bw()+
   labs(title = "Percentual médio de produção legislativa relacionada ao clima, por mês",
        x= "Mês", 
-       y = "Percentual da Produção legislativa")+
-  scale_x_continuous(n.breaks = 12)
+       y = "Percentual da Produção legislativa",
+              caption='Fonte: Elaboração do autor', size= 8)+
+  scale_x_continuous(n.breaks = 10)+
+    theme(legend.position = "bottom",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 14),
+        legend.text = element_text(size = 10))
 
 
 psazonalidade
 
-ggsave(here("Figuras/2.2.911Sazonalidade_Proposituras.png"), psazonalidade)
+ggsave(here("Figuras/2.2.9.2Sazonalidade_Proposituras.png"), psazonalidade, width = 10, height = 5)
 
 rm(psazonalidade)
 ```
 
-## 2.3 Variáveis explicativas:
+## PAREI REVISÃO AQUI 2.3 Variáveis explicativas:
 
 ## 2.3.1 Desastres
 
