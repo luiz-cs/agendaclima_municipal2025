@@ -15,6 +15,8 @@ Agora que já criamos a base de dados, podemos fazer uma primeira análise descr
 #install.packages("geobr")
 #install.packages("scales")
 #install.packages("formattable")
+#install.packages("clipr")
+
 ```
 
 ```{r, 'carregando_pacotes', warning=FALSE}
@@ -25,7 +27,7 @@ library(data.table)
 library(ggplot2)
 library(formattable)
 library(extrafont)
-
+library(clipr)
 loadfonts(device = "win")
 ```
 
@@ -633,7 +635,6 @@ rm(ct_nano)
 ### 2.2.7 Percentual de proposituras climáticas, por ano e tipo
 
 ```{r, 'percentual_tipo_Clima'}
-library(scales)
 #Percentual de proposituras climáticas, por tipo
 
 ct_pano <- climatermos %>% 
@@ -928,12 +929,12 @@ psazonalidade
 
 ggsave(here("Figuras/2.3.3Sazonalidade_Proposituras.png"), psazonalidade, width = 10, height = 5)
 
-rm(psazonalidade)
+rm(psazonalidade, sazonalidade)
 ```
 
-## PAREI REVISÃO AQUI 2.3 Variáveis explicativas:
+## 2.4Variáveis explicativas:
 
-## 2.3.1 Desastres
+## 2.4.1 Desastres
 
 ### Linha do tempo desastres na base analisada (números absolutos)
 
@@ -957,7 +958,7 @@ paleta_desastres <- data.table(Tipo = c("Estiagem e Seca", "Enxurradas", "Chuvas
 
 ```
 
-```{r, anos_desastres}
+```{r, anos_desastres, warning = FALSE}
 
 ndes_ano <- dfdesastres %>%
   ggplot(aes(y = n, x = Ano, fill = Desastre)) +
@@ -966,23 +967,27 @@ ndes_ano <- dfdesastres %>%
     title = "Número de desastres na seleção, por categoria de desastres e anos",
     y = "Número de desastres",
     x = "Ano",
-    fill = "Categorias de Desastres"
-  ) +
+    fill = "Categorias de Desastres",
+    caption = "Elaborado pelo autor") +
   theme_linedraw() +
-  theme(legend.position = "bottom")+
-  scale_fill_manual(values = paleta_desastres$Cores, limits = paleta_desastres$Tipo)
+  scale_fill_manual(values = paleta_desastres$Cores, limits = paleta_desastres$Tipo)+
+    theme(legend.position = "bottom",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10))
 
 ndes_ano
-ggsave(here("Figuras/2.3.1.1N_Desastres_Anos.png"), ndes_ano)
+
+ggsave(here("Figuras/2.4.1.1N_Desastres_Anos.png"), ndes_ano, width = 10, height = 5)
   
 rm(ndes_ano)
 ```
 
 Letalidade
 
-```{r, 'letalidade_desastres'}
+```{r, 'letalidade_desastres', warning = FALSE}
 
-  
 nlet_ano <- dfdesastres %>%
   ggplot(aes(y = DH_MORTOS, x = Ano, fill = Desastre)) +
   geom_col() +
@@ -990,16 +995,54 @@ nlet_ano <- dfdesastres %>%
     title = "Número de óbitos registrados nos municípios selecionados, por categoria de desastres e anos",
     y = "Número de óbitos",
     x = "Ano",
-    fill = "Categorias de Desastres"
-  ) +
+    fill = "Categorias de Desastres",
+    caption = "Elaborado pelo autor") +
   theme_linedraw() +
-  theme(legend.position = "bottom")+
-  scale_fill_manual(values = paleta_desastres$Cores, limits = paleta_desastres$Tipo)
+  scale_fill_manual(values = paleta_desastres$Cores, limits = paleta_desastres$Tipo)+
+    theme(legend.position = "bottom",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10))
+
 nlet_ano
 
-ggsave(here("Figuras/2.3.1.2N_Des_Letalidade_Anos.png"), nlet_ano)
+ggsave(here("Figuras/2.4.1.2N_Des_Letalidade_Anos.png"), nlet_ano, width = 10, height = 5)
   
-rm(nlet_ano )
+rm(nlet_ano, obitos )
+```
+
+```{r, warning = FALSE}
+
+obitos <- Desastres %>% 
+  filter(Cod_IBGE_Mun %in% lista_municipios$Cod_IBGE_Mun, 
+         DH_MORTOS > 0, 
+         Ano >= 2013) %>% 
+    ggplot(aes(y = DH_MORTOS, fill = Desastre)) +
+  geom_boxplot() +
+  labs(
+    title = "Boxplot de óbitos por desastres registrados nos municípios selecionados (2013-2024)",
+    y = "Número de Mortos",
+    x = "Tipos de Desastres",
+    fill = "Categorias de Desastres",
+    caption = "Elaborado pelo autor") +
+  theme_classic() +
+  scale_fill_manual(values = paleta_desastres$Cores, limits = paleta_desastres$Tipo)+
+    theme(legend.position = "none",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank(),
+        axis.text.y = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        strip.text = element_text(size = 12))+
+  facet_grid(cols = vars(Desastre))
+  
+obitos
+
+ggsave(here("Figuras/2.4.1.3Boxplot_Des_Letalidade.png"), obitos, width = 10, height = 4)
+  
+rm(obitos)
 ```
 
 ### Comparação do percentual de desastres na base e no Brasil (percentuais)
@@ -1021,11 +1064,11 @@ totalDes <- Desastres %>%
 
 #Novo Desastres  
 dfdesastres <- dfdesastres %>% 
-  rename("n_selecao" = n, 
-         "obitos_selecao" = DH_MORTOS) %>% 
+  rename("n_Selecionados" = n, 
+         "obitos_Selecionados" = DH_MORTOS) %>% 
   group_by(Ano) %>% 
-  mutate(p_selecao = n_selecao/sum(n_selecao), 
-         pc_obitos_selecao = obitos_selecao/sum(obitos_selecao)) %>% 
+  mutate(p_Selecionados = n_Selecionados/sum(n_Selecionados), 
+         pc_obitos_Selecionados = obitos_Selecionados/sum(obitos_Selecionados)) %>% 
     merge(totalDes, by = c("Desastre", "Ano"), all= T) %>% 
   replace(is.na(.), 0)
 
@@ -1033,7 +1076,7 @@ dfdesastres <- dfdesastres %>%
 
 ```
 
-```{r, 'graf_comparacao_brasil'}
+```{r, 'graf_comparacao_brasil', warning = FALSE}
 #Gráfico com comparação entre percentual por ano nos municípios selecionados e no brasil
 p_des_ano_cat <- dfdesastres %>% 
   filter(!(Desastre %in% c('Onda de Calor e Baixa Umidade', 'Onda de Frio', 'Tornado'))) %>% 
@@ -1045,22 +1088,27 @@ p_des_ano_cat <- dfdesastres %>%
        y = 'Percentual de ocorrências', 
        x = "Anos")+
   scale_y_continuous(labels = label_percent(accuracy = 1)) +
-  theme(legend.position = "bottom")+
-  scale_fill_manual(values = paleta_desastres$Cores, limits = paleta_desastres$Tipo) + 
+  scale_fill_manual(values = paleta_desastres$Cores, limits = paleta_desastres$Tipo) +
+    theme(legend.position = "none",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
+    strip.text = element_text(size = 6))+
   facet_grid(Desastre ~ origem)
 
 p_des_ano_cat
 
-ggsave(here("Figuras/2.3.1.3P_Categoria_Desastres_Ano.png"), p_des_ano_cat, width = 6, height = 9)
+ggsave(here("Figuras/2.4.1.4P_Categoria_Desastres_Ano.png"), p_des_ano_cat, width = 8, height = 10)
 
-rm(Desastres, totalDes, p_des_ano_cat)
+rm(totalDes, p_des_ano_cat)
 ```
 
 Letalidade
 
 ```{r, 'comparacao_letalidade'}
 p_des_ano_obitos <- dfdesastres %>% 
-  filter(obitos_selecao != 0, 
+  filter(obitos_Selecionados != 0, 
          obitos_Brasil != 0,
          !(Desastre %in% c('Onda de Calor e Baixa Umidade', 'Onda de Frio', 'Tornado'))) %>% 
   pivot_longer(cols = starts_with("pc_obitos_"), names_prefix = "pc_obitos_", names_to = "origem", values_to = "Percentual") %>% 
@@ -1074,16 +1122,68 @@ p_des_ano_obitos <- dfdesastres %>%
   scale_x_continuous(labels = label_number(accuracy = 1))+
   theme(legend.position = "bottom")+
   scale_fill_manual(values = paleta_desastres$Cores, limits = paleta_desastres$Tipo) + 
+    theme(legend.position = "none",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
+    strip.text = element_text(size = 6))+
   facet_grid(Desastre ~ origem)
 
 p_des_ano_obitos
 
-ggsave(here("Figuras/2.3.1.4P_Categoria_Desastres_Obitos.png"), p_des_ano_obitos, width = 6, height = 9)
+ggsave(here("Figuras/2.4.1.5P_Categoria_Desastres_Obitos.png"), p_des_ano_obitos, width = 8, height = 10)
 
 rm(p_des_ano_obitos, dfdesastres)
 ```
 
-## 2.3.2 Riscos Climáticos
+```{r, warning=FALSE}
+#Sazonalidade dos Desastres
+mes_todos_des <- Desastres %>%
+  mutate(Mes = month(as.Date(Data_Evento))) %>% 
+  group_by(Desastre, Mes) %>% 
+  summarise(n_Brasil = n()) %>% 
+  group_by(Mes) %>% 
+  mutate(p_Brasil = n_Brasil/sum(n_Brasil))
+
+#Novo Desastres  
+sazon_desastres <- Desastres %>%
+  filter(Cod_IBGE_Mun %in% lista_municipios$Cod_IBGE_Mun) %>%  
+  mutate(Mes = month(as.Date(Data_Evento))) %>%
+  group_by(Desastre, Mes) %>% 
+  summarise(n_Selecionados = n()) %>% 
+  group_by(Mes) %>% 
+  mutate(p_Selecionados = n_Selecionados/sum(n_Selecionados)) %>% 
+    merge(mes_todos_des, by = c("Desastre", "Mes"), all= T) %>% 
+  replace(is.na(.), 0) %>% 
+    pivot_longer(cols = starts_with("n_"), names_prefix = "n_", names_to = "origem", values_to = "n") %>% 
+  ggplot(aes(x = Mes, y = n, fill = Desastre))+
+  geom_col(stat = "identity")+
+  labs(
+    title = "Número de desastres na seleção, por Mês",
+    y = "Número de desastres",
+    x = "Ano",
+    fill = "Categorias de Desastres",
+    caption = "Elaborado pelo autor") +
+  theme_classic() +
+  scale_fill_manual(values = paleta_desastres$Cores, limits = paleta_desastres$Tipo)+
+  scale_x_continuous(n.breaks = 10)+
+    theme(legend.position = "bottom",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        strip.text = element_text(size = 14))+
+    facet_wrap(~origem, scales = "free_y", ncol = 1)
+
+sazon_desastres
+
+ggsave(here("Figuras/2.4.1.6Sazonalidade_Desastres.png"), sazon_desastres, width = 10, height = 8)
+
+rm(sazon_desastres, mes_todos_des, Desastres)
+```
+
+## 2.4.2 Riscos Climáticos
 
 ### Base de Dados Riscos Climáticos
 
@@ -1101,7 +1201,8 @@ AdaptaBrasil <- readRDS(here("Dados/AdaptaBrasil.RDS")) %>%
   ) %>%
   select(-parts) %>% 
   mutate(origem = ifelse(Cod_IBGE_Mun %in% lista_municipios$Cod_IBGE_Mun, "Municipios Selecionados", "Brasil")) %>%
-  filter(!is.na(Indice_Risco)) %>% 
+  filter(!is.na(Indice_Risco), 
+         Dimensao_Risco != "Recursos Hídricos") %>% 
   data.table()
   
 
@@ -1110,27 +1211,29 @@ AdaptaBrasil <- readRDS(here("Dados/AdaptaBrasil.RDS")) %>%
 ### Distribuição de riscos climáticos por área
 
 ```{r}
-
+library(kableExtra)
 #Tabela
-sumABselecao <- AdaptaBrasil %>% 
+sumABSelecionados <- AdaptaBrasil %>% 
   filter(Nivel == 2, 
          origem == "Municipios Selecionados") %>% 
-  group_by(Risco_Climatico) %>% 
+  group_by(Dimensao_Risco, Risco_Climatico) %>% 
   summarise(Media_selecionados = mean(Indice_Risco), 
             Mediana_selecionados = median(Indice_Risco), 
             DesvPad_selecionados = sd(Indice_Risco))
 
-AdaptaBrasil %>% 
+tb1 <- AdaptaBrasil %>% 
   filter(Nivel == 2) %>% 
-  group_by(Risco_Climatico) %>% 
+  group_by(Dimensao_Risco, Risco_Climatico) %>% 
   summarise(Media_Brasil = mean(Indice_Risco), 
             Mediana_Brasil = median(Indice_Risco), 
             DesvPad_Brasil = sd(Indice_Risco)) %>% 
-  merge(sumABselecao, by = "Risco_Climatico") %>% 
+  merge(sumABSelecionados, by = c("Dimensao_Risco", "Risco_Climatico")) %>% 
   mutate(Diferenca_Media = Media_selecionados - Media_Brasil, 
          Diferenca_Mediana = Mediana_selecionados - Mediana_Brasil, 
          Diferenca_DesvPad = DesvPad_selecionados - DesvPad_Brasil) %>% 
-  select(Risco_Climatico, Media_selecionados, Media_Brasil, Diferenca_Media, Mediana_selecionados, Mediana_Brasil, Diferenca_Mediana, DesvPad_selecionados, DesvPad_Brasil, Diferenca_DesvPad)
+  select(Dimensao_Risco, Risco_Climatico, Media_selecionados, Media_Brasil, Diferenca_Media, Mediana_selecionados, Mediana_Brasil, Diferenca_Mediana, DesvPad_selecionados, DesvPad_Brasil, Diferenca_DesvPad)
+
+kable(tb1, digits = 2)
 ```
 
 ```{r}
@@ -1140,23 +1243,28 @@ dist_AB <- AdaptaBrasil %>%
   mutate(origem = "Brasil") %>% 
   bind_rows(AdaptaBrasil) %>% 
   filter(Nivel == 2) %>% 
+  mutate(Risco_Climatico = ifelse(Risco_Climatico == "Inundações enxurradas e alagamentos", "Inundações e afins", Risco_Climatico)) %>% 
   ggplot(aes(x = Indice_Risco,  fill = origem)) +
   geom_density() +
   labs(
     title = "Distribuição da frequência de níveis de risco nos municípios selecionados",
-    y = "Frequência",
+    y = "Frequência Relativa",
     x = "Nível de Risco",
-    fill = "Categorias de Desastres"
-  ) +
-  scale_y_continuous(labels = label_percent(accuracy = 1)) +
+    fill = "Categorias de Desastres",
+    caption = "Fonte: AdaptaBrasil. Gráfico elaborado pelo autor", size = 12) +
   theme_linedraw()+
-  theme(legend.position = "bottom")+
-    facet_wrap(origem ~ Risco_Climatico, ncol = 4)
+    theme(legend.position = "none",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        strip.text = element_text(size = 12))+
+    facet_grid(origem ~ Risco_Climatico)
 
 dist_AB
-ggsave(here("Figuras/2.3.2.1Distribuicao_Risco_Climatico.png"), dist_AB)
+ggsave(here("Figuras/2.4.2.1Distribuicao_Risco_Climatico.png"), dist_AB, width = 10, height = 5)
   
-rm(dist_AB, sumABselecao)
+rm(dist_AB, sumABSelecionados, tb1)
 ```
 
 ### Histograma de riscos climáticos por componentes
@@ -1165,25 +1273,24 @@ rm(dist_AB, sumABselecao)
 
 #Tabela
 
-sumABselecao <- AdaptaBrasil %>% 
+sumABSelecionados <- AdaptaBrasil %>% 
   filter(Nivel == 3, 
          origem == "Municipios Selecionados") %>% 
-  group_by(Indicador) %>% 
+  group_by(Dimensao_Risco, Risco_Climatico) %>% 
   summarise(Media_selecionados = mean(Indice_Risco), 
-            Mediana_selecionados = median(Indice_Risco), 
             DesvPad_selecionados = sd(Indice_Risco))
 
-AdaptaBrasil %>% 
+tb2 <- AdaptaBrasil %>% 
   filter(Nivel == 3) %>%  
-  group_by(Indicador) %>% 
+  group_by(Dimensao_Risco, Risco_Climatico) %>% 
   summarise(Media_Brasil = mean(Indice_Risco), 
-            Mediana_Brasil = median(Indice_Risco), 
             DesvPad_Brasil = sd(Indice_Risco)) %>% 
-  merge(sumABselecao, by = "Indicador") %>% 
+  merge(sumABSelecionados, by = c("Dimensao_Risco", "Risco_Climatico")) %>% 
   mutate(Diferenca_Media = Media_selecionados - Media_Brasil, 
-         Diferenca_Mediana = Mediana_selecionados - Mediana_Brasil, 
          Diferenca_DesvPad = DesvPad_selecionados - DesvPad_Brasil) %>% 
-  select(Indicador, Media_selecionados, Media_Brasil, Diferenca_Media, Mediana_selecionados, Mediana_Brasil, Diferenca_Mediana, DesvPad_selecionados, DesvPad_Brasil, Diferenca_DesvPad)
+  select(Dimensao_Risco, Risco_Climatico, Media_selecionados, Media_Brasil, Diferenca_Media, DesvPad_selecionados, DesvPad_Brasil, Diferenca_DesvPad)
+
+kable(tb2, digits = 2)
 ```
 
 ```{r}
@@ -1198,21 +1305,27 @@ dist_AB_componentes <- AdaptaBrasil %>%
     title = "Distribuição da frequência de níveis de risco nos municípios selecionados, por componente",
     y = "Frequência",
     x = "Nível de Risco",
-    fill = "Origem"
-  ) +
+    fill = "Origem",
+    caption = "Elaborado para o autor") +
   theme_linedraw()+
   theme(legend.position = "bottom")+
   scale_y_continuous(labels = label_percent(accuracy = 1)) +
+      theme(legend.position = "bottom",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        strip.text = element_text(size = 14))+
     facet_wrap(Indicador ~ origem, ncol = 2)
 
 dist_AB_componentes
 
-ggsave(here("Figuras/2.3.2.2Distribuicao_Componentes_Climaticos.png"), dist_AB_componentes, width = 10, height = 15)
+ggsave(here("Figuras/2.4.2.2Distribuicao_Componentes_Climaticos.png"), dist_AB_componentes, width = 10, height = 15)
   
-rm(dist_AB_componentes, sumAB, sumABselecao, AdaptaBrasil)
+rm(dist_AB_componentes, sumAB, sumABSelecionados, AdaptaBrasil, tb2)
 ```
 
-## 2.3.3 Presença de OCSs nos Municípios
+## 2.4.3 Presença de OCSs nos Municípios
 
 ```{r, 'base_oscs'}
 
@@ -1222,6 +1335,7 @@ OSCs <- readRDS(here("Dados/OSCsClima.RDS")) %>%
   group_by(Ano, Cod_IBGE_Mun) %>% 
   summarise(n_OSCs = max(n_OSCs)) %>% 
   mutate(origem = ifelse(Cod_IBGE_Mun %in% lista_municipios$Cod_IBGE_Mun, "Selecionados", "Brasil"))
+
 
 ```
 
@@ -1243,16 +1357,21 @@ osc_ano <- OSCs %>%
     title = "Média de OSCs por município, por ano",
     y = "Média de OSCs por município",
     x = "Ano",
-    fill = "Origem"
-  ) +
+    fill = "Origem",
+    caption = "Fonte: Mapa das OSCs/IPEA. Gráfico elaborado pelo autor") +
   ylim(0,200)+
   scale_x_continuous(n.breaks = 10)+
-  theme_bw()+
-  theme(legend.position = "bottom")
+  theme_bw()+      
+  theme(legend.position = "bottom",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        strip.text = element_text(size = 14))
 
 osc_ano
 
-ggsave(here("Figuras/2.3.3.1.Média de OSCs por município e ano.png"), osc_ano)
+ggsave(here("Figuras/2.4.3.1.Média de OSCs por município e ano.png"), osc_ano, width = 10, height = 4)
   
 rm(osc_ano)
 ```
@@ -1267,27 +1386,31 @@ osc_dist <- OSCs %>%
   bind_rows(OSCs) %>% 
   filter(Ano == 2023) %>% 
   ggplot(aes(x = n_OSCs, fill = origem)) +
-  geom_density()+
+  geom_density(alpha = 0.75)+
   labs(
     title = "Distribuição da quantidade de OSCs nos municípios, em 2023",
-    y = "Frequência",
-    x = "Média",
-    fill = "Origem"
-  ) +
+    y = "Frequência relativa",
+    x = "Número de OSCs",
+    fill = "Origem",
+    caption = "Fonte: Mapa das OSCs/IPEA. Gráfico elaborado pelo autor") +
   xlim(0,500)+
-  scale_y_continuous(labels = label_percent(accuracy = 1)) +
+  scale_y_continuous(labels = label_percent(accuracy = 0.1)) +
   theme_bw()+
-  theme(legend.position = "bottom")+
-  facet_wrap(~ origem)
+  theme(legend.position = "none",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        strip.text = element_text(size = 14))
 
 osc_dist
 
-ggsave(here("Figuras/2.3.3.2.Distribuição de OSCs em 2023.png"), osc_dist)
+ggsave(here("Figuras/2.4.3.2.Distribuição de OSCs em 2023.png"), osc_dist, width = 8, height = 3)
   
 rm(osc_dist, OSCs)
 ```
 
-## 2.3.4 Orçamento dos municípios
+## 2.4.4 Orçamento dos municípios
 
 ### Série temporal do orçamento dos municípios
 
@@ -1311,22 +1434,27 @@ orcamento_ano <- orcamento %>%
     title = "Valor médio das receitas municipais, por ano",
     y = "Total de Receitas (em R$)",
     x = "Ano",
-    fill = "Origem"
-  ) +
-  scale_x_continuous(n.breaks = 11, limits = x(0, 600000000))+
-  scale_y_continuous(labels = scales::comma)+
+    fill = "Origem",
+    caption = "Fonte: SICONFI. Gráfico produzido pelo autor.") +
+  scale_x_continuous(n.breaks = 11)+
+  scale_y_continuous(labels = scales::comma, limits = c(0, 600000000))+
   theme_bw()+
-  theme(legend.position = "bottom")
+  theme(legend.position = "bottom",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        strip.text = element_text(size = 14))
 
 orcamento_ano
 
-ggsave(here("Figuras/2.3.4.1.Média de Receitas por ano.png"), orcamento_ano)
+ggsave(here("Figuras/2.4.4.1.Média de Receitas por ano.png"), orcamento_ano, width = 10, height = 4)
   
 rm(orcamento_ano)
   
 ```
 
-### Histograma do orçamento dos municípios: selecionados vs Brasil
+### Distribuição do orçamento dos municípios: selecionados vs Brasil
 
 ```{r, 'distribuicao_orcamento'}
 #Gráfico
@@ -1336,22 +1464,26 @@ orcamento_dist <- orcamento %>%
   bind_rows(orcamento) %>% 
   filter(Ano == 2024) %>% 
   ggplot(aes(x = Receitas_Mun, fill = origem)) +
-  geom_density()+
+  geom_density(alpha = 0.75)+
   labs(
     title = "Distribuição da Receita dos municípios, em 2024",
-    y = "Frequência",
-    x = "Média",
-    fill = "Origem"
-  ) +
+    y = "Frequência Relativa",
+    x = "Total de Receitas (em R$)",
+    fill = "Origem",
+    caption = "Fonte: SICONFI. Gráfico produzido pelo autor.") +
   scale_y_continuous(labels = label_percent()) +
   scale_x_continuous(labels = scales::comma, limits = c(0, 1000000000))+
   theme_bw()+
-  theme(legend.position = "bottom")+
-  facet_wrap(~ origem)
+  theme(legend.position = "bottom",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        strip.text = element_text(size = 14))
 
 orcamento_dist
 
-ggsave(here("Figuras/2.3.3.3.Distribuição de Receitas em 2024.png"), orcamento_dist)
+ggsave(here("Figuras/2.4.4.2.Distribuição de Receitas em 2024.png"), orcamento_dist, width = 8, height = 3)
   
 rm(orcamento_dist, orcamento)
 ```
