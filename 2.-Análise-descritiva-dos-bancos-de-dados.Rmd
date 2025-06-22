@@ -1,0 +1,2342 @@
+---
+title: "2. Análise descritiva dos bancos de dados"
+output: html_notebook
+---
+
+# 2. Análise descritiva dos bancos de dados
+
+(Certifique-se de ter completado o arquivo "1. Carregando e limpando as bases de dados"
+
+Agora que já criamos a base de dados, podemos fazer uma primeira análise descritiva dela. Vamos por categorias:
+
+```{r, 'instalar_pacotes'}
+#Instalando pacotes (não utilizados nos anteriores):
+#install.packages("sf")
+#install.packages("geobr")
+#install.packages("scales")
+#install.packages("formattable")
+#install.packages("clipr")
+
+```
+
+```{r, 'carregando_pacotes', warning=FALSE}
+#Carregando os pacotes que serão utilizados
+library(here)
+library(dplyr)
+library(data.table)
+library(ggplot2)
+library(formattable)
+library(extrafont)
+library(clipr)
+loadfonts(device = "win")
+```
+
+```{r, 'upando_df'}
+#Carregando a base de dados
+df <- readRDS(here("Dados/df_agendaclima_municipal.RDS"))
+
+```
+
+# 2.1 Municípios analisados
+
+Para começar, faremos uma lista e um mapa dos municípios que serão analisados.
+
+```{r, 'cria_lista_municipios'}
+#Lista de municípios analisados
+lista_municipios <- df %>% 
+  select(Cod_IBGE_Mun, Nome_Municipio, UF) %>%
+  unique()
+
+write.csv(lista_municipios, here("Dados/lista_municipios.csv"))
+```
+
+### 2.1.1 Mapa dos municípios selecionados
+
+```{r, 'criando_mapa'}
+library(sf)
+library(geobr)
+#Listando os municípios presentes na seleção:
+
+# Lê todos os municípios de 2024 apenas uma vez
+mapa_brasil <- read_municipality(year = 2024)
+
+# Filtra apenas os municípios presentes na lista
+mapa_munic <- mapa_brasil %>%
+  filter(code_muni %in% lista_municipios$Cod_IBGE_Mun) %>%
+  select(code_muni, geom)
+
+mapa_sapl <- ggplot() +
+  geom_sf(data=mapa_brasil, alpha = 0.5, fill= "#666666", color = NA, size= .15)+
+  geom_sf(data=mapa_munic, fill= "#D95F02", size=.15)+
+  labs(title="Mapa dos Municípios selecionados para análise",
+       caption='Fonte: Elaboração do autor', size=8)+
+  theme_linedraw()+
+  theme(text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 14),
+        legend.text = element_text(size = 10))
+
+mapa_sapl
+
+ggsave(here("Figuras/2.1.1 MapaMunicipios.png"), mapa_sapl, width = 5, height = 5)
+
+rm(mapa_brasil, mapa_munic, mapa_sapl)
+```
+
+Todas as figuras salvas podem ser vistas na pasta "Figuras"
+
+### 2.1.2 Divisão dos Estados
+
+Agora vamos fazer uma contagem do número de municípios por UF, e compará-la com o número de municípios que existem em cada estado
+
+```{r, 'base_uf'}
+#Criando base com número de municípios por UF
+uf <- lista_municipios %>% 
+  group_by(UF) %>% 
+  summarise(n_selecionados = n()) %>% 
+  arrange(UF) 
+
+#Trazendo a lista completa de municípios por UF a partir da base "AdaptaBrasil"
+
+AB_UF <- readRDS(here("Dados/AdaptaBrasil.RDS")) %>% 
+  select(Cod_IBGE_Mun, Municipio_UF) %>% 
+  mutate(UF = substr(Municipio_UF, nchar(Municipio_UF) - 1, nchar(Municipio_UF)))%>% 
+  group_by(UF) %>% 
+  summarise(total_UF = n()) %>% 
+  arrange(UF)
+
+#Juntando as bases
+uf <- merge(uf, AB_UF, by = "UF", all = T) %>% 
+  mutate(n_selecionados = ifelse(is.na(n_selecionados), 0, n_selecionados),
+         Percentual_UF = n_selecionados/total_UF)
+
+#Adicionando as regiões: 
+regioes <- data.table(
+  UF = c("AC", "AL", "AM", "AP", "BA", "CE", "DF", "ES", "GO", "MA", "MG", "MS", "MT", "PA", "PB", "PE", "PI", "PR", "RJ", "RN", "RO", "RR", "RS", "SC", "SE", "SP", "TO"), 
+  Regiao = c("Norte", "Nordeste", "Norte", "Norte", "Nordeste", "Nordeste", "Centro-Oeste", "Sudeste", "Centro-Oeste", "Nordeste", "Sudeste", "Centro-Oeste", "Centro-Oeste", "Norte", "Nordeste", "Nordeste", "Nordeste", "Sul", "Sudeste", "Nordeste", "Norte", "Norte", "Sul", "Sul", "Nordeste", "Sudeste", "Norte"))
+
+cores <- data.table(Regiao = c("Norte", "Nordeste", "Centro-Oeste", "Sudeste", "Sul"),
+                    Cores = c("#45D14A", "#D17C46", "#D1D145", "#D14568", "#45C3D1"))
+
+
+paleta_regiao <- merge(regioes, cores, by = "Regiao")
+
+uf <- merge(uf, paleta_regiao, by = "UF", all = T)
+
+
+
+rm(AB_UF, regioes, cores)
+```
+
+```{r, 'graficos_uf'}
+#Plotando os gráficos
+library(scales)
+
+
+#Número absoluto de  Municípios, por UF
+
+uf_num <- uf %>%
+  ggplot(aes(x = reorder(UF, n_selecionados), y = n_selecionados, fill = Regiao)) +
+  geom_col() +
+  scale_fill_manual(values = paleta_regiao$Cores, limits = paleta_regiao$Regiao) +
+  geom_text(aes(label = n_selecionados), vjust = -0.1,
+              position = position_dodge(width = 0.5)) +
+  labs(
+    title = "Número de municípios presentes na seleção, por UF",
+    x = "Unidades Federativas",
+    y = "Número de Municípios",
+    fill = "Regiões",
+    caption='Fonte: Elaboração do autor', size=10
+  ) +
+  theme_classic() +
+  theme(legend.position = "bottom",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 14),
+        legend.text = element_text(size = 10))
+
+uf_num
+
+ggsave(here("Figuras/2.1.2N_Municipios_UF.png"), uf_num, width = 10, height = 5)
+
+rm(uf_num)
+```
+
+```{r, 'percentual_uf'}
+#Percentual de municípios por UF
+
+uf_percent <- uf %>%
+  ggplot(aes(x = reorder(UF, Percentual_UF), y = Percentual_UF, fill = Regiao)) +
+  geom_col() +
+  scale_fill_manual(values = paleta_regiao$Cores, limits = paleta_regiao$Regiao) +
+  scale_y_continuous(labels = label_percent(accuracy = 1)) +
+  labs(
+    title = "Percentual de municípios presentes na seleção, por UF",
+    x = "Unidades Federativas",
+    y = "Percentual de Municípios",
+    fill = "Regiões", 
+       caption='Fonte: Elaboração do autor', size= 10 
+  ) +
+  theme_classic() +
+  theme(legend.position = "bottom",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 14),
+        legend.text = element_text(size = 10))
+
+uf_percent
+
+ggsave(here("Figuras/2.1.2P_Municipios_UF.png"), uf_percent, width = 10, height = 5)
+
+rm(uf_percent)
+```
+
+```{r 'n_regiao'}
+#Reduzindo apenas para região
+regiao <- uf %>% 
+  group_by(Regiao, Cores) %>% 
+  summarise(n_selecionados = sum(n_selecionados),
+            total_UF = sum(total_UF)) %>% 
+  mutate(Percentual_UF = n_selecionados/total_UF)
+
+#Número por região
+regiao_num <- regiao %>%
+  ggplot(aes(x = reorder(Regiao, n_selecionados), y = n_selecionados, fill = Regiao)) +
+  geom_col() +
+  scale_fill_manual(values = paleta_regiao$Cores, limits = paleta_regiao$Regiao) +
+  geom_text(aes(label = n_selecionados), vjust = -0.1,
+              position = position_dodge(width = 0.5)) +
+  labs(
+    title = "Número de municípios presentes na seleção, por Região",
+    x = "Regiões",
+    y = "Número de Municípios",
+    fill = "Regiões", 
+       caption='Fonte: Elaboração do autor', size= 10 
+  ) +
+  theme_classic() +
+  theme(legend.position = "bottom",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 14),
+        legend.text = element_text(size = 10))
+
+regiao_num
+
+ggsave(here("Figuras/2.1.2N_Municipios_Regiao.png"), regiao_num, width = 10, height = 5)
+
+rm(regiao_num)
+```
+
+```{r, 'percentual_regiao'}
+#Percentual por região
+
+regiao_percent <- regiao %>%
+  ggplot(aes(x = reorder(Regiao, Percentual_UF), y = Percentual_UF, fill = Regiao)) +
+  geom_col() +
+  scale_fill_manual(values = paleta_regiao$Cores, limits = paleta_regiao$Regiao) +
+  scale_y_continuous(labels = label_percent(accuracy = 1)) +
+  labs(
+    title = "Percentual de municípios presentes na seleção, por Região",
+    x = "Regiões",
+    y = "Percentual de Municípios",
+    fill = "Regiões", 
+       caption='Fonte: Elaboração do autor', size= 10 
+  ) +
+  theme_classic() +
+  theme(legend.position = "bottom",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 14),
+        legend.text = element_text(size = 10))
+
+regiao_percent
+
+ggsave(here("Figuras/2.1.2P_Municipios_Regiao.png"), regiao_percent, width = 10, height = 5)
+
+rm(regiao_percent, uf, regiao)
+```
+
+### 2.1.3 População
+
+Agora, vamos analisar a população dos municípios selecionados em comparação à população dos municípios brasileiros.
+
+```{r}
+Populacao <- readRDS(here("Dados/Populacao.RDS")) %>% 
+  mutate(origem = ifelse(Cod_IBGE_Mun %in% lista_municipios$Cod_IBGE_Mun, "Selecionados", "Brasil")) %>% 
+  filter(!is.na(Populacao)) %>% 
+  mutate(Populacao = as.integer(Populacao))
+
+#Gráfico
+pop_gg <- Populacao %>%
+  filter(origem == "Selecionados") %>%
+  mutate(origem = "Brasil") %>%
+  bind_rows(Populacao) %>%
+  filter(Ano == 2024) %>% 
+  ggplot(aes(x = Populacao, fill = origem)) +
+  geom_density(alpha = 0.5) +
+  labs(
+    title = "Distribuição da população dos municípios, em 2024",
+    y = "Frequência",
+    x = "População (escala log)",
+    fill = "Origem", 
+       caption='Fonte: Elaboração do autor', size= 8 
+  ) +
+  scale_y_continuous(labels = scales::label_percent()) +
+  scale_x_log10(labels = scales::label_number_si()) +
+  theme_bw() +
+  theme_classic() +
+  theme(legend.position = "bottom",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 14),
+        legend.text = element_text(size = 10))
+
+pop_gg
+
+ggsave(here("Figuras/2.1.3.Distribuição_da_População.png"), pop_gg, width = 8, height = 5)
+  
+rm(pop_gg)
+```
+
+```{r}
+#Histograma População
+
+pop_hist <- Populacao %>%
+  filter(origem == "Selecionados", 
+         Ano == 2024) %>%
+  ggplot(aes(x = Populacao)) +
+  geom_histogram(color = "black", fill= "blue", alpha = 0.5, binwidth = 10000) +
+  labs(
+    title = "Distribuição da população dos municípios, em 2024",
+    y = "Número de municípios",
+    x = "Faixas de População",
+       caption="Bins = 10 mil habitantes. Elaboração do autor", size= 10) +
+  theme_bw() +
+  theme_classic() +
+  theme(legend.position = "bottom",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 14),
+        legend.text = element_text(size = 10))+
+  scale_x_continuous(labels = label_number(accuracy = 1))
+
+pop_hist
+
+ggsave(here("Figuras/2.1.4.Histograma_População.png"), pop_hist, width = 10, height = 5)
+  
+
+rm(pop_hist)
+```
+
+## 2.2 Variável dependente: Projetos
+
+A seguir, vamos analisar as características da base de projetos:
+
+### 2.2.1 Número total de projetos climáticos, por tipo
+
+```{r 'base_tipos_projetos'}
+#Tipos de projetos mais comuns
+
+tiproj <- df %>%
+  group_by(Tipo, Ano) %>% 
+  summarise(n_al = n()) %>% 
+  data.table()
+
+#Criando paleta de cores para os projetos mais comuns
+paleta_proposituras <- data.table(Tipo = c("indicacao", "requerimento", "pedido de providencia", "projeto de lei ordinaria", "protocolo", "mocao", "proposições", "projeto de lei executivo", "outros"),
+                    Cores = c("#29BC8B", "#BD872A", "#2A42BD", "#BD2A2A", "#BD2A9D", "#712ABD", "#3C83C2", "#47BD2A", "#92A48E"))
+
+#Adicionando paleta à tiproj:
+tiproj <- tiproj %>% 
+  mutate(Tipo = ifelse(Tipo %in% paleta_proposituras$Tipo, Tipo, "outros")) %>% 
+  merge(paleta_proposituras, by = "Tipo", all.x = T)
+  
+tiproj_n <- tiproj %>%
+  ggplot(aes(y = reorder(Tipo, n_al), x = n_al, fill = Tipo)) +
+  geom_col() +
+  labs(
+    title = "Número de proposituras climáticas, por tipo",
+    x = "Número de proposituras apresentadas",
+    y = "Tipos de proposituras",
+    fill = "Tipos de proposituras", 
+       caption='Fonte: Elaboração do autor', size= 10
+  ) +
+  theme_classic() +
+  scale_fill_manual(values = paleta_proposituras$Cores, limits = paleta_proposituras$Tipo)+
+  theme(legend.position = "none",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 14),
+        legend.text = element_text(size = 10))
+
+tiproj_n
+ggsave(here("Figuras/2.2.1N_Proposituras_Tipo.png"), tiproj_n, height = 10, width = 10)
+  
+rm(tiproj_n)
+```
+
+### 2.2.2 Projetos climáticos, por ano e tipo
+
+```{r 'Tipos_Projetos'}
+#Número de projetos por ano
+
+tiproj_ano <- tiproj %>% 
+  ggplot(aes( x = `Ano`, y = n_al, fill = Tipo)) + 
+  geom_bar(stat = "identity")+ 
+  theme_classic()+
+  labs(title = "Número de proposituras climáticas, por ano", 
+       x = "Anos",
+       y = "Número de proposituras", 
+       caption='Fonte: Elaboração do autor', size= 8 )+
+  scale_fill_manual(values = paleta_proposituras$Cores, limits = paleta_proposituras$Tipo)+
+    theme(legend.position = "bottom",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 14),
+        legend.text = element_text(size = 10))+
+  scale_x_continuous(n.breaks = 10)
+
+ggsave(here("Figuras/2.2.2N_Proposituras_Ano.png"), tiproj_ano, width =10, height = 5)
+  
+rm(tiproj_ano)
+
+```
+
+### 2.2.3 Percentual dos tipos de proposituras na lista de projetos climáticos, por ano
+
+```{r, 'percentual_tiproj'}
+
+#Percentual de proposituras climáticas, por tipo
+tiproj <- tiproj  %>% 
+  group_by(Ano) %>%
+  mutate(p_al = n_al / sum(n_al)) 
+  
+
+tiproj_pano <- tiproj %>% 
+  group_by(Tipo, Ano) %>%
+  summarise(p_al = sum(p_al)) %>% 
+  ggplot(aes( x = `Ano`, y = p_al, fill = Tipo)) + 
+  geom_bar(stat = "identity")+ 
+  theme_classic()+
+  labs(title = "Distribuição dos tipos de proposituras climáticas, por ano", 
+       y = 'Percentual de proposituras', 
+       caption='Fonte: Elaboração do autor', size= 8)+
+  scale_y_continuous(labels = label_percent(accuracy = 1)) +
+  scale_fill_manual(values = paleta_proposituras$Cores, limits = paleta_proposituras$Tipo)+
+    theme(legend.position = "bottom",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 14),
+        legend.text = element_text(size = 10))+
+  scale_x_continuous(n.breaks = 10)
+
+ggsave(here("Figuras/2.2.3P_Tipos_Proposituras.png"), tiproj_pano, width = 10, height = 5)
+
+rm(tiproj_pano)
+```
+
+### 2.2.4. Proporção dos tipos de proposituras climáticas em relação ao total de projetos deste tipo, por ano
+
+```{r, 'proporcao_tiproj'}
+#Percentual em relação ao total de proposituras
+CidadesAL <- readRDS(here("Dados/CidadesAL13_24.RDS")) %>% 
+  mutate(Tipo = ifelse(Tipo %in% paleta_proposituras$Tipo, Tipo, "outros")) %>% 
+  group_by(Ano, Tipo) %>% 
+  summarise(total_proj_tipo = n()) %>% 
+  data.table()
+
+tiproj <- df %>% 
+  mutate(Tipo = ifelse(Tipo %in% paleta_proposituras$Tipo, Tipo, "outros")) %>% 
+  group_by(Tipo, Ano) %>% 
+  summarise(n_proj_clima = n()) %>% 
+  data.table()
+
+tiproj <- merge(tiproj, CidadesAL, by = c("Ano", "Tipo"), all.x = T) %>% 
+  mutate(p_proj_clima_ano = n_proj_clima/total_proj_tipo)
+
+#Gráfico
+ptipano <- tiproj %>%
+  ggplot(aes(x = Ano, y = p_proj_clima_ano, fill = Tipo)) + 
+  geom_bar(position = "dodge2", stat = "identity") +
+  theme_classic() +
+  labs(
+    title = "Proporção dos tipos de proposituras climáticas em relação ao total de projetos deste tipo, por ano", 
+    y = "Percentual de proposituras", 
+    x = "Ano", 
+       caption='Fonte: Elaboração do autor', size= 10
+  ) +
+  scale_y_continuous(labels = scales::label_percent(accuracy = 0.1)) +
+  scale_x_continuous(labels = scales::label_number(accuracy = 1), n.breaks = 6) +
+  scale_fill_manual(
+    values = paleta_proposituras$Cores,
+    limits = paleta_proposituras$Tipo) +
+  theme(
+    legend.position = "bottom",
+    text = element_text(family = "Times New Roman"),
+    axis.title = element_text(size = 14),
+    axis.text = element_text(size = 12),
+    legend.text = element_text(size = 12),
+    strip.text = element_text(size = 14))+
+    facet_wrap(~Tipo, scales = "free_y") 
+  
+
+ptipano
+ggsave(here("Figuras/2.2.4.1P_Tipos_Prop_Ano.png"), ptipano, width = 10, height = 8)
+
+rm(ptipano, CidadesAL)
+```
+
+```{r}
+#Proporção em relação ao total
+tiproj <- tiproj %>% 
+  group_by(Ano) %>% 
+  summarise(n_proj_clima = sum(n_proj_clima),
+            total_proj_tipo = sum(total_proj_tipo), 
+            p_proj_clima_ano = n_proj_clima/total_proj_tipo)
+
+#Gráfico
+ppano <- tiproj %>%
+  ggplot(aes(x = Ano, y = p_proj_clima_ano)) + 
+  geom_line(aes(size = 1)) +
+  geom_point(aes(size = 2))+
+  theme_linedraw() +
+  labs(
+    title = "Proporção dos tipos de proposituras climáticas em relação ao total de projetos, por ano", 
+    y = "Percentual de proposituras", 
+    x = "Ano", 
+       caption='Fonte: Elaboração do autor', size= 10
+  ) +
+  scale_y_continuous(labels = scales::label_percent(accuracy = 0.1), limits = c(0, 0.015)) +
+  scale_x_continuous(labels = scales::label_number(accuracy = 1), n.breaks = 8) +
+  scale_fill_manual(
+    values = paleta_proposituras$Cores,
+    limits = paleta_proposituras$Tipo) +
+  theme(
+    legend.position = "none",
+    text = element_text(family = "Times New Roman"),
+    axis.title = element_text(size = 14),
+    axis.text = element_text(size = 14))
+  
+
+ppano
+
+ggsave(here("Figuras/2.2.4.2P_Tipos_Prop_Ano.png"), ppano, width = 10, height = 5)
+
+rm(ppano, tiproj)
+```
+
+### 2.2.5. Presença de termos climáticos
+
+```{r, 'base_termos_clima'}
+library(tidyr)
+#Termos clima presentes
+
+climatermos <- df %>% 
+  select(Ano, Tipo, clima_termos) %>% 
+  separate(clima_termos, c("clima_1", "clima_2", "clima_3", "clima_4", "clima_5", "clima_6", "clima_7"), sep = ", ", fill = "right") %>% 
+  pivot_longer(starts_with("clima_"), names_to = "clima_names", names_prefix = "clima_", values_to = "clima_termos") %>% 
+  filter(!is.na(clima_termos)) %>% 
+  group_by(Ano, Tipo, clima_termos) %>% 
+  summarise(n = n()) %>% 
+  mutate(Categoria = case_when( #Adicionando categorias
+  #Chuvas:
+  clima_termos %in% c(" pluvial", " pluviais", " chuva", " fortes chuvas",  " chuvoso") ~ "Chuvas",
+  #Alagamentos e Inundações:
+  clima_termos %in% c(" alagamento",  " inundação", " inundações", " enxurrada", " enchente") ~ "Alagamentos e Inundações",
+  #Movimentos de Massa:
+  clima_termos %in% c(" deslizamento", " soterramento", " desabamento", " erosão") ~ "Movimentos de Massa",
+  #Secas:
+  clima_termos %in% c(" seca", " estiagem", " estiagens" ) ~ "Secas",
+  #Clima:
+  clima_termos %in% c(" clima", " adaptação climática", " aquecimento global", " mitigação", " eventos climáticos extremos", " descarbonização", " transição energética", " carbono", " efeito estufa") ~ "Clima",
+  #Ventos:
+  clima_termos == " vento" ~ "Ventos",
+  #Incêndios:
+  clima_termos == " incêndio" ~ "Incêndios",
+    #Defesa Civil
+    clima_termos == " defesa civil" ~ "Defesa Civil")) %>% 
+  ungroup()
+
+paleta_climatermos <- climatermos %>%
+  select(Categoria) %>% 
+  unique() %>% 
+  mutate(Cores = case_when(
+    Categoria == "Chuvas" ~ "#24D7FF",
+    Categoria == "Alagamentos e Inundações" ~ "#242BFF",
+    Categoria == "Movimentos de Massa" ~ "#FF7424",
+    Categoria == "Secas" ~ "#F4FF24",
+    Categoria == "Clima" ~ "#8A24FF",
+    Categoria == "Ventos" ~ "#FF24BA",
+    Categoria == "Incêndios" ~ "#FF2424",
+    Categoria == "Defesa Civil" ~ "#45FF24"))
+  
+```
+
+```{r, 'contagem_termos_clima'}
+#Gráfico contagem:
+
+n_ct <- climatermos %>%
+  group_by(clima_termos, Categoria) %>% 
+  summarise(n = sum(n)) %>% 
+  ggplot(aes(y = reorder(clima_termos, n), x = n, fill = Categoria)) +
+  geom_col(color = "black") +
+  labs(
+    title = "Número de menções a termos climáticos nas proposituras",
+    x = "Número de menções",
+    y = "Termos climáticos",
+    fill = "Categorias", 
+       caption='Fonte: Elaboração do autor', size=10) +
+  theme_classic() +
+  scale_fill_manual(values = paleta_climatermos$Cores, limits = paleta_climatermos$Categoria)+
+    theme(
+    legend.position = "bottom",
+    text = element_text(family = "Times New Roman"),
+    axis.title = element_text(size = 14),
+    axis.text = element_text(size = 10),
+    legend.text = element_text(size = 10))
+
+n_ct
+
+ggsave(here("Figuras/2.2.5N_climatermos.png"), n_ct, width = 8, height = 8)
+  
+rm(n_ct)
+```
+
+### 2.2.6 Contagem termos climáticos, por ano
+
+```{r, contagem_termos_ano}
+
+ct_nano <- climatermos %>%
+  ggplot(aes(y = n, x = Ano, fill = Categoria)) +
+  geom_col() +
+  labs(
+    title = "Número de menções a termos climáticos nas proposituras, por ano",
+    x = "Ano",
+    y = "Número de menções",
+    fill = "Categorias de Termos", 
+       caption='Fonte: Elaboração do autor', size= 10) +
+  theme_classic() +
+  scale_fill_manual(values = paleta_climatermos$Cores, limits = paleta_climatermos$Categoria)+
+      theme(
+    legend.position = "bottom",
+    text = element_text(family = "Times New Roman"),
+    axis.title = element_text(size = 14),
+    axis.text = element_text(size = 10),
+    legend.text = element_text(size = 10))+
+  scale_x_continuous(n.breaks = 10)
+
+ct_nano 
+
+ggsave(here("Figuras/2.2.6N_climatermos_ano.png"), width = 10, height = 8, ct_nano)
+  
+rm(ct_nano)
+```
+
+### 2.2.7 Percentual de proposituras climáticas, por ano e tipo
+
+```{r, 'percentual_tipo_Clima'}
+#Percentual de proposituras climáticas, por tipo
+
+ct_pano <- climatermos %>% 
+  group_by(Categoria, Ano) %>%
+  summarise(n_al = n()) %>% 
+  group_by(Ano) %>% 
+  mutate(p_al = n_al/sum(n_al)) %>% 
+  ggplot(aes( x = `Ano`, y = p_al, fill = Categoria)) + 
+  geom_bar(stat = "identity")+ 
+  theme_classic()+
+  labs(title = "Distribuição das ocorrências dos termos climáticos, por ano", 
+       y = 'Percentual dos termos', 
+       caption='Fonte: Elaboração do autor', size= 10)+
+  scale_y_continuous(labels = label_percent(accuracy = 1)) +
+  scale_x_continuous(labels = label_number(accuracy = 1), n.breaks = 10)+
+  scale_fill_manual(values = paleta_climatermos$Cores, limits = paleta_climatermos$Categoria)+
+      theme(
+    legend.position = "bottom",
+    text = element_text(family = "Times New Roman"),
+    axis.title = element_text(size = 14),
+    axis.text = element_text(size = 10),
+    legend.text = element_text(size = 10))
+
+ct_pano
+
+
+ggsave(here("Figuras/2.2.7P_Categorias_Termos_ano.png"), ct_pano,  width = 10, height = 5)
+
+rm(ct_pano)
+```
+
+### 2.2.8 Tipos de propositura x Termos climáticos
+
+Agora, vamos cruzar as duas informações para compreender como elas se relacionam.
+
+```{r, 'propositura_Clima'}
+
+tiproj_termosclima <- climatermos %>%
+  mutate(Tipo = ifelse(Tipo %in% paleta_proposituras$Tipo, Tipo, "outros")) %>% 
+  group_by(Tipo) %>%
+  mutate(p_al = n / sum(n)) %>% 
+  group_by(Tipo, Categoria) %>%
+  summarise(p_al = sum(p_al),
+            n_al = sum(n)) %>% 
+  ggplot(aes( y = reorder(`Tipo`, n_al), x = p_al, fill = Categoria)) + 
+  geom_bar(stat = "identity")+ 
+  theme_classic()+
+  labs(title = "Distribuição dos termos climáticas, por tipo de propositura", 
+       x = 'Percentual', 
+       y = "Tipos de proposituras", 
+       caption='Fonte: Elaboração do autor', size= 10)+
+  scale_x_continuous(labels = label_percent(accuracy = 1)) +
+  scale_fill_manual(values = paleta_climatermos$Cores, limits = paleta_climatermos$Categoria)+
+    theme(legend.position = "bottom",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 16),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 12))
+
+tiproj_termosclima
+
+ggsave(here("Figuras/2.2.8P_Tipos_Proposituras_Termos_Climáticos.png"), tiproj_termosclima, height = 10, width = 10)
+
+rm(tiproj_termosclima, climatermos)
+```
+
+### 2.2.9 Cruzamento da frequência dos termos.
+
+```{r, warning= FALSE}
+# Criando base só com clima_termos
+
+climatermos2 <- df %>% 
+  select(clima_termos)
+
+#Adiciona coluna row_id
+climatermos2 <- climatermos2[
+  , paste0("_clima", 1:6) := tstrsplit(clima_termos, ",")
+][
+  , row_id := .I, 
+]
+
+#Retornando para uma coluna
+climatermos2 <- melt(climatermos2,
+                   id.vars = "row_id",
+                   measure.vars = patterns("^_clima"),
+                   value.name = "clima_termo",
+                   na.rm = TRUE
+)[
+  , clima_termo := trimws(clima_termo)]
+
+#Contando totais:
+totals <- climatermos2[, .(term1 = clima_termo)][
+  , .(total = .N), by = term1]
+
+
+# Criando pares
+climatermos2 <- climatermos2[
+  , {
+    termos <- unique(clima_termo)
+    if (length(termos) == 1L) {
+      .(term1 = termos, term2 = termos)  # self-pair
+    } else {
+      CJ(term1 = termos, term2 = termos)[term1 != term2]
+    }
+  }, by = row_id
+]
+
+# Contando pares
+climatermos2 <- climatermos2[
+  , .N, by = .(term1, term2)
+]
+
+
+# Adicionando porcentagem
+climatermos2 <- merge(climatermos2, totals, by = "term1")[
+  , pct := N / total
+]
+
+# Criando matriz para plotagem:
+all_terms <- sort(unique(c(climatermos2$term1, climatermos2$term2)))
+
+all_terms <- CJ(term1 = all_terms, term2 = all_terms)
+
+climatermos2 <- merge(all_terms, climatermos2[, .(term1, term2, pct)], by = c("term1", "term2"), all.x = TRUE)
+
+climatermos2[is.na(pct), pct := 0]
+
+
+#Gráfico:
+p_cooctermos <- ggplot(climatermos2, aes(x = term1, y = term2, fill = pct)) +
+  geom_tile(color = "white") +
+   geom_text(aes(label = scales::percent(pct, accuracy = 1)), size = 3)+
+  scale_fill_gradient(low = "white", high = "darkred", labels = scales::label_percent(accuracy = 1)) +
+  labs(
+    title = "Taxa de coocorrência entre termos climáticos",
+    x = "Termo de Referência",
+    y = "2º Termo",
+    fill = "%",
+    caption = "Elaborado pelo autor") +
+  theme_linedraw(base_family = "Times New Roman") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "none",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 16),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 12))
+
+p_cooctermos
+
+ggsave(here("Figuras/2.2.9P_Coocorrencia_Termos_Climáticos.png"), p_cooctermos, height = 10, width = 10)
+
+rm(all_terms, climatermos2, totals, p_cooctermos )
+```
+
+## 2.3 - Sazonalidade
+
+```{r}
+#Criando base de sazonalidade
+
+sazonalidade <- df %>% 
+  mutate(Mes = ifelse(Mes < 10, paste0(0, Mes), Mes),
+         Ano_Mes = paste0(Ano, "-", Mes)) %>% 
+  group_by(Ano, Mes, Ano_Mes) %>% 
+  summarise(n = n()) %>% 
+  data.table()
+
+Sazonalidade_Todos <- readRDS(here("Dados/CidadesAL13_24.RDS")) %>% 
+  mutate(Mes = month(as.Date(Data))) %>% 
+  mutate(Mes = ifelse(Mes < 10, paste0(0, Mes), Mes),
+         Ano_Mes = paste0(Ano, "-", Mes)) %>% 
+  filter(Ano >= 2013,
+         Ano <=2024) %>% 
+  group_by(Ano_Mes) %>% 
+  summarise(total_proj = n()) %>% 
+  data.table()
+
+sazonalidade <- merge(sazonalidade, Sazonalidade_Todos, by = c("Ano_Mes"), all.x = T) %>% 
+  mutate(p_total = n/total_proj)
+
+rm(Sazonalidade_Todos)
+```
+
+### 2.3.1 Série Temporal de proposituras por mês - Volume absoluto
+
+```{r warning = False}
+
+
+# Passo 1: gerar posições (índices) e labels
+n_ticks <- nrow(sazonalidade)
+x_vals <- sazonalidade$Ano_Mes
+
+# Criar vetores com as posições desejadas
+vlines_idx <- seq(12.5, n_ticks, by = 12)  # linhas verticais após cada ano (após mês 12)
+label_idx  <- seq(1, n_ticks, by = 4)    # mostrar só 1 de cada 4 rótulos
+
+# Gráfico com ajustes
+sazon1 <- sazonalidade %>%
+  ggplot(aes(y = n, x = factor(Ano_Mes, levels = unique(Ano_Mes)))) +  
+  geom_line(group = 1) +
+  geom_point(size = 2)+
+  geom_vline(xintercept = vlines_idx, linetype = "dashed") +
+  scale_x_discrete(breaks = x_vals[label_idx]) +
+  labs(
+    title = "Número de proposituras climáticas, por mês",
+    x = "Ano e Mês",
+    y = "Número de propositura",
+    caption = "Fonte: Elaboração do autor", size = 10
+  ) +
+  theme_bw() +
+  scale_fill_manual(values = paleta_proposituras$Cores, limits = paleta_proposituras$Tipo) +
+  theme(
+    legend.position = "bottom",
+    text = element_text(family = "Times New Roman"),
+    axis.title = element_text(size = 14),
+    axis.text = element_text(size = 10),
+    legend.text = element_text(size = 10),
+    axis.text.x = element_text(angle = 45, hjust = 1))
+
+sazon1
+
+ggsave(here("Figuras/2.3.1Série_Temporal_Proposituras.png"), sazon1, height = 5, width = 10)
+
+rm(n_ticks, x_vals, vlines_idx, label_idx, sazon1)
+```
+
+### 2.3.2 Série Temporal de proposituras por mês - Volume relativo
+
+```{r, warning= FALSE}
+# Passo 1: gerar posições (índices) e labels
+n_ticks <- nrow(sazonalidade)
+x_vals <- sazonalidade$Ano_Mes
+
+# Criar vetores com as posições desejadas
+vlines_idx <- seq(12.5, n_ticks, by = 12)  # linhas verticais após cada ano (após mês 12)
+label_idx  <- seq(1, n_ticks, by = 4)    # mostrar só 1 de cada 4 rótulos
+
+# Gráfico com
+sazon2 <- sazonalidade %>%
+  ggplot(aes(y = p_total, x = factor(Ano_Mes, levels = unique(Ano_Mes)))) + 
+  geom_line(group = 1) +
+  geom_point(size = 2)+
+  geom_vline(xintercept = vlines_idx, linetype = "dashed") +
+  scale_x_discrete(breaks = x_vals[label_idx]) +
+  labs(
+    title = "Percentual de proposituras climáticas em relação ao total, por mês",
+    x = "Ano e Mês",
+    y = "Percentual do total de proposituras",
+    caption = "Fonte: Elaboração do autor", size = 10
+  ) +
+  theme_bw() +
+  scale_fill_manual(values = paleta_proposituras$Cores, limits = paleta_proposituras$Tipo) +
+  scale_y_continuous(labels = label_percent(accuracy = 1)) +
+  theme(
+    legend.position = "bottom",
+    text = element_text(family = "Times New Roman"),
+    axis.title = element_text(size = 14),
+    axis.text = element_text(size = 10),
+    legend.text = element_text(size = 10),
+    axis.text.x = element_text(angle = 45, hjust = 1))
+
+sazon2
+
+ggsave(here("Figuras/2.3.2PSerie_Temporal_Proposituras.png"), sazon2, height = 5, width = 10)
+
+rm(n_ticks, x_vals, vlines_idx, label_idx, sazon2)
+```
+
+### 2.3.3. Percentual em relação ao total de proposituras, por mês
+
+```{r, warning= FALSE}
+psazonalidade <- sazonalidade %>% 
+  group_by(Mes) %>% 
+  summarise(n = sum(n),
+            total_proj = sum(total_proj), 
+            p_total = n/total_proj) %>% 
+  ggplot(aes(x = Mes, y = p_total)) +
+  geom_col(fill = "darkgreen")+
+  theme_bw()+
+  labs(title = "Percentual médio de produção legislativa relacionada ao clima, por mês",
+       x= "Mês", 
+       y = "Percentual da Produção legislativa",
+              caption='Fonte: Elaboração do autor', size= 8)+
+  scale_y_continuous(labels = label_percent(accuracy = 1)) +
+    theme(legend.position = "bottom",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 14),
+        legend.text = element_text(size = 10))
+
+
+psazonalidade
+
+ggsave(here("Figuras/2.3.3Sazonalidade_Proposituras.png"), psazonalidade, width = 10, height = 5)
+
+rm(psazonalidade, sazonalidade)
+```
+
+## 2.4Variáveis explicativas:
+
+## 2.4.1 Desastres
+
+### Linha do tempo desastres na base analisada (números absolutos)
+
+Ocorrências
+
+```{r, 'base_desastres'}
+#Recuperar base Desastres
+Desastres <- readRDS(here("Dados/Desastres.RDS"))
+#Tipos de projetos mais comuns
+
+dfdesastres <- Desastres %>%
+  filter(Cod_IBGE_Mun %in% lista_municipios$Cod_IBGE_Mun) %>% 
+  group_by(Desastre, Ano) %>% 
+  summarise(n = n(),
+            DH_MORTOS = sum(DH_MORTOS)) %>% 
+  data.table()
+
+#Criando paleta de cores para os projetos mais comuns
+paleta_desastres <- data.table(Tipo = c("Estiagem e Seca", "Enxurradas", "Chuvas Intensas", "Inundações",  "Vendavais e Ciclones", "Movimento de Massa", "Alagamentos", "Granizo", "Incêndio Florestal", "Erosão", "Onda de Calor e Baixa Umidade", "Onda de Frio", "Tornado"),
+                    Cores = c("#E9D200", "#00E89F", "#009BE8", "#001BE8",  "#C500E8", "#D46600", "#00C213", "#2AEEF5", "#B00000", "#6D2AF5", "#C5F52A", "#4AABD1", "#71CEF3"))
+
+```
+
+```{r, anos_desastres, warning = FALSE}
+
+ndes_ano <- dfdesastres %>%
+  ggplot(aes(y = n, x = Ano, fill = Desastre)) +
+  geom_col() +
+  labs(
+    title = "Número de desastres na seleção, por categoria de desastres e anos",
+    y = "Número de desastres",
+    x = "Ano",
+    fill = "Categorias de Desastres",
+    caption = "Elaborado pelo autor") +
+  theme_linedraw() +
+  scale_fill_manual(values = paleta_desastres$Cores, limits = paleta_desastres$Tipo)+
+    theme(legend.position = "bottom",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10))
+
+ndes_ano
+
+ggsave(here("Figuras/2.4.1.1N_Desastres_Anos.png"), ndes_ano, width = 10, height = 5)
+  
+rm(ndes_ano)
+```
+
+Letalidade
+
+```{r, 'letalidade_desastres', warning = FALSE}
+
+nlet_ano <- dfdesastres %>%
+  ggplot(aes(y = DH_MORTOS, x = Ano, fill = Desastre)) +
+  geom_col() +
+  labs(
+    title = "Número de óbitos registrados nos municípios selecionados, por categoria de desastres e anos",
+    y = "Número de óbitos",
+    x = "Ano",
+    fill = "Categorias de Desastres",
+    caption = "Elaborado pelo autor") +
+  theme_linedraw() +
+  scale_fill_manual(values = paleta_desastres$Cores, limits = paleta_desastres$Tipo)+
+    theme(legend.position = "bottom",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10))
+
+nlet_ano
+
+ggsave(here("Figuras/2.4.1.2N_Des_Letalidade_Anos.png"), nlet_ano, width = 10, height = 5)
+  
+rm(nlet_ano, obitos )
+```
+
+```{r, warning = FALSE}
+
+obitos <- Desastres %>% 
+  filter(Cod_IBGE_Mun %in% lista_municipios$Cod_IBGE_Mun, 
+         DH_MORTOS > 0, 
+         Ano >= 2013) %>% 
+    ggplot(aes(y = DH_MORTOS, fill = Desastre)) +
+  geom_boxplot() +
+  labs(
+    title = "Boxplot de óbitos por desastres registrados nos municípios selecionados (2013-2024)",
+    y = "Número de Mortos",
+    x = "Tipos de Desastres",
+    fill = "Categorias de Desastres",
+    caption = "Elaborado pelo autor") +
+  theme_classic() +
+  scale_fill_manual(values = paleta_desastres$Cores, limits = paleta_desastres$Tipo)+
+    theme(legend.position = "none",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank(),
+        axis.text.y = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        strip.text = element_text(size = 12))+
+  facet_grid(cols = vars(Desastre))
+  
+obitos
+
+ggsave(here("Figuras/2.4.1.3Boxplot_Des_Letalidade.png"), obitos, width = 10, height = 4)
+  
+rm(obitos)
+```
+
+### Comparação do percentual de desastres na base e no Brasil (percentuais)
+
+Ocorrências
+
+```{r, 'comparacao_brasil'}
+#Adicionando informações do resto do Brasil
+
+totalDes <- Desastres %>%
+  group_by(Desastre, Ano) %>% 
+  summarise(n_Brasil = n(),
+            DH_MORTOS = sum(DH_MORTOS)) %>% 
+  group_by(Ano) %>% 
+  mutate(p_Brasil = n_Brasil/sum(n_Brasil),
+         pc_obitos_Brasil = DH_MORTOS/sum(DH_MORTOS)) %>%
+  rename("obitos_Brasil" = DH_MORTOS) %>% 
+  data.table()
+
+#Novo Desastres  
+dfdesastres <- dfdesastres %>% 
+  rename("n_Selecionados" = n, 
+         "obitos_Selecionados" = DH_MORTOS) %>% 
+  group_by(Ano) %>% 
+  mutate(p_Selecionados = n_Selecionados/sum(n_Selecionados), 
+         pc_obitos_Selecionados = obitos_Selecionados/sum(obitos_Selecionados)) %>% 
+    merge(totalDes, by = c("Desastre", "Ano"), all= T) %>% 
+  replace(is.na(.), 0)
+
+
+
+```
+
+```{r, 'graf_comparacao_brasil', warning = FALSE}
+#Gráfico com comparação entre percentual por ano nos municípios selecionados e no brasil
+p_des_ano_cat <- dfdesastres %>% 
+  filter(!(Desastre %in% c('Onda de Calor e Baixa Umidade', 'Onda de Frio', 'Tornado'))) %>% 
+  pivot_longer(cols = starts_with("p_"), names_prefix = "p_", names_to = "origem", values_to = "Percentual") %>% 
+  ggplot(aes( x = `Ano`, y = Percentual, fill = Desastre)) + 
+  geom_bar(stat = "identity")+ 
+  theme_classic()+
+  labs(title = "Percentual das ocorrências de desastres, por ano e categoria", 
+       y = 'Percentual de ocorrências', 
+       x = "Anos")+
+  scale_y_continuous(labels = label_percent(accuracy = 1)) +
+  scale_fill_manual(values = paleta_desastres$Cores, limits = paleta_desastres$Tipo) +
+    theme(legend.position = "none",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
+    strip.text = element_text(size = 6))+
+  facet_grid(Desastre ~ origem)
+
+p_des_ano_cat
+
+ggsave(here("Figuras/2.4.1.4P_Categoria_Desastres_Ano.png"), p_des_ano_cat, width = 8, height = 10)
+
+rm(totalDes, p_des_ano_cat)
+```
+
+Letalidade
+
+```{r, 'comparacao_letalidade'}
+p_des_ano_obitos <- dfdesastres %>% 
+  filter(obitos_Selecionados != 0, 
+         obitos_Brasil != 0,
+         !(Desastre %in% c('Onda de Calor e Baixa Umidade', 'Onda de Frio', 'Tornado'))) %>% 
+  pivot_longer(cols = starts_with("pc_obitos_"), names_prefix = "pc_obitos_", names_to = "origem", values_to = "Percentual") %>% 
+  ggplot(aes( x = `Ano`, y = Percentual, fill = Desastre, group = Desastre)) + 
+  geom_bar(stat = "identity")+ 
+  theme_classic()+
+  labs(title = "Percentual de óbitos por tipo de desastres, por ano", 
+       y = 'Percentual de ocorrências', 
+       x = "Anos")+
+  scale_y_continuous(labels = label_percent(accuracy = 1)) +
+  scale_x_continuous(labels = label_number(accuracy = 1))+
+  theme(legend.position = "bottom")+
+  scale_fill_manual(values = paleta_desastres$Cores, limits = paleta_desastres$Tipo) + 
+    theme(legend.position = "none",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
+    strip.text = element_text(size = 6))+
+  facet_grid(Desastre ~ origem)
+
+p_des_ano_obitos
+
+ggsave(here("Figuras/2.4.1.5P_Categoria_Desastres_Obitos.png"), p_des_ano_obitos, width = 8, height = 10)
+
+rm(p_des_ano_obitos, dfdesastres)
+```
+
+```{r, warning=FALSE}
+#Sazonalidade dos Desastres
+mes_todos_des <- Desastres %>%
+  mutate(Mes = month(as.Date(Data_Evento))) %>% 
+  group_by(Desastre, Mes) %>% 
+  summarise(n_Brasil = n()) %>% 
+  group_by(Mes) %>% 
+  mutate(p_Brasil = n_Brasil/sum(n_Brasil))
+
+#Novo Desastres  
+sazon_desastres <- Desastres %>%
+  filter(Cod_IBGE_Mun %in% lista_municipios$Cod_IBGE_Mun) %>%  
+  mutate(Mes = month(as.Date(Data_Evento))) %>%
+  group_by(Desastre, Mes) %>% 
+  summarise(n_Selecionados = n()) %>% 
+  group_by(Mes) %>% 
+  mutate(p_Selecionados = n_Selecionados/sum(n_Selecionados)) %>% 
+    merge(mes_todos_des, by = c("Desastre", "Mes"), all= T) %>% 
+  replace(is.na(.), 0) %>% 
+    pivot_longer(cols = starts_with("n_"), names_prefix = "n_", names_to = "origem", values_to = "n") %>% 
+  ggplot(aes(x = Mes, y = n, fill = Desastre))+
+  geom_col(stat = "identity")+
+  labs(
+    title = "Número de desastres na seleção, por Mês",
+    y = "Número de desastres",
+    x = "Ano",
+    fill = "Categorias de Desastres",
+    caption = "Elaborado pelo autor") +
+  theme_classic() +
+  scale_fill_manual(values = paleta_desastres$Cores, limits = paleta_desastres$Tipo)+
+  scale_x_continuous(n.breaks = 10)+
+    theme(legend.position = "bottom",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        strip.text = element_text(size = 14))+
+    facet_wrap(~origem, scales = "free_y", ncol = 1)
+
+sazon_desastres
+
+ggsave(here("Figuras/2.4.1.6Sazonalidade_Desastres.png"), sazon_desastres, width = 10, height = 8)
+
+rm(sazon_desastres, mes_todos_des, Desastres)
+```
+
+## 2.4.2 Riscos Climáticos
+
+### Base de Dados Riscos Climáticos
+
+```{r}
+library(stringr)
+#Subindo a base do Sistema "AdaptaBrasil" e simplificando dados com "Pivot_Longer"
+AdaptaBrasil <- readRDS(here("Dados/AdaptaBrasil.RDS")) %>% 
+  pivot_longer(cols = !c("Cod_IBGE_Mun", "Municipio_UF"), names_prefix = "AB", names_to = "Indicador", values_to = "Indice_Risco") %>%
+  mutate(
+    Indice_Risco = as.numeric(Indice_Risco),
+    parts = str_split(Indicador, "_"),
+    Nivel = sapply(parts, function(x) x[1]),
+    Dimensao_Risco = sapply(parts, function(x) paste(x[2:3], collapse = " ")),
+    Risco_Climatico = sapply(parts, function(x) if(length(x) >= 4) paste(x[4:length(x)], collapse = " ") else NA_character_)
+  ) %>%
+  select(-parts) %>% 
+  mutate(origem = ifelse(Cod_IBGE_Mun %in% lista_municipios$Cod_IBGE_Mun, "Municipios Selecionados", "Brasil")) %>%
+  filter(!is.na(Indice_Risco), 
+         Dimensao_Risco != "Recursos Hídricos") %>% 
+  data.table()
+  
+
+```
+
+### Distribuição de riscos climáticos por área
+
+```{r}
+library(kableExtra)
+#Tabela
+sumABSelecionados <- AdaptaBrasil %>% 
+  filter(Nivel == 2, 
+         origem == "Municipios Selecionados") %>% 
+  group_by(Dimensao_Risco, Risco_Climatico) %>% 
+  summarise(Media_selecionados = mean(Indice_Risco), 
+            Mediana_selecionados = median(Indice_Risco), 
+            DesvPad_selecionados = sd(Indice_Risco))
+
+tb1 <- AdaptaBrasil %>% 
+  filter(Nivel == 2) %>% 
+  group_by(Dimensao_Risco, Risco_Climatico) %>% 
+  summarise(Media_Brasil = mean(Indice_Risco), 
+            Mediana_Brasil = median(Indice_Risco), 
+            DesvPad_Brasil = sd(Indice_Risco)) %>% 
+  merge(sumABSelecionados, by = c("Dimensao_Risco", "Risco_Climatico")) %>% 
+  mutate(Diferenca_Media = Media_selecionados - Media_Brasil, 
+         Diferenca_Mediana = Mediana_selecionados - Mediana_Brasil, 
+         Diferenca_DesvPad = DesvPad_selecionados - DesvPad_Brasil) %>% 
+  select(Dimensao_Risco, Risco_Climatico, Media_selecionados, Media_Brasil, Diferenca_Media, Mediana_selecionados, Mediana_Brasil, Diferenca_Mediana, DesvPad_selecionados, DesvPad_Brasil, Diferenca_DesvPad)
+
+kable(tb1, digits = 2)
+```
+
+```{r}
+#Gráficos da distribuição
+dist_AB <- AdaptaBrasil %>%
+  filter(origem == "Municipios Selecionados") %>% 
+  mutate(origem = "Brasil") %>% 
+  bind_rows(AdaptaBrasil) %>% 
+  filter(Nivel == 2) %>% 
+  mutate(Risco_Climatico = ifelse(Risco_Climatico == "Inundações enxurradas e alagamentos", "Inundações e afins", Risco_Climatico)) %>% 
+  ggplot(aes(x = Indice_Risco,  fill = origem)) +
+  geom_density() +
+  labs(
+    title = "Distribuição da frequência de níveis de risco nos municípios selecionados",
+    y = "Frequência Relativa",
+    x = "Nível de Risco",
+    fill = "Categorias de Desastres",
+    caption = "Fonte: AdaptaBrasil. Gráfico elaborado pelo autor", size = 12) +
+  theme_linedraw()+
+    theme(legend.position = "none",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        strip.text = element_text(size = 12))+
+    facet_grid(origem ~ Risco_Climatico)
+
+dist_AB
+ggsave(here("Figuras/2.4.2.1Distribuicao_Risco_Climatico.png"), dist_AB, width = 10, height = 5)
+  
+rm(dist_AB, sumABSelecionados, tb1)
+```
+
+### Histograma de riscos climáticos por componentes
+
+```{r}
+
+#Tabela
+
+sumABSelecionados <- AdaptaBrasil %>% 
+  filter(Nivel == 3, 
+         origem == "Municipios Selecionados") %>% 
+  group_by(Dimensao_Risco, Risco_Climatico) %>% 
+  summarise(Media_selecionados = mean(Indice_Risco), 
+            DesvPad_selecionados = sd(Indice_Risco))
+
+tb2 <- AdaptaBrasil %>% 
+  filter(Nivel == 3) %>%  
+  group_by(Dimensao_Risco, Risco_Climatico) %>% 
+  summarise(Media_Brasil = mean(Indice_Risco), 
+            DesvPad_Brasil = sd(Indice_Risco)) %>% 
+  merge(sumABSelecionados, by = c("Dimensao_Risco", "Risco_Climatico")) %>% 
+  mutate(Diferenca_Media = Media_selecionados - Media_Brasil, 
+         Diferenca_DesvPad = DesvPad_selecionados - DesvPad_Brasil) %>% 
+  select(Dimensao_Risco, Risco_Climatico, Media_selecionados, Media_Brasil, Diferenca_Media, DesvPad_selecionados, DesvPad_Brasil, Diferenca_DesvPad)
+
+kable(tb2, digits = 2)
+```
+
+```{r}
+dist_AB_componentes <- AdaptaBrasil %>%
+  filter(origem == "Municipios Selecionados") %>% 
+  mutate(origem = "Brasil") %>% 
+  bind_rows(AdaptaBrasil) %>% 
+  filter(Nivel == 3) %>% 
+  ggplot(aes(x = Indice_Risco,  fill = origem)) +
+  geom_density() +
+  labs(
+    title = "Distribuição da frequência de níveis de risco nos municípios selecionados, por componente",
+    y = "Frequência",
+    x = "Nível de Risco",
+    fill = "Origem",
+    caption = "Elaborado para o autor") +
+  theme_linedraw()+
+  theme(legend.position = "bottom")+
+  scale_y_continuous(labels = label_percent(accuracy = 1)) +
+      theme(legend.position = "bottom",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        strip.text = element_text(size = 14))+
+    facet_wrap(Indicador ~ origem, ncol = 2)
+
+dist_AB_componentes
+
+ggsave(here("Figuras/2.4.2.2Distribuicao_Componentes_Climaticos.png"), dist_AB_componentes, width = 10, height = 15)
+  
+rm(dist_AB_componentes, sumAB, sumABSelecionados, AdaptaBrasil, tb2)
+```
+
+## 2.4.3 Presença de OCSs nos Municípios
+
+```{r, 'base_oscs'}
+
+#Criando bases OSCs
+OSCs <- readRDS(here("Dados/OSCsClima.RDS")) %>% 
+  mutate(Ano = year(Data)) %>% 
+  group_by(Ano, Cod_IBGE_Mun) %>% 
+  summarise(n_OSCs = max(n_OSCs)) %>% 
+  mutate(origem = ifelse(Cod_IBGE_Mun %in% lista_municipios$Cod_IBGE_Mun, "Selecionados", "Brasil"))
+
+
+```
+
+### Média do número de OSCs: base vs Brasil
+
+```{r}
+#Gráfico
+osc_ano <- OSCs %>%
+  filter(origem == "Selecionados") %>% 
+  mutate(origem = "Brasil") %>% 
+  bind_rows(OSCs) %>% 
+  group_by(Ano, origem) %>% 
+  summarise(Media = mean(n_OSCs), 
+            DesvPad = sd(n_OSCs)) %>% 
+  ggplot(aes(x = Ano, y = Media,  color = origem)) +
+  geom_line(size = 1.5) +
+  geom_point(size = 3)+
+  labs(
+    title = "Média de OSCs por município, por ano",
+    y = "Média de OSCs por município",
+    x = "Ano",
+    fill = "Origem",
+    caption = "Fonte: Mapa das OSCs/IPEA. Gráfico elaborado pelo autor") +
+  ylim(0,200)+
+  scale_x_continuous(n.breaks = 10)+
+  theme_bw()+      
+  theme(legend.position = "bottom",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        strip.text = element_text(size = 14))
+
+osc_ano
+
+ggsave(here("Figuras/2.4.3.1.Média de OSCs por município e ano.png"), osc_ano, width = 10, height = 4)
+  
+rm(osc_ano)
+```
+
+### Distribuição do número de OSCs no Brasil em 2023
+
+```{r, 'distribuicao_oscs_2023'}
+#Gráfico
+osc_dist <- OSCs %>%
+  filter(origem == "Selecionados") %>% 
+  mutate(origem = "Brasil") %>% 
+  bind_rows(OSCs) %>% 
+  filter(Ano == 2023) %>% 
+  ggplot(aes(x = n_OSCs, fill = origem)) +
+  geom_density(alpha = 0.75)+
+  labs(
+    title = "Distribuição da quantidade de OSCs nos municípios, em 2023",
+    y = "Frequência relativa",
+    x = "Número de OSCs",
+    fill = "Origem",
+    caption = "Fonte: Mapa das OSCs/IPEA. Gráfico elaborado pelo autor") +
+  xlim(0,500)+
+  scale_y_continuous(labels = label_percent(accuracy = 0.1)) +
+  theme_bw()+
+  theme(legend.position = "none",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        strip.text = element_text(size = 14))
+
+osc_dist
+
+ggsave(here("Figuras/2.4.3.2.Distribuição de OSCs em 2023.png"), osc_dist, width = 8, height = 3)
+  
+rm(osc_dist, OSCs)
+```
+
+## 2.4.4 Orçamento dos municípios
+
+### Série temporal do orçamento dos municípios
+
+```{r}
+#Resfatando base do orçamento
+orcamento <- readRDS(here("Dados/orcamento2013_2024.RDS"))%>% 
+  mutate(origem = ifelse(Cod_IBGE_Mun %in% lista_municipios$Cod_IBGE_Mun, "Selecionados", "Brasil"))
+
+#Gráfico série temporal
+
+orcamento_ano <- orcamento %>%
+  filter(origem == "Selecionados") %>% 
+  mutate(origem = "Brasil") %>% 
+  bind_rows(orcamento) %>% 
+  group_by(Ano, origem) %>% 
+  summarise(Media = mean(Receitas_Mun)) %>% 
+  ggplot(aes(x = Ano, y = Media,  color = origem)) +
+  geom_line(size = 1.5) +
+  geom_point(size = 3)+
+  labs(
+    title = "Valor médio das receitas municipais, por ano",
+    y = "Total de Receitas (em R$)",
+    x = "Ano",
+    fill = "Origem",
+    caption = "Fonte: SICONFI. Gráfico produzido pelo autor.") +
+  scale_x_continuous(n.breaks = 11)+
+  scale_y_continuous(labels = scales::comma, limits = c(0, 600000000))+
+  theme_bw()+
+  theme(legend.position = "bottom",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        strip.text = element_text(size = 14))
+
+orcamento_ano
+
+ggsave(here("Figuras/2.4.4.1.Média de Receitas por ano.png"), orcamento_ano, width = 10, height = 4)
+  
+rm(orcamento_ano)
+  
+```
+
+### Distribuição do orçamento dos municípios: selecionados vs Brasil
+
+```{r, 'distribuicao_orcamento'}
+#Gráfico
+orcamento_dist <- orcamento %>%
+  filter(origem == "Selecionados") %>% 
+  mutate(origem = "Brasil") %>% 
+  bind_rows(orcamento) %>% 
+  filter(Ano == 2024) %>% 
+  ggplot(aes(x = Receitas_Mun, fill = origem)) +
+  geom_density(alpha = 0.75)+
+  labs(
+    title = "Distribuição da Receita dos municípios, em 2024",
+    y = "Frequência Relativa",
+    x = "Total de Receitas (em R$)",
+    fill = "Origem",
+    caption = "Fonte: SICONFI. Gráfico produzido pelo autor.") +
+  scale_y_continuous(labels = label_percent()) +
+  scale_x_continuous(labels = scales::comma, limits = c(0, 1000000000))+
+  theme_bw()+
+  theme(legend.position = "bottom",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        strip.text = element_text(size = 14))
+
+orcamento_dist
+
+ggsave(here("Figuras/2.4.4.2.Distribuição de Receitas em 2024.png"), orcamento_dist, width = 8, height = 3)
+  
+rm(orcamento_dist, orcamento)
+```
+
+# 2.5 Cruzando as variáveis
+
+Agora, podemos começar a análisar a relação entre as variáveis.
+
+## 2.5.1 Proposituras x Desastres
+
+### 2.5.1.1 Nº Proposituras x Dias após Desastre
+
+```{r}
+
+#Tabela quartis em relação a declaração de desastre
+
+
+sum_dd <- summary(df$dias_desastre_anterior)
+```
+
+```{r}
+prop_dias_desastres <- df %>% 
+  ggplot(aes(x = dias_desastre_anterior, fill = T)) +
+  geom_histogram(binwidth = 30)+ #Cada um representa aproximadamente 1 mês
+  geom_vline(xintercept = 0)+
+  geom_vline(xintercept = sum_dd[2], linetype = "dashed")+
+  geom_vline(xintercept = sum_dd[3], linetype = "dashed")+
+  geom_vline(xintercept = sum_dd[5], linetype = "dashed")+
+  labs(title = "Histograma: apresentação de proposituras climáticas desde o desastre mais recente no município", 
+       y = "Número de Proposituras",
+       x = "Dias desde o desastre mais recente",
+       caption = "Elaborado pelo autor")+
+  theme_bw()+
+  xlim(0,1600)+
+    theme(legend.position = "none",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10))
+
+prop_dias_desastres
+
+ggsave(here("Figuras/2.5.1.1 Histograma proposituras desde última desastre.png"), prop_dias_desastres)
+
+rm(prop_dias_desastres)
+```
+
+```{r}
+prop_dias_tipos_desastres <- df %>% 
+  filter(!is.na(dias_desastre_anterior), 
+         !is.na(desastre_anterior)) %>% 
+  ggplot(aes(x = dias_desastre_anterior, fill = desastre_anterior)) +
+  geom_density()+ #Cada um representa aproximadamente 1 mês
+  geom_vline(xintercept = 0)+
+  labs(title = "Densidade da distribuição das proposituras climáticas desde o desastre mais recente no município", 
+       y = "Percentual de Proposituras",
+       x = "Dias desde o desastre mais recente",
+       caption = "Elaborado pelo autor")+
+  geom_vline(xintercept = sum_dd[2], linetype = "dashed")+
+  geom_vline(xintercept = sum_dd[3], linetype = "dashed")+
+  geom_vline(xintercept = sum_dd[5], linetype = "dashed")+
+  theme_bw()+
+  theme(legend.position = "none",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        strip.text = element_text(size = 14))+
+  xlim(0,1600)+
+  scale_fill_manual(values = paleta_desastres$Cores, limits = paleta_desastres$Tipo)+
+  facet_wrap(~ desastre_anterior, scales = "free_y")+
+  scale_y_continuous(labels = label_percent())
+
+prop_dias_tipos_desastres
+
+ggsave(here("Figuras/2.5.1.2Densidade_proposituras_desastre.png"), prop_dias_tipos_desastres)
+
+rm(prop_dias_tipos_desastres)
+
+```
+
+### 2.5.1.3 Tipo de Proposituras x Dias após Desastre
+
+```{r, warning=FALSE}
+tiproj_dias_desastres <- df %>% 
+  mutate(Tipo = ifelse(Tipo %in% paleta_proposituras$Tipo, Tipo, "outros")) %>% 
+  filter(!is.na(desastre_anterior)) %>% 
+  ggplot(aes(x = dias_desastre_anterior, fill = Tipo)) +
+  geom_density()+ #Cada um representa aproximadamente 1 mês
+  geom_vline(xintercept = 0)+
+  labs(title = "Proposituras climáticas por dia desde o desastre mais recente no município e tipo de propositura", 
+       y = "Percentual de Proposituras",
+       x = "Dias desde o desastre mais recente",
+       caption = "Elaborado pelo autor")+
+  geom_vline(xintercept = sum_dd[2], linetype = "dashed")+
+  geom_vline(xintercept = sum_dd[3], linetype = "dashed")+
+  geom_vline(xintercept = sum_dd[5], linetype = "dashed")+
+  theme_bw()+
+  theme(legend.position = "none",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        strip.text = element_text(size = 14))+
+  xlim(0,1600)+
+  scale_fill_manual(values = paleta_proposituras$Cores, limits = paleta_proposituras$Tipo)+
+  facet_wrap(~ Tipo)+
+  scale_y_continuous(labels = label_percent())
+
+
+tiproj_dias_desastres
+
+ggsave(here("Figuras/2.5.1.3 Densidade_tipos_proposituras_dias_desastre.png"), tiproj_dias_desastres)
+
+rm(tiproj_dias_desastres)
+```
+
+```{r, warning=FALSE}
+tiproj_dias_desastres <- df %>% 
+  mutate(Tipo = ifelse(Tipo %in% paleta_proposituras$Tipo, Tipo, "outros")) %>% 
+  filter(!is.na(desastre_anterior)) %>% 
+  ggplot(aes(x = dias_desastre_anterior, fill = Tipo)) +
+  geom_density()+ #Cada um representa aproximadamente 1 mês
+  geom_vline(xintercept = 0)+
+  labs(title = "Proposituras climáticas desde o desastre mais recente, por tipo de propositura e desastre", 
+       y = "Percentual de Proposituras",
+       x = "Dias desde o desastre mais recente",
+       caption = "Elaborado pelo autor")+
+  geom_vline(xintercept = sum_dd[2], linetype = "dashed")+
+  geom_vline(xintercept = sum_dd[3], linetype = "dashed")+
+  geom_vline(xintercept = sum_dd[5], linetype = "dashed")+
+  theme_bw()+
+  theme(legend.position = "none",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        strip.text = element_text(size = 14))+
+  xlim(0,1600)+
+  scale_fill_manual(values = paleta_proposituras$Cores, limits = paleta_proposituras$Tipo)+
+  facet_grid(desastre_anterior ~ Tipo, scales = "free_y")+
+  scale_y_continuous(labels = label_percent())
+
+
+tiproj_dias_desastres
+
+ggsave(here("Figuras/2.5.1.4Densidade_tipos_proposituras_e_desastre.png"), tiproj_dias_desastres, width = 15, height = 20)
+
+rm(tiproj_dias_desastres)
+```
+
+```{r, warning= FALSE}
+
+tiproj_120_dias <- df %>%   
+  filter(dias_desastre_anterior <= 120) %>% 
+  mutate(Tipo = ifelse(Tipo %in% paleta_proposituras$Tipo, Tipo, "outros")) %>% 
+  group_by(Tipo, dias_desastre_anterior) %>% 
+  summarise(n_al = n()) %>%
+  group_by(dias_desastre_anterior) %>% 
+  mutate(Percentual = n_al/ sum(n_al)) %>% 
+  ggplot(aes( x = `dias_desastre_anterior`, y = Percentual, fill = Tipo)) + 
+  geom_bar(stat = "identity", width = 1.1)+ 
+  theme_classic()+
+  labs(title = "Distribuição dos tipos de proposituras climáticas, por dias após o desastre", 
+       y = 'Percentual de proposituras', 
+       x = "Dias desde o último desastre",
+       caption = "Elaborado pelo autor")+
+  scale_y_continuous(labels = label_percent(accuracy = 1)) +
+  theme(legend.position = "bottom")+
+  scale_fill_manual(values = paleta_proposituras$Cores, limits = paleta_proposituras$Tipo)+
+    theme(legend.position = "bottom",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        strip.text = element_text(size = 14))
+
+tiproj_120_dias
+
+ggsave(here("Figuras/2.5.1.5Tipos_proposituras_120_dias_tipos_desastre.png"), tiproj_120_dias)
+
+rm(tiproj_120_dias)
+```
+
+```{r, warning=FALSE}
+tiproj_deastres_120_dias <- df %>%   
+  filter(dias_desastre_anterior <= 120,
+         !(desastre_anterior %in% c('Onda de Calor e Baixa Umidade', 'Onda de Frio', 'Tornado'))) %>% 
+  mutate(Tipo = ifelse(Tipo %in% paleta_proposituras$Tipo, Tipo, "outros")) %>% 
+  group_by(Tipo, dias_desastre_anterior, desastre_anterior) %>% 
+  summarise(n_al = n()) %>%
+  group_by(dias_desastre_anterior, desastre_anterior) %>% 
+  mutate(Percentual = n_al/ sum(n_al)) %>% 
+  ggplot(aes( x = `dias_desastre_anterior`, y = Percentual, fill = Tipo)) + 
+  geom_bar(stat = "identity", width = 1.1)+ 
+  theme_classic()+
+  labs(title = "Distribuição dos tipos de proposituras climáticas, por dias após o desastre", 
+       y = 'Percentual de proposituras', 
+       x = "Dias desde o último desastre",
+       caption = "Elaborado pelo autor")+
+  scale_y_continuous(labels = label_percent(accuracy = 1)) +
+  theme(legend.position = "bottom",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        strip.text = element_text(size = 14))+
+  scale_fill_manual(values = paleta_proposituras$Cores, limits = paleta_proposituras$Tipo)+
+  facet_wrap(~desastre_anterior)
+
+tiproj_deastres_120_dias
+
+ggsave(here("Figuras/2.5.1.6Tipos_proposituras_120_dias_apos_desastre.png"), tiproj_deastres_120_dias)
+
+rm(tiproj_deastres_120_dias)
+```
+
+### 2.5.2 Comparação com propostas no geral
+
+```{r}
+prop_todos_dias_desastres <- df %>% 
+  group_by(dias_desastre_anterior) %>% 
+  summarise(n_clima = n(),
+            total_tipo_proj_dia = sum(total_tipo_proj_dia)) %>% 
+  pivot_longer(cols = c("n_clima", "total_tipo_proj_dia"), names_to = "Categoria", values_to = "Valor") %>% 
+  ggplot(aes(x = dias_desastre_anterior, y = Valor, fill = Categoria)) +
+  geom_col()+ 
+  geom_vline(xintercept = 0)+
+  geom_vline(xintercept = sum_dd[2], linetype = "dashed")+
+  geom_vline(xintercept = sum_dd[3], linetype = "dashed")+
+  geom_vline(xintercept = sum_dd[5], linetype = "dashed")+
+  labs(title = "Histograma: apresentação de proposituras climáticas desde o desastre mais recente no município", 
+       y = "Número de Proposituras",
+       x = "Dias desde o desastre mais recente",
+       caption = "Elaborado pelo autor")+
+  theme_bw()+
+  theme(legend.position = "bottom")+
+  xlim(0,1600)+
+  ylim(0,1000)+
+  theme(legend.position = "none",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        strip.text = element_text(size = 14))+
+  facet_wrap(~Categoria)
+
+prop_todos_dias_desastres
+
+ggsave(here("Figuras/2.5.2.1 Histograma TODAS proposituras desde último desastre.png"), prop_todos_dias_desastres)
+
+rm(prop_todos_dias_desastres)
+```
+
+```{r}
+#Percentual do total, por dia:
+percent_todos_dias_desastres <- df %>% 
+  group_by(dias_desastre_anterior) %>% 
+  summarise(n_clima = n(),
+            total_proj = sum(total_tipo_proj_dia),
+            p_clima = n_clima/total_proj,
+            p_outros = 1 - p_clima) %>% 
+  pivot_longer(cols = c("p_clima", "p_outros"), names_to = "Categoria", values_to = "Percentual") %>% 
+  ggplot(aes(x = dias_desastre_anterior, y = Percentual, fill = Categoria)) +
+  geom_col()+ 
+  geom_vline(xintercept = 0)+
+  geom_vline(xintercept = sum_dd[2], linetype = "dashed")+
+  geom_vline(xintercept = sum_dd[3], linetype = "dashed")+
+  geom_vline(xintercept = sum_dd[5], linetype = "dashed")+
+  labs(title = "Histograma: apresentação de proposituras climáticas desde o desastre mais recente no município", 
+       y = "Número de Proposituras",
+       x = "Dias desde o desastre mais recente",
+       caption = "Elaborado pelo autor")+
+  theme_bw()+
+  theme(legend.position = "bottom",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        strip.text = element_text(size = 14))+
+  xlim(0,1600)
+
+percent_todos_dias_desastres
+
+ggsave(here("Figuras/2.5.2.2 Percentual das proposituras climáticas em relação ao total.png"), percent_todos_dias_desastres)
+
+rm(percent_todos_dias_desastres)
+```
+
+### 2.5.3 Termos sobre clima x Dias após Desastre
+
+```{r}
+#Recriando base com termos climáticos separados
+
+dftermos <- df %>% 
+  separate(clima_termos, c("clima_1", "clima_2", "clima_3", "clima_4", "clima_5", "clima_6", "clima_7"), sep = ", ", fill = "right") %>% 
+  pivot_longer(starts_with("clima_"), names_to = "clima_names", names_prefix = "clima_", values_to = "clima_termos") %>% 
+  filter(!is.na(clima_termos)) %>% 
+  mutate(Categoria_Termos_Clima = case_when( #Adicionando categorias
+  #Chuvas:
+  clima_termos %in% c(" pluvial", " pluviais", " chuva", " fortes chuvas",  " chuvoso") ~ "Chuvas",
+  #Alagamentos e Inundações:
+  clima_termos %in% c(" alagamento",  " inundação", " inundações", " enxurrada", " enchente") ~ "Alagamentos e Inundações",
+  #Movimentos de Massa:
+  clima_termos %in% c(" deslizamento", " soterramento", " desabamento", " erosão") ~ "Movimentos de Massa",
+  #Secas:
+  clima_termos %in% c(" seca", " estiagem", " estiagens" ) ~ "Secas",
+  #Clima:
+  clima_termos %in% c(" clima", " adaptação climática", " aquecimento global", " mitigação", " eventos climáticos extremos", " descarbonização", " transição energética", " carbono", " efeito estufa") ~ "Clima",
+  #Ventos:
+  clima_termos == " vento" ~ "Ventos",
+  #Incêndios:
+  clima_termos == " incêndio" ~ "Incêndios",
+    #Defesa Civil
+    clima_termos == " defesa civil" ~ "Defesa Civil"))
+```
+
+```{r, warning=FALSE}
+termos_dias_desastres <- dftermos %>% 
+  filter(!is.na(desastre_anterior)) %>% 
+  ggplot(aes(x = dias_desastre_anterior, fill = Categoria_Termos_Clima)) +
+  geom_density()+ 
+  geom_vline(xintercept = 0)+
+  labs(title = "Menções aos termos relacionados ao clima em proposituras por dia desde o desastre mais recente no município", 
+       y = "Percentual de menções",
+       x = "Dias desde o desastre mais recente",
+       caption = "Elaborado pelo autor")+
+  geom_vline(xintercept = sum_dd[2], linetype = "dashed")+
+  geom_vline(xintercept = sum_dd[3], linetype = "dashed")+
+  geom_vline(xintercept = sum_dd[5], linetype = "dashed")+
+  theme_bw()+
+  theme(legend.position = "none",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        strip.text = element_text(size = 14))+
+  xlim(0,1600)+
+  scale_fill_manual(values = paleta_climatermos$Cores, limits = paleta_climatermos$Categoria)+
+  facet_wrap(~ Categoria_Termos_Clima)+
+  scale_y_continuous(labels = label_percent())
+
+
+termos_dias_desastres
+
+ggsave(here("Figuras/2.5.3.1 Densidade_termos_dias_desastre.png"), tiproj_dias_desastres)
+
+rm(termos_dias_desastres)
+```
+
+```{r, warning=FALSE}
+termos_dias_tipo_desastres <- dftermos %>% 
+  filter(!is.na(desastre_anterior),
+         !(desastre_anterior %in% c('Onda de Calor e Baixa Umidade', 'Onda de Frio', 'Tornado', 'Granizo'))) %>% 
+  ggplot(aes(x = dias_desastre_anterior, fill = desastre_anterior)) +
+  geom_density()+ #Cada um representa aproximadamente 1 mês
+  geom_vline(xintercept = 0)+
+  labs(title = "Proposituras climáticas desde o desastre mais recente, por tipo de propositura e desastre", 
+       y = "Percentual de Proposituras",
+       x = "Dias desde o desastre mais recente",
+       caption = "Elaborado pelo autor")+
+  geom_vline(xintercept = sum_dd[2], linetype = "dashed")+
+  geom_vline(xintercept = sum_dd[3], linetype = "dashed")+
+  geom_vline(xintercept = sum_dd[5], linetype = "dashed")+
+  theme_bw()+
+  theme(legend.position = "none",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        strip.text = element_text(size = 14))+
+  xlim(0,1600)+
+  scale_fill_manual(values = paleta_desastres$Cores, limits = paleta_desastres$Tipo)+
+  facet_grid(desastre_anterior ~ Categoria_Termos_Clima, scales = "free_y")+
+  scale_y_continuous(labels = label_percent())
+
+
+termos_dias_tipo_desastres
+
+ggsave(here("Figuras/2.5.3.2 Densidade_termos_e_desastre.png"), termos_dias_tipo_desastres, width = 15, height = 18)
+
+rm(termos_dias_tipo_desastres)
+```
+
+```{r, warning= FALSE}
+
+termos_120_dias <- dftermos %>%   
+  filter(dias_desastre_anterior <= 120) %>% 
+  group_by(Categoria_Termos_Clima, dias_desastre_anterior) %>% 
+  summarise(n_al = n()) %>%
+  group_by(dias_desastre_anterior) %>% 
+  mutate(Percentual = n_al/ sum(n_al)) %>% 
+  ggplot(aes( x = `dias_desastre_anterior`, y = Percentual, fill = Categoria_Termos_Clima)) + 
+  geom_bar(stat = "identity", width = 1.1)+ 
+  theme_classic()+
+  labs(title = "Distribuição das menções aos termos climáticos, por dias após o desastre", 
+       y = 'Percentual de menções aos termos', 
+       x = "Dias desde o último desastre",
+       fill = "Termos Climáticos",
+       caption = "Elaborado pelo autor")+
+  scale_y_continuous(labels = label_percent(accuracy = 1)) +
+  theme(legend.position = "bottom",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        strip.text = element_text(size = 14))+
+  scale_fill_manual(values = paleta_climatermos$Cores, limits = paleta_climatermos$Categoria)
+
+termos_120_dias
+
+ggsave(here("Figuras/2.5.3.3Termos_proposituras_120_dias_tipos_desastre.png"), termos_120_dias)
+
+rm(termos_120_dias)
+```
+
+```{r, warning=FALSE}
+termos_deastres_120_dias <- dftermos %>%   
+  filter(dias_desastre_anterior <= 120,
+         !(desastre_anterior %in% c('Onda de Calor e Baixa Umidade', 'Onda de Frio', 'Tornado'))) %>% 
+  group_by(Categoria_Termos_Clima, dias_desastre_anterior, desastre_anterior) %>% 
+  summarise(n_al = n()) %>%
+  group_by(dias_desastre_anterior, desastre_anterior) %>% 
+  mutate(Percentual = n_al/ sum(n_al)) %>% 
+  ggplot(aes( x = `dias_desastre_anterior`, y = Percentual, fill = Categoria_Termos_Clima)) + 
+  geom_bar(stat = "identity", width = 1.1)+ 
+  theme_classic()+
+  labs(title = "Distribuição das menções a termos climáticos, por dias após o desastre", 
+       y = 'Percentual de menções aos termos', 
+       x = "Dias desde o último desastre",
+       caption = "Elaborado pelo autor")+
+  scale_y_continuous(labels = label_percent(accuracy = 1)) +
+  theme(legend.position = "bottom",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        strip.text = element_text(size = 14))+
+  scale_fill_manual(values = paleta_climatermos$Cores, limits = paleta_climatermos$Categoria)+
+  facet_wrap(Categoria_Termos_Clima~desastre_anterior, ncol = 10)
+
+termos_deastres_120_dias
+
+ggsave(here("Figuras/2.5.3.4Termos_120_dias_por_desastre.png"), termos_deastres_120_dias, width = 15, height = 20)
+
+rm(termos_deastres_120_dias, sum_dd, dftermos)
+```
+
+### 2.5.4 % Proposituras Município x Risco Climático
+
+```{r}
+
+#Criando data.table para usar nas análises seguintes
+dfrisco <- df %>%
+  pivot_longer(cols = starts_with("AB"), names_prefix = "AB", names_to = "Indicador", values_to = "Indice_Risco") %>%
+  mutate(
+    Indice_Risco = as.numeric(Indice_Risco),
+    parts = str_split(Indicador, "_"),
+    Nivel = sapply(parts, function(x) x[1]),
+    Dimensao_Risco = sapply(parts, function(x) paste(x[2:3], collapse = " ")),
+    Risco_Climatico = sapply(parts, function(x) if(length(x) >= 4) paste(x[4:length(x)], collapse = " ") else NA_character_)
+  ) %>%
+  select(-parts) %>% 
+  filter(!is.na(Indice_Risco)) %>% 
+  data.table()
+
+```
+
+```{r}
+library(scales)
+#Percentual de Proposituras apresentadas x Dimensão de Risco
+prop_dimensao_risco <- dfrisco %>% 
+  mutate(Tipo = ifelse(Tipo %in% paleta_proposituras$Tipo, Tipo, "outros")) %>% 
+  group_by(Dimensao_Risco, Indice_Risco, Tipo) %>% 
+  summarise(n = n(),
+            Percentual = n/sum(total_tipo_proj_dia)) %>% 
+  ggplot(aes(y = Percentual, x = Indice_Risco, color = Tipo))+
+  geom_point()+
+  theme_bw()+
+  scale_y_continuous(labels = label_percent(accuracy = 1)) +
+  scale_color_manual(values = paleta_proposituras$Cores, limits = paleta_proposituras$Tipo)+
+  labs(title = "Percentual de proposituras apresentadas x Indicador de Dimensão de Risco", 
+       x = "Índice de Risco",
+       y = "Percentual de proposituras por dia",
+       caption = "Elaborado pelo autor")+
+  theme(legend.position = "bottom",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        strip.text = element_text(size = 14))+
+  facet_wrap(~Dimensao_Risco, nrow = 3)
+
+prop_dimensao_risco
+
+ggsave(here("Figuras/2.5.4.1.Proposituras_Dimensao_Risco.png"), prop_dimensao_risco, width = 6, height = 9)
+
+rm(prop_dimensao_risco)
+```
+
+```{r}
+#Percentual de Projetos Indicados x Indicador
+prop_indicador_risco <- dfrisco %>% 
+  filter(Nivel > 2) %>% 
+  group_by(Indicador, Indice_Risco) %>% 
+  summarise(n = n(),
+            Percentual = n/sum(total_tipo_proj_dia)) %>% 
+  mutate(Indicador = str_replace_all(Indicador, "_", " ")) %>% 
+  ggplot(aes(y = Percentual, x = Indice_Risco))+
+  geom_point()+
+  stat_smooth(method = "lm",
+              formula = y ~ x,
+              geom = "smooth")+
+  scale_y_continuous(labels = label_percent(accuracy = 1)) +
+  labs(title = "Percentual de proposituras apresentadas x Indicador de Risco", 
+       x = "Índice de Risco",
+       y = "Percentual de proposituras por dia",
+       caption = "Elaborado pelo autor")+
+  theme_bw()+
+  theme(legend.position = "bottom",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        strip.text = element_text(size = 14))+
+  facet_wrap(~Indicador, ncol = 3)
+
+prop_indicador_risco 
+
+ggsave(here("Figuras/2.5.4.2Proposituras_Indicador_Risco.png"), prop_indicador_risco, width = 15, height = 20)
+
+rm(prop_indicador_risco)
+```
+
+```{r}
+#Fazer loop de regressões por indicadores
+
+library(purrr)
+library(broom)
+
+# 1. Rodando regressões:
+risco_lms <- dfrisco %>% 
+  group_by(Indicador, Indice_Risco) %>% 
+  summarise(n = n(),
+            Percentual = n / sum(total_tipo_proj_dia), .groups = "drop")  %>%
+  group_split(Indicador) %>% #Agrupa por Indicador para regressões
+  set_names(map_chr(., ~ unique(.x$Indicador))) %>% #Estabelece os nomes de cada regressão salva
+  map(~ lm(Percentual ~ Indice_Risco, data = .x))  %>% #Roda todas as regressões em ação vetorizada
+  map_dfr(tidy, .id = "Indicador") #Sumariza tabelas
+
+
+```
+
+```{r}
+#Desastres x Risco Climático
+
+DesastresN <- readRDS(here("Dados/Desastres.RDS")) %>% 
+  filter(Cod_IBGE_Mun %in% lista_municipios$Cod_IBGE_Mun) %>% 
+  group_by(Cod_IBGE_Mun, Desastre, DH_MORTOS) %>% 
+  summarise(N_Desastre = n(),
+            obitos = sum(DH_MORTOS))
+
+climaXdesastres <- dfrisco %>% 
+  group_by(Cod_IBGE_Mun, Dimensao_Risco, Indice_Risco) %>% 
+  summarise(n = n(),
+            Percentual = n/sum(total_tipo_proj_dia)) %>% 
+    merge(DesastresN, by = c("Cod_IBGE_Mun"), all = T) %>% 
+  filter(!is.na(Desastre),
+         !Desastre %in% c('Onda de Calor e Baixa Umidade', 'Onda de Frio', 'Tornado')) %>% 
+  ggplot(aes(x = Percentual, y = N_Desastre, color = Desastre)) +
+  geom_point()+
+  stat_smooth(method = "lm",
+              formula = y ~ x,
+              geom = "smooth")+
+  labs(title = "Número de Desastres x Índice de Risco", 
+       x = "Índice de Risco",
+       y = "Número de desastres",
+       caption = "Elaborado pelo autor")+
+  scale_color_manual(values = paleta_desastres$Cores, limits = paleta_desastres$Tipo)+
+  theme_bw()+
+  theme(legend.position = "bottom",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        strip.text = element_text(size = 14))+
+  facet_grid(Dimensao_Risco~Desastre)
+
+climaXdesastres
+
+ggsave(here("Figuras/2.5.4.3.Desastres_Indicador_Risco.png"), climaXdesastres, width = 10, height = 10)
+
+rm(climaXdesastres)
+```
+
+```{r}
+#Óbitos em Desastres x Níveis de Risco
+climaXobitos <- dfrisco %>% 
+  group_by(Cod_IBGE_Mun, Dimensao_Risco, Indice_Risco) %>% 
+  summarise(n = n(),
+            Percentual = n/sum(total_tipo_proj_dia)) %>% 
+    merge(DesastresN, by = c("Cod_IBGE_Mun"), all = T) %>% 
+  filter(!is.na(Desastre),
+         !Desastre %in% c('Onda de Calor e Baixa Umidade', 'Onda de Frio', 'Tornado')) %>% 
+  ggplot(aes(x = Percentual, y = obitos, color = Desastre)) +
+  geom_point()+
+  stat_smooth(method = "lm",
+              formula = y ~ x,
+              geom = "smooth")+
+  labs(title = "Número de Desastres x Índice de Risco", 
+       x = "Índice de Risco",
+       y = "Número de mortos em desastres",
+       caption = "Elaborado pelo autor")+
+  scale_color_manual(values = paleta_desastres$Cores, limits = paleta_desastres$Tipo)+
+  theme_bw()+
+  theme(legend.position = "bottom",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        strip.text = element_text(size = 14))+
+  ylim(0,50)+
+  facet_grid(Dimensao_Risco~Desastre, scales = "free_y")
+
+climaXobitos
+
+ggsave(here("Figuras/2.5.4.4.Obitos_Indicador_Risco.png"), climaXobitos, width = 15, height = 15)
+
+rm(climaXobitos, DesastresN, dfrisco)
+```
+
+### 2.5.5 % Proposituras Município x Nº de OSCs
+
+```{r}
+proposituras_oscs <- df %>% 
+  filter(Ano == 2023) %>% 
+  mutate(Tipo = ifelse(Tipo %in% paleta_proposituras$Tipo, Tipo, "outros")) %>% 
+  group_by(Cod_IBGE_Mun, Tipo) %>% 
+  summarize(n = n(),
+            n_OSCs = max(n_OSCs),
+            Percentual = n/sum(total_tipo_proj_dia)) %>% 
+  ggplot(aes(x = n_OSCs, y = Percentual, color = Tipo)) +
+  geom_point()+
+  stat_smooth(method = "lm",
+              formula = y ~ x,
+              geom = "smooth",
+              aes(color = NA))+
+  labs(title = "Percentual de proposituras apresentadas x Número de OSCs no município em 2023", 
+       x = "Número de OSCs",
+       y = "Percentual de proposituras no ano",
+       caption = "Elaborado pelo autor")+
+  theme_bw()+
+  scale_y_continuous(labels = label_percent(accuracy = 1)) +
+  xlim(0,1000)+
+  scale_color_manual(values = paleta_proposituras$Cores, limits = paleta_proposituras$Tipo)+
+  theme(legend.position = "bottom",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        strip.text = element_text(size = 14))
+
+proposituras_oscs
+
+ggsave(here("Figuras/2.5.5.1.Proposituras_OSCs.png"),proposituras_oscs)
+
+rm(proposituras_oscs)
+```
+
+```{r}
+tipos_proposituras_oscs <- df %>% 
+  filter(Ano == 2023) %>% 
+  mutate(Tipo = ifelse(Tipo %in% paleta_proposituras$Tipo, Tipo, "outros")) %>% 
+  group_by(Cod_IBGE_Mun, Tipo) %>% 
+  summarize(n = n(),
+            n_OSCs = max(n_OSCs),
+            Percentual = n/sum(total_tipo_proj_dia)) %>% 
+  ggplot(aes(x = n_OSCs, y = Percentual, color = Tipo)) +
+  geom_point()+
+  stat_smooth(method = "lm",
+              formula = y ~ x,
+              geom = "smooth")+
+  labs(title = "Percentual de proposituras apresentadas x Número de OSCs no município em 2023", 
+       x = "Número de OSCs",
+       y = "Percentual de proposituras no ano",
+       caption = "Elaborado pelo autor")+
+  theme_bw()+
+  scale_y_continuous(labels = label_percent(accuracy = 1)) +
+  xlim(0,1000)+
+  theme(legend.position = "bottom",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        strip.text = element_text(size = 14))+
+  scale_color_manual(values = paleta_proposituras$Cores, limits = paleta_proposituras$Tipo)+
+  facet_wrap(~Tipo)
+
+tipos_proposituras_oscs
+
+ggsave(here("Figuras/2.5.5.2.Tipos_Proposituras_OSCs.png"),tipos_proposituras_oscs)
+
+rm(tipos_proposituras_oscs)
+```
+
+### 2.5.6 %Proposituras climáticas x Orçamento municipal
+
+```{r}
+proposituras_orcamento <- df %>% 
+  filter(Ano == 2024) %>% 
+  mutate(Tipo = ifelse(Tipo %in% paleta_proposituras$Tipo, Tipo, "outros")) %>% 
+  group_by(Cod_IBGE_Mun, Tipo, Receitas_Mun) %>% 
+  summarize(n = n(),
+            Percentual = n/sum(total_tipo_proj_dia)) %>% 
+  ggplot(aes(x = Receitas_Mun, y = Percentual, color = Tipo)) +
+  geom_point()+
+  stat_smooth(method = "lm",
+              formula = y ~ x,
+              geom = "smooth",
+              aes(color = NA))+
+  labs(title = "Percentual de proposituras apresentadas x Receita dos municípios em 2024", 
+       x = "Receita do governo municipal em 2024",
+       y = "Percentual de proposituras no ano",
+       caption = "Elaborado pelo autor")+
+  theme_bw()+
+  scale_y_continuous(labels = label_percent(accuracy = 1)) +
+  scale_x_continuous(labels = label_dollar())+
+  scale_color_manual(values = paleta_proposituras$Cores, limits = paleta_proposituras$Tipo)+
+  theme(legend.position = "bottom",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        strip.text = element_text(size = 14))
+
+proposituras_orcamento
+
+ggsave(here("Figuras/2.5.6.1.Proposituras_Orcamento.png"),proposituras_orcamento)
+
+rm(proposituras_orcamento)
+```
+
+```{r}
+tipos_proposituras_orcamento <- df %>% 
+  filter(Ano == 2024) %>% 
+  mutate(Tipo = ifelse(Tipo %in% paleta_proposituras$Tipo, Tipo, "outros")) %>% 
+  group_by(Cod_IBGE_Mun, Tipo, Receitas_Mun) %>% 
+  summarize(n = n(),
+            Percentual = n/sum(total_tipo_proj_dia)) %>% 
+  ggplot(aes(x = Receitas_Mun, y = Percentual, color = Tipo)) +
+  geom_point()+
+  stat_smooth(method = "lm",
+              formula = y ~ x,
+              geom = "smooth")+
+  labs(title = "Percentual de proposituras apresentadas x Receita dos municípios em 2024", 
+       x = "Receita do governo municipal em 2024",
+       y = "Percentual de proposituras no ano",
+       caption = "Elaborado pelo autor")+
+  theme_bw()+
+  scale_y_continuous(labels = label_percent(accuracy = 1)) +
+  scale_x_continuous(labels = label_dollar())+
+  theme(legend.position = "bottom",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        strip.text = element_text(size = 14))+
+  scale_color_manual(values = paleta_proposituras$Cores, limits = paleta_proposituras$Tipo)+
+  facet_wrap(~Tipo)
+
+tipos_proposituras_orcamento
+
+ggsave(here("Figuras/2.5.6.2.Tipos_proposituras_Orcamento.png"),tipos_proposituras_orcamento)
+
+rm(tipos_proposituras_orcamento)
+```
+
+### 2.5.7 Nº de Proposituras x Dias para Eleição
+
+```{r}
+prop_dias_eleicao <- df %>% 
+  mutate(dias_proxima_eleicao = -1*dias_proxima_eleicao) %>% 
+  ggplot(aes(x = dias_proxima_eleicao, fill = T)) +
+  geom_histogram(binwidth = 30)+ #Cada um representa aproximadamente 1 mês
+  geom_vline(xintercept = 0)+
+  geom_vline(xintercept = -365, linetype = "dashed")+
+  geom_vline(xintercept = -730, linetype = "dashed")+
+  geom_vline(xintercept = -1095, linetype = "dashed")+
+  labs(title = "Histograma: apresentação de proposituras climáticas em relação aos dias até a próxima eleição", 
+       y = "Número de Proposituras",
+       x = "Dias até a próxima eleição",
+       caption = "Elaborado pelo autor")+
+  theme_bw()+
+  theme(legend.position = "none",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        strip.text = element_text(size = 14))+
+  xlim(-1461,0)
+
+prop_dias_eleicao
+
+ggsave(here("Figuras/2.5.7.1 Histograma proposituras até próxima eleição.png"), prop_dias_eleicao)
+
+rm(prop_dias_eleicao)
+```
+
+```{r}
+prop_densi_eleicao <- df %>% 
+  mutate(dias_proxima_eleicao = -1*dias_proxima_eleicao) %>% 
+  group_by(dias_proxima_eleicao) %>% 
+  summarise(Proposituras_Clima = n(),
+            Proposituras_Totais = sum(total_tipo_proj_dia)) %>% 
+  pivot_longer(cols = starts_with("Proposituras_"), names_prefix = "Proposituras_", names_to = "Origem", values_to = "N_Proposituras") %>%
+  ggplot(aes(x = dias_proxima_eleicao, y = N_Proposituras, fill = Origem)) +
+  geom_col()+ #Cada um representa aproximadamente 1 mês
+  geom_vline(xintercept = 0)+
+  geom_vline(xintercept = -365, linetype = "dashed")+
+  geom_vline(xintercept = -730, linetype = "dashed")+
+  geom_vline(xintercept = -1095, linetype = "dashed")+
+  labs(title = "Histograma: apresentação de proposituras climáticas em relação aos dias até a próxima eleição", 
+       y = "Número de Proposituras",
+       x = "Dias desde o desastre mais recente",
+       caption = "Elaborado pelo autor")+
+  theme_bw()+
+  theme(legend.position = "bottom",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        strip.text = element_text(size = 14))+
+  xlim(-1461,0)+
+  facet_wrap(~Origem, ncol = 1, scales = "free_y")
+
+prop_densi_eleicao
+
+ggsave(here("Figuras/2.5.7.2Densidade proposituras até próxima eleição.png"), prop_densi_eleicao)
+
+rm(prop_densi_eleicao)
+```
+
+## 2.6 Salvar paletas e remover demais
+
+```{r}
+paletas <- list(climatermos = paleta_climatermos,
+  desastres = paleta_desastres,
+  proposituras = paleta_proposituras,
+  regiao = paleta_regiao)
+
+saveRDS(paletas, here("Dados/paletas.RDS"))
+
+saveRDS(risco_lms, here("Dados/riscl_lms.RDS"))
+
+rm(paletas, paleta_climatermos, paleta_desastres, paleta_proposituras, paleta_regiao, df, lista_municipios, risco_lms)
+```
