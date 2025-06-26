@@ -794,7 +794,7 @@ rm(all_terms, climatermos2, totals, p_cooctermos )
 
 ```{r}
 df_mun_n<- df %>% 
-  group_by(Cod_IBGE_Mun) %>% 
+  group_by(Cod_IBGE_Mun, Nome_Municipio, UF) %>% 
   summarise(n = n())
 
 mun_n_sum <- summary(df_mun_n$n)
@@ -824,6 +824,46 @@ mun_n_clima
 ggsave(here("Figuras/2.2.10Distribuição_N_Municipios.png"), mun_n_clima, height = 3, width = 10)
 
 rm(df_mun_n, mun_n_sum, mun_n_clima)
+```
+
+```{r}
+df_ols <- readRDS(here("Dados/df_ols.RDS"))
+
+df_mun_p<- df_ols %>% 
+  group_by(Cod_IBGE_Mun) %>% 
+  summarise(n = sum(n_proj_clima),
+            total = sum(total_proj_dia),
+            agenda_clima = n/total) %>% 
+  merge(df_mun_n, by = "Cod_IBGE_Mun", all = T)
+
+mun_p_sum <- summary(df_mun_p$agenda_clima)
+mun_p_sum  
+
+mun_p_clima <- df_mun_p %>% 
+  ggplot(aes(x = agenda_clima))+
+  geom_boxplot(fill = "darkgreen")+ 
+  labs(
+    title = "Boxplot do percentual de proposituras climáticas, por municípios",
+    y = "",
+    x = "Percentual de proposituras",
+    fill = "Origem", 
+       caption='Fonte: Elaboração do autor') +
+  scale_x_continuous(labels = label_percent())+
+  theme_bw() +
+  theme_classic() +
+  theme(legend.position = "bottom",
+        text = element_text(family = "Times New Roman"),
+        axis.text.y=element_blank(),
+        axis.ticks.y=element_blank(),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 14),
+        legend.text = element_text(size = 10))
+
+mun_p_clima
+
+ggsave(here("Figuras/2.2.11Distribuição_P_Municipios.png"), mun_p_clima, height = 3, width = 10)
+
+rm(df_mun_p, mun_p_sum, mun_p_clima)
 ```
 
 ## 2.3 - Sazonalidade
@@ -2227,12 +2267,12 @@ prop_dimensao_risco <- dfrisco1 %>%
         axis.title = element_text(size = 14),
         axis.text = element_text(size = 12),
         legend.text = element_text(size = 10),
-        strip.text = element_text(size = 14))+
-  facet_wrap(~Risco_Climatico)
+        strip.text = element_text(size = 10))+
+  facet_grid(cols = vars(Risco_Climatico))
 
 prop_dimensao_risco
 
-ggsave(here("Figuras/2.5.4.1.Proposituras_Dimensao_Risco.png"), prop_dimensao_risco, width = 10, height = 10)
+ggsave(here("Figuras/2.5.4.1.Proposituras_Dimensao_Risco.png"), prop_dimensao_risco, width = 10, height = 4)
 
 rm(prop_dimensao_risco)
 ```
@@ -2385,13 +2425,13 @@ prop_dimensao_risco <- dfrisco2 %>%
         axis.text = element_text(size = 12),
         legend.text = element_text(size = 10),
         strip.text = element_text(size = 10))+
-  facet_grid(Tipo~Risco_Climatico)
+  facet_grid(Risco_Climatico~Tipo)
 
 prop_dimensao_risco
 
-ggsave(here("Figuras/2.5.4.3.Proposituras_Dimensao_Risco_Tipo.png"), prop_dimensao_risco, width = 10, height = 15)
+ggsave(here("Figuras/2.5.4.3.Proposituras_Dimensao_Risco_Tipo.png"), prop_dimensao_risco, width = 15, height = 10)
 
-rm(prop_dimensao_risco, annot_df2)
+#rm(prop_dimensao_risco, annot_df2)
 ```
 
 ```{r}

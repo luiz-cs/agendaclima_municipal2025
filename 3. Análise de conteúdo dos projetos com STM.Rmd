@@ -31,6 +31,10 @@ library(ggplot2)
 
 ```{r}
 df <- readRDS(here("Dados/df_agendaclima_municipal.RDS"))
+
+
+paletas <- readRDS("Dados/paletas.RDS")
+plt_proposituras <- paletas$proposituras
 ```
 
 ```{r, 'adicionando_quartis'}
@@ -45,8 +49,6 @@ sum_distancia
 
 ```{r}
 
-paletas <- readRDS("Dados/paletas.RDS")
-plt_proposituras <- paletas$proposituras
 
 df %>% 
   mutate(Tipo = ifelse(Tipo %in% plt_proposituras$Tipo, Tipo, "outros")) %>% 
@@ -112,15 +114,23 @@ palavras_freq <-df %>%
   arrange(desc(n)) %>% 
   top_n(30) %>% 
   ggplot(aes(y = reorder(palavras, n), x = n)) +
-  geom_col() +
+  geom_col(fill = "black") +
   labs(
     title = "Número de menções aos termos nas ementas",
     x = "Número de menções",
-    y = "Palavras") +
+    y = "Palavras",
+    caption = "Elaborado pelo autor") +
   theme_classic() +
-  theme(legend.position = "none")
+    theme(legend.position = "none",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        strip.text = element_text(size = 14))
   
 palavras_freq
+
+ggsave(here("Figuras/3.1Frequência das Palavras.png"), palavras_freq)
 
 rm(palavras_freq, tidy)
 ```
@@ -151,14 +161,15 @@ textos <- textos[c(prep_texts$meta$docnumbers)]
 
 #Rodar só se necessário (leva muito tempo)
 #Valor k (número de tópicos em que dividir)
-#K <- 20:30
+#K <- 2:30
 
 ## searchk procura o melhor número de tópicos
 #kresult <- searchK(prep_texts$documents, prep_texts$vocab, K, data=prep_texts$meta)
 #plot(kresult)
 
 #saveRDS(kresult, here("Dados/kresult.RDS"))
-
+kresult <- readRDS(here("Dados/kresult.RDS"))
+plot(kresult)
 #rm(K, kresult)
 ```
 
@@ -168,7 +179,7 @@ Escolhemos k = 3, 6, 9 para maximizar a Coerência Semântica e 26 para reduzir 
 #modelagem dos tópicos (9 tópicos)
 stm_result <- stm(prep_texts$documents, prep_texts$vocab, 9, data=prep_texts$meta, verbose = F)
 
-saveRDS(stm_result, here("Dados/stm_result.RDS"))
+saveRDS(stm_result, here("Dados/STM_result.RDS"))
 
 summary(stm_result)
 ```
@@ -189,7 +200,7 @@ for (i in 1:nrow(thoughts_id)){
   }
 }
 
-write.csv(thoughts_docs, here("Dados/stm_thoughts9.csv"))
+write.csv(thoughts_docs, here("Dados/STM_thoughts9.csv"))
 
 ```
 
@@ -204,7 +215,25 @@ df <- df[, max_topico := do.call(pmax, c(.SD, na.rm = TRUE)), .SDcols = paste0("
 
 saveRDS(df, file = here("Dados/df_STM.RDS"))
 
-rm(textos, prep_texts, stm_tidy, i, j, thoughts_id, thoughts_docs, thoughts)
+
+
+```
+
+```{r}
+
+# Step 1: Flatten thoughts$index into long format
+thoughts_long <- data.frame(
+  index = unlist(thoughts$index),
+  topic = rep(1:9, each = 10) 
+)
+
+# Step 2: Subset df by index and bind topic info
+df_thought <- df %>%
+  mutate(row_id = row_number()) %>%
+  inner_join(thoughts_long, by = c("row_id" = "index")) %>%
+  arrange(topic)
+
+
 
 ```
 
@@ -213,7 +242,7 @@ rm(textos, prep_texts, stm_tidy, i, j, thoughts_id, thoughts_docs, thoughts)
 Primeiro, vamos adicionar a paleta de cores para os gráficos com Tópicos:
 
 ```{r}
-
+df <- readRDS(here("Dados/df_STM.RDS"))
 #Criando paleta de cores para os Tipos: 
 
 paleta_topicos <- data.frame(
@@ -233,7 +262,7 @@ saveRDS(paletas, here("Dados/paletas.RDS"))
 
 Depois, vamos analisar quais os percentuais atribuídos aos tópicos com maior percentual
 
-```{r}
+```{r, warning=FALSE}
 #Valor médio e variância do tópico com maior percentual de cada projeto
 mean_df <- df[, .(mean_val = mean(max_topico, na.rm = TRUE)), by = .(`tópico_principal`)]
 mean_df
@@ -245,16 +274,22 @@ box_topicos <- df %>%
       title = "Boxplot: distribuição dos percentuais de Tópicos",
       x = "Tópicos",
       y = "Percentual atribuído aos tópicos com maior valor",
-      fill = "Tópicos"
-    ) +
+      fill = "Tópicos",
+      caption = "Elaborado pelo autor") +
     theme_classic() +
-    theme(legend.position = "none")+
+      theme_classic() +
+    theme(legend.position = "none",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        strip.text = element_text(size = 14))+
   ylim(0,1)+
     scale_fill_manual(values = paleta_topicos$Cores, limits = paleta_topicos$Topicos)
 
 box_topicos
   
-ggsave(here("Figuras/3.4.1Boxplot_Maior_Topico.png"), box_topicos)
+ggsave(here("Figuras/3.4.1.1Boxplot_Maior_Topico.png"), box_topicos, width = 10, height = 6)
   
 rm(box_topicos)
 
@@ -272,16 +307,21 @@ dist_maior_topic <-  df %>%
       title = "Distribuição dos percentuais de Tópicos",
       x = "Percentual atribuído aos tópicos",
       y = "Número de proposituras",
-      fill = "Tópicos"
-    ) +
+      fill = "Tópicos",
+      caption = "Elaborado pelo autor") +
     theme_classic() +
-    theme(legend.position = "none")+
+        theme(legend.position = "none",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        strip.text = element_text(size = 14))+
     scale_fill_manual(values = paleta_topicos$Cores, limits = paleta_topicos$Topicos)+
     facet_wrap(~tópico_principal, ncol = 3)
 
 dist_maior_topic
 
-ggsave(here("Figuras/3.4.1Histograma_Maior_Topico.png"), dist_maior_topic)
+ggsave(here("Figuras/3.4.1.2Histograma_Maior_Topico.png"), dist_maior_topic)
   
 rm(dist_maior_topic, mean_df)
 ```
@@ -292,7 +332,7 @@ Interpretamos o gráfico anterior da seguinte forma: quanto mais valores próxim
 
 Agora, podemos comparar a soma dos percentuais atribuídos aos projetos em cada dia após o desastre, por tópico
 
-```{r, 'graf_dias_tipo'}
+```{r, warning = FALSE, 'graf_dias_tipo'}
 
 topico_dias <- df %>% 
   pivot_longer(starts_with("Tópico "), names_to = "Topicos", values_to = "Percent_Topicos") %>% 
@@ -305,11 +345,17 @@ topico_dias <- df %>%
   geom_vline(xintercept = quartil_2, linetype = "dashed")+
   geom_vline(xintercept = quartil_3, linetype = "dashed")+
   theme_classic()+
-  labs(title = "Percentual atribuído por tópico, por dias após desastre")+
-  ylab('Soma dos percentuais atribuídos às proposituras')+
+  labs(title = "Percentual atribuído por tópico, por dias após desastre",
+       fill = 'Tópico Principal',
+       caption = "Elaborado pelo autor")+
+  ylab('Soma dos percentuais atribuídos')+
   xlab('Dias desde o desastre anterior')+
-  labs(fill = 'Tópico Principal')+
-  theme(legend.position = "bottom")+
+      theme(legend.position = "none",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        strip.text = element_text(size = 14))+
   scale_fill_manual(values = paleta_topicos$Cores, limits = paleta_topicos$Topicos)+
   facet_wrap(~Topicos,  ncol = 3)
 
@@ -329,11 +375,17 @@ topico_quartil <- df %>%
   ggplot(aes( x = `Quartil`, y = Percent_Topicos, fill = Topicos)) +
   geom_bar(stat = "identity")+
   theme_classic()+
-  labs(title = "Percentual atribuído por tópico, por quartil em relação ao desastre")+
-  ylab('Soma dos percentuais atribuídos às proposituras')+
+  labs(title = "Percentual atribuído por tópico, por dias após desastre",
+       fill = 'Tópico Principal',
+       caption = "Elaborado pelo autor")+
+  ylab('Soma dos percentuais atribuídos')+
   xlab('Quartis em relação ao desastre anterior')+
-  labs(fill = 'Tópico Principal')+
-  theme(legend.position = "bottom")+
+        theme(legend.position = "bottom",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 12),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        strip.text = element_text(size = 14))+
   scale_fill_manual(values = paleta_topicos$Cores, limits = paleta_topicos$Topicos)
 
 topico_quartil
@@ -365,9 +417,45 @@ topico_quartil
 #rm(topico_quartil)
 ```
 
+```{r}
+
+NDesastres <- readRDS(here("Dados/Desastres.RDS")) %>% 
+  filter(Cod_IBGE_Mun %in% df$Cod_IBGE_Mun) %>% 
+  group_by(Cod_IBGE_Mun) %>% 
+  summarise(n_Desastres = n())
+
+topico_ndesastres <- df %>% 
+  pivot_longer(starts_with("Tópico "), names_to = "Topicos", values_to = "Percent_Topicos") %>% 
+  group_by(Cod_IBGE_Mun, Topicos) %>% 
+  summarise(Percent_Topicos = mean(Percent_Topicos)) %>% 
+  merge(NDesastres, by = "Cod_IBGE_Mun", all.x = T) %>% 
+  ggplot(aes( x = n_Desastres, y = Percent_Topicos, color = Topicos)) +
+  geom_point()+
+  theme_classic()+
+  labs(title = "Percentual atribuído por tópico, por número de desastres",
+       color = 'Tópico Principal',
+       caption = "Elaborado pelo autor")+
+  ylab('Soma dos percentuais atribuídos')+
+  xlab('Número de desastres no município (2013-2024)')+
+        theme(legend.position = "none",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 12),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        strip.text = element_text(size = 14))+
+  scale_color_manual(values = paleta_topicos$Cores, limits = paleta_topicos$Topicos)+
+  facet_wrap(~Topicos)
+
+topico_ndesastres
+
+ggsave(here("Figuras/3.4.2.3Percentual_Topicos_NDesastres.png"), topico_ndesastres, width = 10, height = 6)
+  
+rm(topico_ndesastres, NDesastres)
+```
+
 ### 3.4.3 Por tipo de propositura
 
-```{r}
+```{r, warning=FALSE}
 paleta_proposituras <- paletas$proposituras
 
 
@@ -384,12 +472,19 @@ topico_propositura <- df %>%
   geom_vline(xintercept = quartil_2, linetype = "dashed")+
   geom_vline(xintercept = quartil_3, linetype = "dashed")+
   theme_bw()+
-  labs(title = "Tópicos dos projetos, por dia em relação ao desastre (em percentual)")+
+  labs(title = "Tópicos dos projetos, por dia em relação ao desastre (em percentual)",
+       caption = "Elaborado pelo autor")+
   scale_fill_manual(values = paleta_topicos$Cores, limits = paleta_topicos$Topicos)+
   ylab('Percentual de proposituras')+
   xlab('Dias desde o desastre')+
-  theme(legend.position = "bottom")+
+      theme(legend.position = "bottom",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        strip.text = element_text(size = 14))+
   labs(fill = 'Tópico Principal')+
+  xlim(0,600)+
   facet_grid(Topicos~Tipo)
 
 topico_propositura
@@ -399,7 +494,7 @@ ggsave(here("Figuras/3.4.3.1Percentual_Topicos_Dias_Tipo_Propositura.png"), topi
 rm(topico_propositura)
 ```
 
-```{r}
+```{r, warning=FALSE}
 topico_propositura_quartil <- df %>% 
   mutate(Tipo = ifelse(Tipo %in% paleta_proposituras$Tipo, Tipo, "outros")) %>%   
            pivot_longer(starts_with("Tópico "), names_to = "Topicos", values_to = "Percent_Topicos") %>% 
@@ -408,22 +503,28 @@ topico_propositura_quartil <- df %>%
   ggplot(aes( x = `Quartil`, y = Percent_Topicos, fill = Topicos)) + 
   geom_bar(stat = "identity")+ 
   theme_bw()+
-  labs(title = "Tópicos dos projetos, por quartil em relação ao desastre (em percentual)")+
+  labs(title = "Tópicos dos projetos, por quartil em relação ao desastre (em percentual)",
+       caption = "Elaborado pelo autor")+
   scale_fill_manual(values = paleta_topicos$Cores, limits = paleta_topicos$Topicos)+
-  ylab('Percentual de proposituras')+
+  ylab('Soma do percentual das proposituras, por tópico')+
   xlab('Quartil em relação ao desastre')+
-  theme(legend.position = "bottom")+
+      theme(legend.position = "bottom",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 12),
+        strip.text = element_text(size = 14))+
   labs(fill = 'Tópico Principal')+
   facet_wrap(~Tipo)
 
 topico_propositura_quartil
 
-ggsave(here("Figuras/3.4.3.2Percentual_Topicos_Quartil_Tipo_Propositura.png"), topico_propositura_quartil, width = 15, height = 10)
+ggsave(here("Figuras/3.4.3.2Percentual_Topicos_Quartil_Tipo_Propositura.png"), topico_propositura_quartil, width = 10, height = 7)
 
-
+rm(topico_propositura_quartil)
 ```
 
-```{r}
+```{r, warning = FALSE}
 topico_propositura_quartil <- df %>% 
   mutate(Tipo = ifelse(Tipo %in% paleta_proposituras$Tipo, Tipo, "outros")) %>%  
   group_by(Tipo, Quartil, tópico_principal) %>% 
@@ -432,39 +533,54 @@ topico_propositura_quartil <- df %>%
   ggplot(aes( x = `Quartil`, y = Percent_n, fill = tópico_principal)) + 
   geom_bar(stat = "identity")+ 
   theme_bw()+
-  labs(title = "Tópicos dos projetos, por quartil em relação ao desastre (em percentual)")+
+  labs(title = "Tópicos dos projetos, por quartil em relação ao desastre (em percentual)",
+       caption = "Elaborado pelo autor")+
   scale_fill_manual(values = paleta_topicos$Cores, limits = paleta_topicos$Topicos)+
   ylab('Percentual de proposituras')+
   xlab('Quartil em relação ao desastre')+
-  theme(legend.position = "bottom")+
+      theme(legend.position = "bottom",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 12),
+        strip.text = element_text(size = 14))+
   labs(fill = 'Tópico Principal')+
   facet_wrap(~Tipo)
 
 topico_propositura_quartil
+
 
 rm(topico_propositura_quartil)
 ```
 
 ### 3.4.4 Gráfico Tipos por Desastre
 
-```{r}
+```{r, warning=FALSE}
 paleta_desastres <- paletas$desastres
 
 topico_desastres <- df %>%  
   filter(!is.na(desastre_anterior),
-         desastre_anterior %in% paleta_desastres$Tipo) %>% 
+         desastre_anterior %in% paleta_desastres$Tipo,
+         !(desastre_anterior %in% c('Onda de Calor e Baixa Umidade', 'Onda de Frio', 'Tornado', 'Granizo', NA))) %>% 
            pivot_longer(starts_with("Tópico "), names_to = "Topicos", values_to = "Percent_Topicos") %>% 
   group_by(desastre_anterior, Quartil, Topicos) %>% 
   summarise(Percent_Topicos = mean(Percent_Topicos))%>% 
   ggplot(aes( x = `Quartil`, y = Percent_Topicos, fill = Topicos)) + 
   geom_bar(stat = "identity")+ 
   theme_bw()+
-  labs(title = "Tópicos dos projetos, por quartil em relação ao desastre  e tipo de desastre")+
+  labs(title = "Tópicos dos projetos, por quartil em relação ao desastre  e tipo de desastre",
+       fill = 'Tópico Principal',
+       caption = "Elaborado pelo autor")+
   scale_fill_manual(values = paleta_topicos$Cores, limits = paleta_topicos$Topicos)+
   ylab('Percentual de documentos')+
   xlab('Quartil em relação ao desastre')+
-  theme(legend.position = "bottom")+
-  labs(fill = 'Tópico Principal')+
+  xlab('Quartil em relação ao desastre')+
+      theme(legend.position = "none",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 12),
+        strip.text = element_text(size = 10))+
   facet_grid(Topicos~desastre_anterior)
 
 topico_desastres
@@ -474,7 +590,7 @@ ggsave(here("Figuras/3.4.4.1Percentual_Topicos_Quartil_Desastres_Propositura.png
 rm(topicos_desastres)
 ```
 
-```{r}
+```{r, warning=FALSE}
 topico_desastres <- df %>% 
   filter(!(desastre_anterior %in% c('Onda de Calor e Baixa Umidade', 'Onda de Frio', 'Tornado', 'Granizo', NA))) %>%
   group_by(desastre_anterior, Quartil, tópico_principal) %>% 
@@ -499,7 +615,7 @@ rm(topicos_desastres)
 
 ### 3.4.5. Tópicos por ano
 
-```{r}
+```{r, warning = FALSE}
 Ano_Topicos <- df %>% 
            pivot_longer(starts_with("Tópico "), names_to = "Topicos", values_to = "Percent_Topicos") %>% 
   group_by(Ano, Quartil, Topicos) %>% 
@@ -507,20 +623,27 @@ Ano_Topicos <- df %>%
   ggplot(aes( x = `Ano`, y = Percent_Topicos, fill = Topicos)) + 
   geom_bar(stat = "identity")+ 
   theme_classic()+
+      theme(legend.position = "none",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 12),
+        strip.text = element_text(size = 10))+
   labs(title = "Tópicos das proposituras, por Ano",
-       fill = 'Tópico Principal')+
+       fill = 'Tópico',
+       caption = "Elaborado pelo autor")+
   scale_fill_manual(values = paleta_topicos$Cores, limits = paleta_topicos$Topicos)+
   scale_x_continuous(n.breaks = 10)+
-  ylab('Percentual de proposituras')
+  ylab('Soma do Percentual dos proposituras')+
+  facet_wrap(~Topicos)
 
 Ano_Topicos
 
-ggsave(here("Figuras/3.4.5P_Topicos_Ano.png"), Ano_Topicos)
 
 rm(Ano_Topicos)
 ```
 
-```{r, 'topico_ano'}
+```{r, warning=FALSE, 'topico_ano'}
 Ano_Topicos <- df %>% 
   group_by(tópico_principal, Ano) %>% 
   summarise(n_al = n()) %>%
@@ -530,15 +653,58 @@ Ano_Topicos <- df %>%
   geom_bar(stat = "identity")+ 
   theme_classic()+
   labs(title = "Tópicos das proposituras, por Ano",
-       fill = 'Tópico Principal')+
+       fill = 'Tópico Principal', 
+       caption = "Elaborado pelo autor")+      
+  theme(legend.position = "none",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 12),
+        strip.text = element_text(size = 10))+
   scale_fill_manual(values = paleta_topicos$Cores, limits = paleta_topicos$Topicos)+
-  scale_x_continuous(n.breaks = 10)+
-  ylab('Percentual de proposituras')
+  scale_x_continuous(n.breaks = 4)+
+  ylab('Percentual de proposituras')+
+    facet_wrap(~tópico_principal)
 
-Ano_Topicos
+ggsave(here("Figuras/3.4.5P_Topicos_Ano.png"), Ano_Topicos)
+
+rm(Ano_Topicos)
 ```
 
 ### 3.4.6 Por mês
+
+```{r}
+Mes_Topicos <- df %>% 
+  mutate(Mes = month(as.Date(Data))) %>% 
+  group_by(tópico_principal, Mes) %>% 
+  summarise(n_al = n()) %>%
+  group_by(Mes) %>% 
+  mutate(porcent_al = n_al/ sum(n_al))  %>% 
+  ggplot(aes( x = `Mes`, y = porcent_al, fill = tópico_principal)) + 
+  geom_bar(stat = "identity")+ 
+  theme_classic()+
+  labs(title = "Tópicos das proposituras, por Mês",
+       fill = 'Tópico Principal', 
+       caption = "Elaborado pelo autor")+      
+  theme(legend.position = "none",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 12),
+        strip.text = element_text(size = 10))+
+  scale_fill_manual(values = paleta_topicos$Cores, limits = paleta_topicos$Topicos)+
+  scale_x_continuous(n.breaks = 4)+
+  ylab('Percentual de proposituras')+
+  xlab('Mês')+
+    facet_wrap(~tópico_principal)
+
+
+Mes_Topicos
+
+ggsave(here("Figuras/3.4.6P_Topicos_Mes.png"), Mes_Topicos)
+
+rm(Mes_Topicos)
+```
 
 ## 3.5 Análise só de projetos colocados para votação
 
@@ -633,7 +799,7 @@ rm(textos, prep_texts, stm_tidy, i, j, thoughts_id, thoughts_docs, thoughts)
 Primeiro, vamos adicionar a paleta de cores para os gráficos com Tópicos:
 
 ```{r}
-
+df_pl <- readRDS(here("Dados/df_STM_PL.RDS"))
 #Criando paleta de cores para os Tipos: 
 
 plt_PLtopicos <- data.frame(
@@ -650,23 +816,38 @@ saveRDS(paletas, here("Dados/paletas.RDS"))
 ```
 
 ```{r}
+#Verificando as médias
+
+df_pl %>% 
+  group_by(topico_principalPL) %>% 
+  summarise(n = n()) %>% 
+  mutate(percent = n/sum(n))
+```
+
+```{r, warning=FALSE}
+
 topPL_diasN <- df_pl %>% 
   pivot_longer(starts_with("Tópico PL"), names_to = "Topicos", values_to = "Percent_Topicos") %>% 
   group_by(dias_desastre_anterior, Topicos) %>% 
-  summarise(n = n()) %>% 
-  ggplot(aes(x = dias_desastre_anterior, y = n, fill = Topicos))+
+  summarise(Percent_Topicos = sum(Percent_Topicos)/n()) %>% 
+  ggplot(aes(x = dias_desastre_anterior, y = Percent_Topicos, fill = Topicos))+
   geom_col()+
   geom_vline(xintercept = quartil_1, linetype = "dashed")+
   geom_vline(xintercept = quartil_2, linetype = "dashed")+
   geom_vline(xintercept = quartil_3, linetype = "dashed")+
   theme_bw()+
-  theme(legend.position = "bottom")+
+    theme(legend.position = "bottom",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10))+
   scale_fill_manual(values = plt_PLtopicos$Cores, limits = plt_PLtopicos$Topicos)+
   xlim(0,2000)+
   labs(x = "Dias desde o desastre anterior",
        y = "Número de proposições",
        title = "Número de proposições por dia após o desastre mais recente (Tópicos PL)",
-       fill= "Tópicos")+
+       fill= "Tópicos",
+       caption = "Elaborado pelo autor")+
   facet_wrap(~Topicos)
 
 topPL_diasN
@@ -680,7 +861,7 @@ rm(topPL_diasN)
 
 Depois, vamos analisar quais os percentuais atribuídos aos tópicos com maior percentual
 
-```{r}
+```{r, warning=FALSE}
 #Valor médio e variância do tópico com maior percentual de cada projeto
 
 box_topicos <- df_pl %>% 
@@ -690,16 +871,21 @@ box_topicos <- df_pl %>%
       title = "Boxplot: distribuição dos percentuais de Tópicos (PL)",
       x = "Tópicos",
       y = "Percentual atribuído aos tópicos com maior valor",
-      fill = "Tópicos"
-    ) +
+      fill = "Tópicos",
+      caption = "Elaborado pelo autor") +
     theme_classic() +
-    theme(legend.position = "none")+
+    theme(legend.position = "none",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        strip.text = element_text(size = 14))+
   ylim(0,1)+
     scale_fill_manual(values = plt_PLtopicos$Cores, limits = plt_PLtopicos$Topicos)
 
 box_topicos
   
-ggsave(here("Figuras/3.5.2.1Boxplot_Maior_Topico_PL.png"), box_topicos)
+ggsave(here("Figuras/3.5.2.1Boxplot_Maior_Topico_PL.png"), box_topicos, width = 10, height = 6)
   
 rm(box_topicos)
 
@@ -707,7 +893,7 @@ rm(box_topicos)
 
 Quando mais alta a média e menor a variância no boxplot, maior a certeza na classificação do respectivo Tópico
 
-```{r, 'percent_topicos_pl'}
+```{r, warning=FALSE, 'percent_topicos_pl'}
 mean_df <- df_pl[, .(mean_val = mean(max_topicoPL, na.rm = TRUE)), by = .(`topico_principalPL`)]
 
 dist_maior_topic <-  df_pl %>% 
@@ -719,16 +905,21 @@ dist_maior_topic <-  df_pl %>%
       title = "Distribuição dos percentuais de Tópicos (PL)",
       x = "Percentual atribuído aos tópicos",
       y = "Número de proposituras",
-      fill = "Tópicos"
-    ) +
+      fill = "Tópicos",
+      caption = "Elaborado pelo autor") +
     theme_classic() +
-    theme(legend.position = "none")+
+    theme(legend.position = "none",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        strip.text = element_text(size = 14))+
     scale_fill_manual(values = plt_PLtopicos$Cores, limits = plt_PLtopicos$Topicos)+
     facet_wrap(~topico_principalPL, ncol = 3)
 
 dist_maior_topic
 
-ggsave(here("Figuras/3.5.2.2Histograma_Maior_Topico_PL.png"), dist_maior_topic)
+ggsave(here("Figuras/3.5.2.2Histograma_Maior_Topico_PL.png"), dist_maior_topic, width = 10, height = 6)
   
 rm(dist_maior_topic, mean_df)
 ```
@@ -740,56 +931,70 @@ Agora, podemos comparar a soma dos percentuais atribuídos aos projetos em cada 
 ```{r, 'graf_dias_tipo_pl'}
 
 topico_dias <- df_pl %>% 
-  group_by(dias_desastre_anterior, topico_principalPL) %>% 
-  summarise(n = n()) %>% 
+  pivot_longer(starts_with("Tópico PL"), names_to = "Topicos", values_to = "Percent_Topicos") %>% 
+  group_by(dias_desastre_anterior, Topicos) %>% 
+  summarise(Percent_Topicos = sum(Percent_Topicos)/n()) %>% 
   filter(dias_desastre_anterior<= (quartil_3 + 365)) %>% 
-  ggplot(aes( x = `dias_desastre_anterior`, y = n, fill = topico_principalPL)) +
+  ggplot(aes( x = `dias_desastre_anterior`, y = Percent_Topicos, fill = Topicos)) +
   geom_bar(stat = "identity", width = 10)+
   geom_vline(xintercept = quartil_1, linetype = "dashed")+
   geom_vline(xintercept = quartil_2, linetype = "dashed")+
   geom_vline(xintercept = quartil_3, linetype = "dashed")+
   theme_classic()+
-  labs(title = "Número de proposituras por tópico e dias após desastre")+
+  labs(title = "Número de proposituras por tópico e dias após desastre",
+       caption = "Elaborado pelo autor.")+
   ylab('Número de proposituras')+
   xlab('Dias desde o desastre anterior')+
   labs(fill = 'Tópicos')+
-  theme(legend.position = "bottom")+
+    theme(legend.position = "botton",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        strip.text = element_text(size = 14))+
   scale_fill_manual(values = plt_PLtopicos$Cores, limits = plt_PLtopicos$Topicos)+
-  facet_wrap(~topico_principalPL,  ncol = 3)
+  facet_wrap(~Topicos,  ncol = 3)
 
 topico_dias 
 
 
-ggsave(here("Figuras/3.5.3.1.Percentual_Topicos_Dias_PL.png"), topico_dias)
+ggsave(here("Figuras/3.5.3.1.Percentual_Topicos_Dias_PL.png"), topico_dias, width = 10, height = 6)
   
 rm(topico_dias)
 ```
 
-```{r, 'Por_Quartil_pl'}
+```{r, warning=FALSE, 'Por_Quartil_pl'}
 topico_quartil <- df_pl %>% 
-  group_by(Quartil, topico_principalPL) %>% 
-  summarise(n = n()) %>% 
-  ggplot(aes( x = `Quartil`, y = n, fill = topico_principalPL)) +
+  pivot_longer(starts_with("Tópico PL"), names_to = "Topicos", values_to = "Percent_Topicos") %>% 
+  group_by(Quartil, Topicos) %>% 
+  summarise(Percent_Topicos = sum(Percent_Topicos)/n()) %>% 
+  ggplot(aes( x = `Quartil`, y = Percent_Topicos, fill = Topicos)) +
   geom_bar(stat = "identity")+
   theme_classic()+
-  labs(title = "Número de proposituras por tópico e quartil em relação ao desastre")+
-  ylab('Soma dos percentuais atribuídos às proposituras')+
+  labs(title = "Percentual de proposituras por tópico e quartil em relação ao desastre")+
+  ylab('Soma dos percentuais atribuídos')+
   xlab('Quartis em relação ao desastre anterior')+
-  labs(fill = 'Tópico')+
-  theme(legend.position = "bottom")+
+  labs(fill = 'Tópico',
+       caption = "Elaborado pelo autor.")+
+    theme(legend.position = "none",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        strip.text = element_text(size = 14))+
   scale_fill_manual(values = plt_PLtopicos$Cores, limits = plt_PLtopicos$Topicos)+
-  facet_wrap(~topico_principalPL)
+  facet_wrap(~Topicos)
 
 topico_quartil
 
-ggsave(here("Figuras/3.5.3.2N_Topicos_Quartil_PL.png"), topico_quartil)
+ggsave(here("Figuras/3.5.3.2N_Topicos_Quartil_PL.png"), topico_quartil, width = 10, height = 4)
   
 rm(topico_quartil)
 ```
 
 ### 3.5.4 Por tipo de propositura
 
-```{r}
+```{r, warning=FALSE}
 
 topico_propositura <- df_pl %>%
   group_by(Tipo) %>% 
@@ -809,8 +1014,14 @@ topico_propositura <- df_pl %>%
   scale_fill_manual(values = plt_PLtopicos$Cores, limits = plt_PLtopicos$Topicos)+
   ylab('Número proposituras')+
   xlab('Dias desde o desastre')+
-  theme(legend.position = "bottom")+
-  labs(fill = 'Tópico Principal')+
+    theme(legend.position = "none",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        strip.text = element_text(size = 14))+
+  labs(fill = 'Tópico Principal',
+       caption = "Elaborado pelo autor")+
   facet_grid(topico_principalPL~Tipo)
 
 topico_propositura
@@ -820,53 +1031,64 @@ ggsave(here("Figuras/3.5.4.1Numero_Topicos_PL_Dias_Tipo_Propositura.png"), topic
 rm(topico_propositura)
 ```
 
-```{r}
+```{r, warning=FALSE}
 topico_propositura_quartil <- df_pl %>% 
   group_by(Tipo) %>% 
   mutate(n_Tipo = n()) %>% 
   ungroup() %>% 
-  mutate(Tipo = ifelse(n_Tipo > 30, Tipo, "outros")) %>%  
+  mutate(Tipo = ifelse(n_Tipo > 20, Tipo, "outros")) %>%  
            pivot_longer(starts_with("Tópico PL"), names_to = "Topicos", values_to = "Percent_Topicos") %>% 
-  group_by(Tipo, Quartil, topico_principalPL) %>%  
-  summarise(n = n()) %>% 
-  ggplot(aes( x = `Quartil`, y = n, fill = topico_principalPL)) + 
+  group_by(Tipo, Quartil, Topicos) %>%  
+  summarise(Percent_Topicos = sum(Percent_Topicos)/n()) %>% 
+  ggplot(aes( x = `Quartil`, y = Percent_Topicos, fill = Topicos)) + 
   geom_bar(stat = "identity")+ 
   theme_bw()+
-  labs(title = "Tópicos dos projetos, por quartil em relação ao desastre (em percentual)")+
+  labs(title = "Tópicos dos projetos, por quartil em relação ao desastre (em percentual)",
+       caption = "Elaborado pelo autor")+
   scale_fill_manual(values = plt_PLtopicos$Cores, limits = plt_PLtopicos$Topicos)+
   ylab('Percentual de proposituras')+
   xlab('Quartil em relação ao desastre')+
-  theme(legend.position = "bottom")+
+    theme(legend.position = "bottom",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        strip.text = element_text(size = 14))+
   labs(fill = 'Tópico Principal')+
-  facet_grid(topico_principalPL~Tipo)
+  facet_wrap(~Tipo)
 
 topico_propositura_quartil
 
-ggsave(here("Figuras/3.5.4.2N_Topicos_PL_Quartil_Tipo_Propositura.png"), topico_propositura_quartil, width = 15, height = 10)
+ggsave(here("Figuras/3.5.4.2N_Topicos_PL_Quartil_Tipo_Propositura.png"), topico_propositura_quartil, width = 12, height = 8)
 
 
 ```
 
 ### 3.5.5 Gráfico Tipos por Desastre
 
-```{r}
+```{r, warning=FALSE}
 
-topico_desastres <- df_pl %>%  
-  filter(!is.na(desastre_anterior),
-         !desastre_anterior %in% c("Onda de Frio", "Tornado")) %>% 
+topico_desastres <-  df_pl %>%
+  filter(!(desastre_anterior %in% c('Onda de Calor e Baixa Umidade', 'Onda de Frio', 'Tornado', 'Granizo', NA))) %>%  
            pivot_longer(starts_with("Tópico PL"), names_to = "Topicos", values_to = "Percent_Topicos") %>% 
-  group_by(desastre_anterior, Quartil, topico_principalPL) %>% 
-  summarise(n = n())%>% 
-  ggplot(aes( x = `Quartil`, y = n, fill = topico_principalPL)) + 
+  group_by(desastre_anterior, Quartil, Topicos) %>% 
+  summarise(Percent_Topicos = sum(Percent_Topicos)/n()) %>% 
+  ggplot(aes( x = `Quartil`, y = Percent_Topicos, fill = Topicos)) + 
   geom_bar(stat = "identity")+ 
   theme_bw()+
-  labs(title = "Tópicos (PL) das proposituras, por quartil em relação ao desastre  e tipo de desastre")+
+  labs(title = "Tópicos (PL) das proposituras, por quartil em relação ao desastre  e tipo de desastre",
+       caption = "Elaborado pelo autor")+
   scale_fill_manual(values = plt_PLtopicos$Cores, limits = plt_PLtopicos$Topicos)+
   ylab('Percentual de documentos')+
   xlab('Quartil em relação ao desastre')+
-  theme(legend.position = "bottom")+
+    theme(legend.position = "none",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        strip.text = element_text(size = 10))+
   labs(fill = 'Tópico')+
-  facet_grid(topico_principalPL~desastre_anterior)
+  facet_grid(Topicos~desastre_anterior)
 
 topico_desastres
 
@@ -875,9 +1097,9 @@ ggsave(here("Figuras/3.5.5NTopicos_Quartil_Desastres_Propositura.png"), topico_d
 rm(topicos_desastres)
 ```
 
-### 3.5.6. Tópicos por ano
+### 3.5.6. Tópicos por período
 
-```{r}
+```{r, warning=FALSE}
 Ano_Topicos <- df_pl %>% 
   group_by(Ano, topico_principalPL) %>% 
   summarise(n = n()) %>% 
@@ -885,23 +1107,106 @@ Ano_Topicos <- df_pl %>%
   geom_bar(stat = "identity")+ 
   theme_classic()+
   labs(title = "Tópicos das proposituras, por Ano",
-       fill = 'Tópico Principal')+
+       fill = 'Tópico Principal',
+       caption = "Elaborado pelo autor")+
   scale_fill_manual(values = plt_PLtopicos$Cores, limits = plt_PLtopicos$Topicos)+
-  scale_x_continuous(n.breaks = 10)+
+  scale_x_continuous(n.breaks = 4)+
   ylab('Número de proposituras')+
   facet_wrap(~topico_principalPL)+
-  theme(legend.position = "bottom")
+    theme(legend.position = "none",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        strip.text = element_text(size = 14))
 
 Ano_Topicos
 
-ggsave(here("Figuras/3.5.6N_TopicosPL_Ano.png"), Ano_Topicos)
+ggsave(here("Figuras/3.5.6.1N_TopicosPL_Ano.png"), Ano_Topicos, width = 10, height = 5)
 
 rm(Ano_Topicos)
 ```
 
+```{r, warning=FALSE}
+Mes_Topicos <- df_pl %>% 
+  mutate(Mês = month(as.Date(Data))) %>% 
+  group_by(Mês, topico_principalPL) %>% 
+  summarise(n = n()) %>% 
+  ggplot(aes( x = `Mês`, y = n, fill = topico_principalPL)) + 
+  geom_bar(stat = "identity")+ 
+  theme_classic()+
+  labs(title = "Tópicos das proposituras, por Mês",
+       fill = 'Tópico Principal',
+       caption = "Elaborado pelo autor")+
+  scale_fill_manual(values = plt_PLtopicos$Cores, limits = plt_PLtopicos$Topicos)+
+  scale_x_continuous(n.breaks = 10)+
+  ylab('Número de proposituras')+
+  facet_wrap(~topico_principalPL)+
+    theme(legend.position = "none",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        strip.text = element_text(size = 14))
+
+Mes_Topicos
+
+ggsave(here("Figuras/3.5.6.2N_TopicosPL_Mes.png"), Mes_Topicos, width = 10, height = 5)
+
+rm(Ano_Topicos)
+```
+
+## 3.6 Construção da base de dados da "agenda climática estrita"
+
+```{r}
+df_estrito <- df_pl %>% 
+  filter(Tipo %in% c("projeto de lei ordinaria", "projeto de lei executivo", "projeto de lei complementar", "anteprojeto de lei"),
+         topico_principalPL %in% c("Tópico PL2", "Tópico PL3", "Tópico PL4")) 
+  
+df_estrito_nmun <- df_estrito %>% 
+  select(Cod_IBGE_Mun) %>% 
+  unique()
+
+rm(df_estrito_mun)
+```
+
+```{r, warning=FALSE}
+df_mun_n<- df_estrito %>% 
+  group_by(Cod_IBGE_Mun, Nome_Municipio, UF) %>% 
+  summarise(n = n())
+
+mun_n_sum <- summary(df_mun_n$n)
+mun_n_sum  
+
+mun_n_clima <- df_mun_n %>% 
+  ggplot(aes(x = n))+
+  geom_boxplot(fill = "darkgreen")+ 
+  labs(
+    title = "Boxplot do número de projetos climáticos (estrito), por municípios",
+    y = "",
+    x = "Número de proposituras",
+    fill = "Origem", 
+       caption='Fonte: Elaboração do autor') +
+  theme_bw() +
+  theme_classic() +
+  theme(legend.position = "bottom",
+        text = element_text(family = "Times New Roman"),
+        axis.text.y=element_blank(),
+        axis.ticks.y=element_blank(),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 14),
+        legend.text = element_text(size = 10))
+
+mun_n_clima
+
+ggsave(here("Figuras/3.6.10Distribuição_N_Municipios_estrito.png"), mun_n_clima, height = 3, width = 10)
+
+rm(df_mun_n, mun_n_sum, mun_n_clima)
+```
+
 ```{r}
 #Removendo todos os arquivos
-rm(list = ls(all.names = TRUE))
+#rm(list = ls(all.names = TRUE))
 ```
 
 Prossiga para o arquivo "4. Análise dos efeitos dos ECEs sobre a agenda em políticas climáticas"
