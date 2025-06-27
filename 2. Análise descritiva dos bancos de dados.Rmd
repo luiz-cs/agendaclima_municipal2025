@@ -2213,7 +2213,7 @@ dfrisco1 <- melt(
   value.name = "Indice_Risco"
 )
 
-# Parte 3: Renomando variávelM
+# Parte 3: Renomando variável
 dfrisco1[, `:=`(
   Indice_Risco = as.numeric(Indice_Risco),
   parts = strsplit(as.character(Indicador), "_")

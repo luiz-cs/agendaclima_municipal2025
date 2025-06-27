@@ -23,8 +23,6 @@ library(data.table)
 library(stringr)
 library(tidytext)
 library(ggplot2)
-
-
 ```
 
 ## 3.1. Preparando a base de dados
@@ -550,7 +548,7 @@ topico_propositura_quartil <- df %>%
 topico_propositura_quartil
 
 
-rm(topico_propositura_quartil)
+rm(topico_propositura_quartil, paleta_proposituras)
 ```
 
 ### 3.4.4 Gráfico Tipos por Desastre
@@ -1153,25 +1151,42 @@ Mes_Topicos
 
 ggsave(here("Figuras/3.5.6.2N_TopicosPL_Mes.png"), Mes_Topicos, width = 10, height = 5)
 
-rm(Ano_Topicos)
+rm(Ano_Topicos, plt_PLtopicos)
 ```
 
 ## 3.6 Construção da base de dados da "agenda climática estrita"
 
 ```{r}
-df_estrito <- df_pl %>% 
+dfE <- df_pl %>% 
   filter(Tipo %in% c("projeto de lei ordinaria", "projeto de lei executivo", "projeto de lei complementar", "anteprojeto de lei"),
          topico_principalPL %in% c("Tópico PL2", "Tópico PL3", "Tópico PL4")) 
-  
-df_estrito_nmun <- df_estrito %>% 
+
+#Removendo manualmente projetos que não dizem respeito ao clima
+PLs_remover <- c("cidade clima", "loteamento clima", "obrigatoriedade de os ônibus", "monóxido de carbono")
+
+# 1. Vetorize: cria matriz lógica [linha x termo] de quais termos aparecem
+match_matrix <- sapply(PLs_remover, function(t) grepl(t, dfE$ementa, ignore.case = TRUE))
+
+# 2. Cria a flag projetoclima
+dfE[, projetoclima := rowSums(match_matrix) > 0]
+
+#Limpando
+dfE <- dfE %>% 
+  filter(projetoclima == FALSE)
+
+
+#verificando número de cidades na nova seleção
+dfE %>% 
   select(Cod_IBGE_Mun) %>% 
   unique()
 
-rm(df_estrito_mun)
+
+rm(match_matrix, PLs_remover, df_pl)
 ```
 
 ```{r, warning=FALSE}
-df_mun_n<- df_estrito %>% 
+#Boxplot número de proposituras
+df_mun_n<- dfE %>% 
   group_by(Cod_IBGE_Mun, Nome_Municipio, UF) %>% 
   summarise(n = n())
 
@@ -1199,9 +1214,360 @@ mun_n_clima <- df_mun_n %>%
 
 mun_n_clima
 
-ggsave(here("Figuras/3.6.10Distribuição_N_Municipios_estrito.png"), mun_n_clima, height = 3, width = 10)
+ggsave(here("Figuras/3.6.1EDistribuição_N_Municipios_estrito.png"), mun_n_clima, height = 3, width = 10)
 
-rm(df_mun_n, mun_n_sum, mun_n_clima)
+rm(mun_n_sum, mun_n_clima)
+```
+
+```{r, warning=FALSE}
+hist_dfE <- df %>% 
+  select(Cod_IBGE_Mun) %>% 
+  unique() %>% 
+  merge(df_mun_n, by = c("Cod_IBGE_Mun"), all =T) %>% 
+  mutate(n = ifelse(is.na(n), 0, n)) %>% 
+  ggplot(aes(x = n))+
+  geom_histogram(fill = "darkgreen")+ 
+  labs(
+    title = "Histograma do número de projetos climáticos (estrito), por número de municípios",
+    y = "Número de municípios",
+    x = "Número de projetos",
+    fill = "Origem", 
+       caption='Fonte: Elaboração do autor') +
+  scale_x_continuous(breaks = c(0,2,4,6,8,10,12,14,16,18,20,22), minor_breaks = c(1,3,5,7,9,11,13,15,17,19,21))+
+  theme_bw() +
+    theme(legend.position = "none",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        strip.text = element_text(size = 14))
+
+hist_dfE
+
+ggsave(here("Figuras/3.6.2Histograma_N_Municipios_estrito.png"), hist_dfE, height = 4, width = 10)
+
+rm(hist_dfE, df_mun_n)
+
+```
+
+### Sazonalidade conjunta (Ano e mês)
+
+```{r}
+#Adicionando informações dos termos
+
+dfE <- dfE %>%
+  mutate(Mes = month(as.Date(Data))) %>% 
+  mutate(Mes = ifelse(Mes < 10, paste0(0, Mes), Mes),
+         Ano_Mes = paste0(Ano, "-", Mes)) %>%
+ separate(clima_termos, c("clima_1", "clima_2", "clima_3", "clima_4", "clima_5", "clima_6", "clima_7"), sep = ", ", fill = "right") %>% 
+  pivot_longer(starts_with("clima_"), names_to = "clima_names", names_prefix = "clima_", values_to = "clima_termos") %>% 
+  filter(!is.na(clima_termos)) %>% 
+  mutate(Categoria = case_when( #Adicionando categorias
+  #Chuvas:
+  clima_termos %in% c(" pluvial", " pluviais", " chuva", " fortes chuvas",  " chuvoso") ~ "Chuvas",
+  #Alagamentos e Inundações:
+  clima_termos %in% c(" alagamento",  " inundação", " inundações", " enxurrada", " enchente") ~ "Alagamentos e Inundações",
+  #Movimentos de Massa:
+  clima_termos %in% c(" deslizamento", " soterramento", " desabamento", " erosão") ~ "Movimentos de Massa",
+  #Secas:
+  clima_termos %in% c(" seca", " estiagem", " estiagens" ) ~ "Secas",
+  #Clima:
+  clima_termos %in% c(" clima", " adaptação climática", " aquecimento global", " mitigação", " eventos climáticos extremos", " descarbonização", " transição energética", " carbono", " efeito estufa") ~ "Clima",
+  #Ventos:
+  clima_termos == " vento" ~ "Ventos",
+  #Incêndios:
+  clima_termos == " incêndio" ~ "Incêndios",
+    #Defesa Civil
+    clima_termos == " defesa civil" ~ "Defesa Civil")) %>% 
+  ungroup()
+```
+
+```{r, warning=FALSE}
+paleta_climatermos <- paletas$climatermos
+#Criando base de sazonalidade
+
+sazonalidade_grid <- expand_grid(
+  Ano = c(2013:2024),
+  Mes = c(1:12)) %>% 
+  mutate(Mes = ifelse(Mes < 10, paste0(0, Mes), Mes),
+         Ano_Mes = paste0(Ano, "-", Mes)) %>% 
+  select(Ano_Mes)
+
+
+# Passo 1: gerar posições (índices) e labels
+n_ticks <- nrow(sazonalidade_grid)
+x_vals <- sort(unique(sazonalidade_grid$Ano_Mes))
+
+# Criar vetores com as posições desejadas
+vlines_idx <- seq(12.5, n_ticks, by = 12)  # linhas verticais após cada ano (após mês 12)
+label_idx  <- seq(1, n_ticks, by = 6)    # mostrar só 1 de cada 4 rótulos
+
+# Gráfico
+sazon1 <- dfE %>%
+  group_by(Ano_Mes, Categoria) %>% 
+  summarise(n = n()) %>% 
+  merge(sazonalidade_grid, by= c("Ano_Mes"), all = T) %>%
+  mutate(n = ifelse(is.na(n), 0, n)) %>% 
+  ggplot(aes(y = n, x = factor(Ano_Mes, levels = sort(unique(Ano_Mes))), fill = Categoria)) +  
+  geom_col() +
+  geom_vline(xintercept = vlines_idx, linetype = "dashed") +
+  scale_x_discrete(breaks = x_vals[label_idx]) +
+  labs(
+    title = "Número de projetos climáticos (estrito), por mês e tipo de projto",
+    x = "Ano e Mês",
+    y = "Número de propositura",
+    fill = "Categoria de Termos Mencionados",
+    caption = "Fonte: Elaboração do autor", size = 10
+  ) +
+  theme_bw() +
+  scale_fill_manual(values = paleta_climatermos$Cores, limits = paleta_climatermos$Categoria)+
+  theme(
+    legend.position = "bottom",
+    text = element_text(family = "Times New Roman"),
+    axis.title = element_text(size = 14),
+    axis.text = element_text(size = 10),
+    legend.text = element_text(size = 10),
+    axis.text.x = element_text(angle = 45, hjust = 1))
+
+sazon1
+
+ggsave(here("Figuras/3.6.3ESérie_Temporal_Proposituras.png"), sazon1, height = 5, width = 10)
+
+rm(sazon1)
+```
+
+```{r, warning=FALSE}
+
+#Heatmap
+heatmapE <- dfE %>%
+    filter(!is.na(Cod_IBGE_Mun)) %>% 
+    group_by(Ano_Mes, Categoria, Cod_IBGE_Mun) %>% 
+  summarise(n = n()) %>% 
+  merge(sazonalidade_grid, by= c("Ano_Mes"), all = T)
+  mutate(n = ifelse(is.na(n), 0, n)) %>% 
+  ggplot(aes(y = Cod_IBGE_Mun, x = Ano_Mes)) +  
+  geom_tile(aes(fill = Categoria), size = 4)+
+  geom_vline(xintercept = vlines_idx, linetype = "dashed") +
+  labs(
+    title = "Projetos climáticos (estrito), por mês e município",
+    x = "Ano e Mês",
+    y = "Código IBGE",
+    fill = "Categoria de Termos Mencionados",
+    caption = "Fonte: Elaboração do autor", size = 10
+  ) +
+  scale_x_discrete(breaks = x_vals[label_idx]) +
+  theme_bw() +
+  theme(
+    legend.position = "bottom",
+    text = element_text(family = "Times New Roman"),
+    axis.title = element_text(size = 8),
+    axis.text = element_text(size = 8),
+    legend.text = element_text(size = 8),
+    axis.text.x = element_text(angle = 45, hjust = 1))+
+  scale_fill_manual(values = paleta_climatermos$Cores, limits = paleta_climatermos$Categoria)
+
+heatmapE
+
+ggsave(here("Figuras/3.6.4EHeatmap_Proposituras.png"), heatmapE, height = 14, width = 10)
+
+rm(n_ticks, x_vals, vlines_idx, label_idx, heatmapE, sazonalidade, dfheatmap)
+
+```
+
+### Dias desde o último desastre
+
+```{r, warning=FALSE}
+prop_dias_desastres <- dfE %>% 
+  filter(!is.na(dias_desastre_anterior),
+         dias_desastre_anterior <=600) %>% 
+  group_by(dias_desastre_anterior, Categoria, desastre_anterior) %>% 
+  summarise(n = n()) %>% 
+  ggplot(aes(x = dias_desastre_anterior, y = n, fill = Categoria)) +
+  geom_col(width = 2)+
+  geom_vline(xintercept = 0)+
+  geom_vline(xintercept = quartil_1, linetype = "dashed")+
+  geom_vline(xintercept = quartil_2, linetype = "dashed")+
+  geom_vline(xintercept = quartil_3, linetype = "dashed")+
+  labs(title = "Histograma: apresentação de proposituras climáticas desde o desastre mais recente no município", 
+       y = "Número de Proposituras",
+       x = "Dias desde o desastre mais recente",
+       fill = "Termos mencionados",
+       caption = "Elaborado pelo autor")+
+  scale_fill_manual(values = paleta_climatermos$Cores, limits = paleta_climatermos$Categoria)+
+  theme_bw()+
+  xlim(0,600)+
+    theme(legend.position = "bottom",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10))+
+  facet_wrap(~desastre_anterior)
+
+prop_dias_desastres
+
+ggsave(here("Figuras/3.6.5E Histograma proposituras desde última desastre.png"), prop_dias_desastres, width = 10, height = 6)
+
+rm(prop_dias_desastres, quartil_1, quartil_2, quartil_3)
+```
+
+```{r, warning=FALSE}
+tiproj_120_dias <- dfE %>%   
+  filter(dias_desastre_anterior <= 120) %>% 
+  group_by(Categoria, dias_desastre_anterior) %>% 
+  summarise(n_al = n()) %>%
+  group_by(dias_desastre_anterior) %>% 
+  mutate(Percentual = n_al/ sum(n_al)) %>% 
+  ggplot(aes( x = `dias_desastre_anterior`, y = Percentual, fill = Categoria)) + 
+  geom_bar(stat = "identity", width = 1.1)+ 
+  theme_classic()+
+  labs(title = "Distribuição dos tipos de proposituras climáticas, por dias após o desastre", 
+       y = 'Percentual de projetos', 
+       x = "Dias desde o último desastre",
+       caption = "Elaborado pelo autor")+
+  scale_fill_manual(values = paleta_climatermos$Cores, limits = paleta_climatermos$Categoria)+
+  theme(legend.position = "bottom")+
+    theme(legend.position = "bottom",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        strip.text = element_text(size = 14))
+
+tiproj_120_dias
+
+ggsave(here("Figuras/3.6.6Categorias_proposituras_120_dias_tipos_desastre.png"), tiproj_120_dias, width = 10, height = 4)
+
+#rm(tiproj_120_dias, paleta_climatermos)
+
+```
+
+### Nível de Risco Climático
+
+```{r, warning=FALSE}
+
+library(purrr)
+library(broom)
+#Número de Proposituras apresentadas x Dimensão de Risco
+
+#Todos os municípios
+lista_mun <- df %>% 
+  select(Cod_IBGE_Mun, AB2_Segurança_Alimentar_Seca, AB2_Segurança_Alimentar_Chuva,  AB2_Desastres_Hidrológicos_Inundações_enxurradas_e_alagamentos, AB2_Desastres_Hidrológicos_Deslizamento_de_terra) %>% 
+  rename("AB2_Seca" = AB2_Segurança_Alimentar_Seca,
+         "AB2_Chuva" = AB2_Segurança_Alimentar_Chuva,  
+         "AB2_Inundações" = AB2_Desastres_Hidrológicos_Inundações_enxurradas_e_alagamentos,
+         "AB2_Deslizamentos de Terra" = AB2_Desastres_Hidrológicos_Deslizamento_de_terra) %>% 
+  unique()
+
+#Criando dfrisco
+
+dfrisco <- dfE %>% 
+  group_by(Cod_IBGE_Mun) %>% 
+  summarise(n_clima_estrito = n()) %>% 
+  merge(lista_mun, by = "Cod_IBGE_Mun", all=T) %>% 
+  mutate(n_clima_estrito = ifelse(is.na(n_clima_estrito), 0, n_clima_estrito)) %>% 
+  pivot_longer(cols = starts_with("AB2_"), names_prefix = "AB2_", names_to = "Risco_Climatico", values_to = "Indice_Risco")
+
+annot_df1 <- dfrisco %>%
+  group_by(Risco_Climatico) %>%
+  group_split() %>%
+  map_dfr(~ {
+    model <- lm(n_clima_estrito ~ Indice_Risco, data = .x)
+    coefs <- tidy(model)
+    slope <- coefs %>% filter(term == "Indice_Risco")
+    tibble(
+      Risco_Climatico = unique(.x$Risco_Climatico),
+      x = max(.x$Indice_Risco, na.rm = TRUE),
+      y = max(.x$n_clima_estrito, na.rm = TRUE),
+      label = paste0("β = ", round(slope$estimate, 3),
+                     ", p = ", format.pval(slope$p.value, digits = 2, eps = 0.001))
+    )
+  })
+
+prop_dimensao_risco <- dfrisco %>% 
+  ggplot(aes(y = n_clima_estrito, x = Indice_Risco))+
+  geom_point()+
+  stat_smooth(method = "lm",
+              formula = y ~ x,
+              geom = "smooth")+
+  geom_text(
+    data = annot_df1,
+    aes(x = -Inf, y = Inf, label = label),
+    inherit.aes = FALSE,
+    hjust = -0.1, vjust = 1.1,
+    size = 3.5,
+    family = "Times New Roman")+
+  theme_bw()+
+  labs(title = "Percentual de proposituras apresentadas x Indicador de Dimensão de Risco", 
+       x = "Índice de Risco",
+       y = "Número de Projetos",
+       caption = "Elaborado pelo autor")+
+  theme(legend.position = "bottom",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        strip.text = element_text(size = 10))+
+  facet_grid(cols = vars(Risco_Climatico))
+
+prop_dimensao_risco
+
+ggsave(here("Figuras/3.6.7.EProposituras_Dimensao_Risco.png"), prop_dimensao_risco, width = 10, height = 4)
+
+rm(prop_dimensao_risco, lista_mun, dfrisco)
+```
+
+### Dias até a próxima eleição
+
+```{r, warning=FALSE}
+prop_dias_eleicao <- dfE %>% 
+  mutate(dias_proxima_eleicao = -1*dias_proxima_eleicao) %>% 
+  ggplot(aes(x = dias_proxima_eleicao, fill = T)) +
+  geom_histogram(binwidth = 30)+ #Cada um representa aproximadamente 1 mês
+  geom_vline(xintercept = 0)+
+  geom_vline(xintercept = -365, linetype = "dashed")+
+  geom_vline(xintercept = -730, linetype = "dashed")+
+  geom_vline(xintercept = -1095, linetype = "dashed")+
+  labs(title = "Histograma: apresentação de projetos climáticos (estrito) em relação aos dias até a próxima eleição", 
+       y = "Número de Proposituras",
+       x = "Dias até a próxima eleição",
+       caption = "Elaborado pelo autor")+
+  theme_bw()+
+  theme(legend.position = "none",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        strip.text = element_text(size = 14))+
+  xlim(-1461,0)
+
+prop_dias_eleicao
+
+ggsave(here("Figuras/3.6.8E Histograma proposituras até próxima eleição.png"), prop_dias_eleicao, width = 10, height = 5)
+
+rm(prop_dias_eleicao)
+```
+
+### Salvando base junto ao df_ols
+
+```{r}
+df_ols <- readRDS(here("Dados/df_ols.RDS"))
+
+dfE <- dfE %>% 
+  group_by(Cod_IBGE_Mun, Data) %>% 
+  summarise(agenda_estrita = n()) %>% 
+  data.table()
+
+setDT(dfE)
+
+df_ols <- merge(df_ols, dfE, by=c("Cod_IBGE_Mun", "Data"), all = T)
+
+df_ols[, agenda_estrita := fifelse(is.na(agenda_estrita), 0, agenda_estrita)]
+
+df_ols %>% 
+  group_by(agenda_estrita) %>% 
+  summarise(n = n())
+
+saveRDS(df_ols, here("Dados/df_ols.RDS"))
 ```
 
 ```{r}
