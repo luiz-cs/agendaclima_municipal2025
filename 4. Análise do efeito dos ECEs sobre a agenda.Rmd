@@ -14,7 +14,9 @@ Na primeira, faremos a análise com toda a produção que menciona os termos pro
 ```{r}
 #install.packages("patchwork")
 #install.packages("plm")
-
+#install.packages("zoo")
+#install.packages("collapse")
+#install.packages("performance")
 ```
 
 ```{r, echo = FALSE, warning=FALSE}
@@ -29,12 +31,15 @@ library(patchwork)
 library(scales)
 library(plm)
 library(stargazer)
-
+library(zoo)
+library(collapse)
+library(performance)
 ```
 
 ```{r, echo = FALSE}
-df_ols <- readRDS(here("Dados/df_ols.RDS")) %>% 
-  mutate(Dia = as.integer(Dia)) #Corrigindo Dia como integral
+df_ols <- readRDS(here("Dados/df_ols.RDS")) 
+
+df_ols[, Dia := as.integer(Dia)]
 ```
 
 ## 4.1 Observando as características da série
@@ -90,7 +95,7 @@ heatmaps1 <- lapply(c(1:5), function(reg) {
 
   # Salvar
   ggsave(
-    filename = here(paste0("Figuras/4.1", reg, "heatmap_regiao_", Regiao, ".png")),
+    filename = here(paste0("Figuras/4.1.", reg, "heatmap_regiao_", Regiao, ".png")),
     plot = p,
     width = 10, height = 4 + n_distinct(dados_reg$Cod_IBGE_Mun) / 20)
 
@@ -100,126 +105,185 @@ heatmaps1 <- lapply(c(1:5), function(reg) {
 rm(heatmaps1, datas, df_heatmap, df_desastres, regioes)
 ```
 
+## 4.1.2 Padronizando as variáveis explicativas
+
+```{r}
+
+#Transformando variável "Obitos" em dummy
+df_ols[, "d2_obitos" := fifelse(Obitos >0, 1, 0)]
+
+#Padronizando variáveis contínuas
+varpadronizar <- c(
+  "Receitas_pCap", "n_OSCs",
+  "AB2_Segurança_Alimentar_Seca", "AB2_Segurança_Alimentar_Chuva",
+  "AB2_Desastres_Hidrológicos_Inundações_enxurradas_e_alagamentos",
+  "AB2_Desastres_Hidrológicos_Deslizamento_de_terra"
+)
+
+# Loop eficiente para criar colunas _pd e dp_
+for (var in varpadronizar) {
+  desvio <- sd(df_ols[[var]], na.rm = TRUE)
+  media  <- mean(df_ols[[var]], na.rm = TRUE)
+  
+  df_ols[[paste0("dp_", var)]] <- desvio
+  df_ols[[paste0(var, "_pd")]] <- (df_ols[[var]] - media) / desvio
+}
+
+rm(varpadronizar, media, var, desvio)
+```
+
+```{r}
+#Renomeando variáveis
+df_ols <- df_ols %>% 
+  rename("y_agenda_clima" = "agenda_clima", "y2_agenda_estrita" = "agenda_estrita",
+         "d1_Desastre" = "Desastre",
+         "w_dias_eleicao" = "dias_proxima_eleicao", 
+         "x1_Receitas_pCap_pd" = "Receitas_pCap_pd", 
+         "x2_n_OSCs_pd" = "n_OSCs_pd",
+    "z1_Seca_pd" = "AB2_Segurança_Alimentar_Seca_pd",
+         "z2_Chuva_pd" = "AB2_Segurança_Alimentar_Chuva_pd",
+         "z3_Inundacoes_pd" = "AB2_Desastres_Hidrológicos_Inundações_enxurradas_e_alagamentos_pd",
+         "z4_Deslizamento_pd" = "AB2_Desastres_Hidrológicos_Deslizamento_de_terra_pd")
+```
+
 ## 4.2 Testando as condições da variável destino para análise de séries temporais
 
-### 4.2.1 Analisando a existência de tendências na variável destino
+### 4.2.1 Analisando a variável destino
 
 ```{r}
-#Subindo pacotes de análise de séries temporais: 
-
-df_ols <- pdata.frame(df_ols, index = c("Cod_IBGE_Mun", "Dia"))%>% 
-  mutate(Dia = as.integer(Dia)) #Corrigindo Dia como integral
-
-TesteTend <- lm(agenda_clima ~ Dia, data = df_ols)
-
-summary(TesteTend)
-
-rm(TesteTend)
+#Teste de estacionariedade
+# Gráfico ACF
+png(here("Figuras/4.2.1Correlograma1.png"), width = 1200, height = 400)
+psacf(df_ols, y_agenda_clima ~ Cod_IBGE_Mun, ~ Dia,
+      type = "correlation",
+      main = "Correlograma ACF da agenda_clima",
+      family = "serif")
+dev.off()
 ```
 
-Existe uma linha de tendência significativa, mas de magnitude pequena
-
-### 4.2.2 Testes de autocorrelação serial (raiz unitária) (TRAVANDO)
-
 ```{r}
-# Teste de Breusch-Godfrey com "pbgtest"
+# Gráfico PACF
+png(here("Figuras/4.2.2Correlograma_Parcial.png"), width = 1200, height = 400)
+psacf(df_ols, y_agenda_clima ~ Cod_IBGE_Mun, ~ Dia,
+      type = "partial",
+      main = "Correlograma PACF da agenda_clima",
+      family = "serif")
+dev.off()
 
-
-#TesteBG <- pbgtest(agenda_clima ~ lag(agenda_clima), data = df_ols)
-
-
-#TesteBG
-
-#rm(TesteBG)
 ```
 
-O resultado sugere que não há autocorrelação serial significativa na série temporal analisada.
+### 4.2.3 Checando por autocorrelação nas variáveis
 
-### 4.2.3 Testes de sazonalidade
-
-```{r}
-
-sazonalidade <- df_ols %>% 
-  group_by(Mes, Cod_IBGE_Mun) %>% 
-  summarise(n_proj_clima = sum(n_proj_clima), 
-            total_proj_mes = sum(total_proj_dia), 
-            agenda_clima = n_proj_clima/total_proj_mes) %>% 
-  mutate(agenda_clima = ifelse(agenda_clima == "NaN", 0, agenda_clima)) %>% 
-  group_by(Mes) %>% 
-  summarise(agenda_clima = mean(agenda_clima)) %>% 
-  ggplot(aes(x = Mes, y = agenda_clima)) +
-  geom_col(fill = "darkgreen")+
-  theme_bw()+
-  labs(title = "Percentual médio de produção legislativa relacionada ao clima, por mês",
-       x= "Mês", 
-       y = "Percentual de produção legislativa")+
-  scale_x_continuous(n.breaks = 12)
-
-
-sazonalidade
-
-ggsave(here("Figuras/4.2.3Teste_Sazonalidade.png"), sazonalidade)
-
-rm(sazonalidade)
-```
-
-Como é possível observar, há um aumento do percentual de produção em políticas climáticas nos meses de verão,, em especial fevereiro e março, e uma queda considerável em dezembro.
-
-### 4.2.4 Checando por autocorrelação nas variáveis
-
-```{r}
+```{r, warning=FALSE}
 #Checando por autocorrelações na matriz das variáveis: 
 
-cor_matrix <- cor(df_ols[, c("agenda_clima", "Desastre", "Obitos",
-                             "dias_proxima_eleicao", "Receitas_pCap", "n_OSCs",
-                             "AB2_Recursos_Hídricos_Seca", 
-                             "AB2_Segurança_Alimentar_Seca", "AB2_Segurança_Alimentar_Chuva",
-                             "AB2_Desastres_Hidrológicos_Inundações_enxurradas_e_alagamentos",
-                             "AB2_Desastres_Hidrológicos_Deslizamento_de_terra")],
+cor_matrix <- cor(df_ols[, c("y_agenda_clima", "y2_agenda_estrita", 
+                             "d1_Desastre", "d2_obitos",
+                             "w_dias_eleicao", "x1_Receitas_pCap_pd", "x2_n_OSCs_pd",
+                             "z1_Seca_pd", "z2_Chuva_pd","z3_Inundacoes_pd","z4_Deslizamento_pd")],
                   use = "complete.obs") %>% 
   data.table() %>% 
-  mutate(Coluna = c("agenda_clima", "Desastre", "Obitos",
-                             "dias_proxima_eleicao", "Receitas_pCap", "n_OSCs",
-                             "AB2_Recursos_Hídricos_Seca", 
-                             "AB2_Segurança_Alimentar_Seca", "AB2_Segurança_Alimentar_Chuva",
-                             "AB2_Desastres_Hidrológicos_Inundações_enxurradas_e_alagamentos",
-                             "AB2_Desastres_Hidrológicos_Deslizamento_de_terra")) 
+  mutate(Coluna = c("y_agenda_clima", "y2_agenda_estrita",
+                    "d1_Desastre", "d2_obitos",
+                             "w_dias_eleicao","x1_Receitas_pCap_pd", "x2_n_OSCs_pd",
+                    "z1_Seca_pd", "z2_Chuva_pd","z3_Inundacoes_pd","z4_Deslizamento_pd")) 
 correlacao1 <- cor_matrix %>% 
   pivot_longer(cols = 1:(length(cor_matrix)-1), names_to = "Linha", values_to = "Valores") %>% 
   ggplot(aes(x= Linha, y = Coluna, fill = Valores)) + 
-  geom_tile()
+  geom_tile()+
+    labs(
+    title = "Matriz de correlação das variáveis",
+    x = "Variáveis 2",
+    y = "Variáveis 1",
+    caption = "Elaborado pelo autor") +
+  theme_classic() +
+    theme(legend.position = "bottom",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        strip.text = element_text(size = 14),
+        axis.text.x = element_text(angle = 45, hjust = 1))
+  
 
 correlacao1
 
+
+ggsave(here("Figuras/4.2.3Matriz_Correlação.png"), correlacao1, width = 10, height = 10)
 rm(cor_matrix, correlacao1)
 ```
 
 Como é possível observar, a maioria das variáveis não tem um nível de correlação muito elevado, exceto as da mesma categoria do Índice de Risco Climático.
 
+## 4.2.4 Checando balanceamento
+
 ```{r}
+#Criando coluna separado dos desvios-padrão originais:
+
+desvios <- df_ols %>% 
+  select(starts_with("dp")) %>%
+  unique() %>% 
+  pivot_longer(cols = starts_with("dp"), names_prefix = "dp_", names_to = "Variável", values_to = "Desvio-Padrão Original")
+
 #Checando missing values:
+
+df_ols <- df_ols %>% 
+  select(Cod_IBGE_Mun, Dia, Data, Mes, Ano,
+         y_agenda_clima, y2_agenda_estrita,
+         d1_Desastre, d2_obitos,
+         w_dias_eleicao, x1_Receitas_pCap_pd, x2_n_OSCs_pd,
+         z1_Seca_pd, z2_Chuva_pd,z3_Inundacoes_pd,z4_Deslizamento_pd)
+
+colSums(is.na(df_ols))
+```
+
+Faltam 5833 observações para a variável de Receita. Vamos verificar quais são os municípios faltantes:
+
+```{r}
+Receitas_NA <- df_ols %>% 
+  mutate(n = ifelse(is.na(x1_Receitas_pCap_pd), 1, 0)) %>% 
+    group_by(Cod_IBGE_Mun, Ano) %>% 
+  summarise(missing = sum(n)) %>% 
+  filter(missing > 0)
+
+nome_munics <- readRDS(here("Dados/df_agendaclima_municipal.RDS")) %>% 
+  select(Cod_IBGE_Mun, Nome_Municipio, UF) %>% 
+  unique()
+
+Receitas_NA <- merge(Receitas_NA, nome_munics, by = "Cod_IBGE_Mun", all.x = T)
+
+```
+
+Como é possível observar, temos 14 cidades com Missing Values para a receita. Como o número de observações faltantes corresponde a menos de 0,5% das observações, e o foco da análise está na variação agregada, optei opor imputar os dados faltantes.
+
+```{r}
+
+# Ordenando os dados
+setkey(df_ols, Cod_IBGE_Mun, Dia)
+
+# Realizando a imputação>
+df_ols[, x1_Receitas_pdi := na.approx( #Interpolação
+  x1_Receitas_pCap_pd,
+  x = Dia,
+  na.rm = FALSE,
+  rule = 2 #Extrapolação
+), by = Cod_IBGE_Mun]
 
 colSums(is.na(df_ols))
 
-Receitas_NA <- df_ols %>% 
-  filter(is.na(Receitas_pCap)) %>% 
-  group_by(Cod_IBGE_Mun) %>% 
-  summarise()
+
+rm(nome_munics, Receitas_NA)
 ```
 
-Como é possível observar, temos 14 cidades com Missing Values para a receita. Estes municípios terão que ser removidos da seleção para fazer a análise.\
-
-## 4.3 NORMALIZAR DIVIDINDO POR SD, Rodando a regressão com série temporal
+## 4.3 Rodando a regressão com série temporal
 
 ### 4.3.1 Análise com todas as variáveis - Modelo Pooling
 
 ```{r}
 #Preparando base de dados 
 df_ols <- df_ols %>% 
-  filter(!Cod_IBGE_Mun %in% Receitas_NA$Cod_IBGE_Mun) %>% #remove municípios incompletos 
   pdata.frame(index = c("Cod_IBGE_Mun", "Dia"))
 
-rm(Receitas_NA)
 ```
 
 ### Modelo 1: Pooling
@@ -228,21 +292,19 @@ rm(Receitas_NA)
 
 #Primeito modelo: agenda mensurada como percentual com menção a termos climáticos
 
-modelo1 <- plm(agenda_clima ~ lag(agenda_clima)+
-                 Desastre + lag(Desastre) + Obitos + lag(Obitos) + 
-                 dias_proxima_eleicao +  
-                 Receitas_pCap + n_OSCs +
-                 AB2_Recursos_Hídricos_Seca + 
-                 AB2_Segurança_Alimentar_Seca + AB2_Segurança_Alimentar_Chuva +                AB2_Desastres_Hidrológicos_Inundações_enxurradas_e_alagamentos + AB2_Desastres_Hidrológicos_Deslizamento_de_terra, 
-               data = df_ols, model = "pooling", pooling = T)
+modelo1 <- plm(y_agenda_clima ~ lag(y_agenda_clima) + 
+                 d1_Desastre + lag(d1_Desastre) + 
+         d2_obitos + lag(d2_obitos)+
+         w_dias_eleicao+ x1_Receitas_pCap_pd+ x2_n_OSCs_pd+
+         z1_Seca_pd+ z2_Chuva_pd + z3_Inundacoes_pd + z4_Deslizamento_pd,
+         data = df_ols, model = "pooling")
 
-
-stargazer(modelo1, type = "text")
+stargazer(modelo1, type = "text", mean.sd = TRUE)
 ```
 
 ### Visualizando os resultados
 
-```{r}
+```{r, warning=FALSE}
 # Extrair coeficientes e erros padrão diretamente do objeto plm
 coefs <- modelo1$coefficients
 variaveis <- names(coefs)
@@ -280,18 +342,45 @@ M1plot <- ggplot(m1_plot, aes(x = Variavel, y = Estimativa, color = Significanci
                      name = "Nível de\nSignificância") +
   coord_flip() +
   theme_bw() +
-  theme(legend.position = "bottom")+
+    theme(legend.position = "bottom",
+        text = element_text(family = "Times New Roman"),
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.text = element_text(size = 10),
+        strip.text = element_text(size = 14),
+        axis.text.x = element_text(angle = 45, hjust = 1))+
   labs(
     title = "Coeficientes Modelo 1 (Pooled)",
     x = "Variável",
-    y = "Estimativa"
-  )
+    y = "Estimativa",
+    caption = "Elaborado pelo autor")+
+    scale_y_continuous(labels = label_percent(accuracy = 1))
 
 M1plot
 
-ggsave(here("Figuras/Modelo1.png"))
+ggsave(here("Figuras/4.3.1.1Modelo1.png"), M1plot, width= 10, height = 5)
 
-rm(coefs, variaveis, estimativas, erros_padrao, t_values, pvalores, nivel_sig, M1plot, m1_plot)
+rm(variaveis, estimativas, erros_padrao, t_values, pvalores, nivel_sig, m1_plot)
+```
+
+```{r, warning=FALSE}
+M1plot_z <- M1plot+ scale_y_continuous(labels = label_percent(accuracy = 0.001), limits = c(-0.0025, 0.005))
+
+M1plot_z
+
+ggsave(here("Figuras/4.3.1.2Modelo1_zoom.png"), M1plot_z, width= 10, height = 5)
+
+rm(M1plot, M1plot_z)
+```
+
+```{r}
+summary(df_ols$y_agenda_clima)
+```
+
+### Testes dos pressupostos da regressão linear
+
+```{r}
+checagem <- check_model(modelo1)
 ```
 
 ### Teste de autocorrelação nas unidades (Pesaran)
@@ -316,7 +405,34 @@ print(TesteDW1)
 
 saveRDS(TesteDW1, here("Dados/M1DurbinWatson.RDS"))
 
-rm(TesteDW1, modelo1)
+rm(TesteDW1)
+```
+
+### \# Teste de Breusch-Godfrey para autocorrelação serial com "pbgtest"
+
+```{r}
+{r}
+# Teste de Breusch-Godfrey com "pbgtest"
+
+
+TesteBG <- pbgtest(agenda_clima ~ lag(agenda_clima), data = df_ols)
+
+
+TesteBG
+
+#rm(TesteBG)
+```
+
+### Efeito de longo prazo da ocorrência de desastres
+
+```{r}
+# Long-term effect
+lte_total <- (coefs["d1_Desastre"] + coefs["lag(d1_Desastre)"]) / (1 - coefs["lag(y_agenda_clima)"])
+
+
+print(paste("Efeito de Longo Prazo do Desastre:", round(lte_total, 3), " ou ", round(lte_total/mean(df_ols$y_agenda_clima), 3), "vezes a média de proposituras")) 
+
+rm(lte_total, coefs)
 ```
 
 ### 4.3.2 - Modelo "Within"

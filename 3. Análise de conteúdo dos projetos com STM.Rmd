@@ -660,11 +660,13 @@ Ano_Topicos <- df %>%
         legend.text = element_text(size = 12),
         strip.text = element_text(size = 10))+
   scale_fill_manual(values = paleta_topicos$Cores, limits = paleta_topicos$Topicos)+
-  scale_x_continuous(n.breaks = 4)+
+  scale_x_continuous(n.breaks = 3)+
   ylab('Percentual de proposituras')+
-    facet_wrap(~tópico_principal)
+    facet_grid(~tópico_principal)
 
-ggsave(here("Figuras/3.4.5P_Topicos_Ano.png"), Ano_Topicos)
+Ano_Topicos
+
+ggsave(here("Figuras/3.4.5P_Topicos_Ano.png"), Ano_Topicos, width = 10, height = 4)
 
 rm(Ano_Topicos)
 ```
@@ -691,15 +693,15 @@ Mes_Topicos <- df %>%
         legend.text = element_text(size = 12),
         strip.text = element_text(size = 10))+
   scale_fill_manual(values = paleta_topicos$Cores, limits = paleta_topicos$Topicos)+
-  scale_x_continuous(n.breaks = 4)+
+  scale_x_continuous(n.breaks = 3)+
   ylab('Percentual de proposituras')+
   xlab('Mês')+
-    facet_wrap(~tópico_principal)
+    facet_grid(~tópico_principal)
 
 
 Mes_Topicos
 
-ggsave(here("Figuras/3.4.6P_Topicos_Mes.png"), Mes_Topicos)
+ggsave(here("Figuras/3.4.6P_Topicos_Mes.png"), Mes_Topicos, width=10, height = 4)
 
 rm(Mes_Topicos)
 ```
@@ -868,7 +870,7 @@ box_topicos <- df_pl %>%
     labs(
       title = "Boxplot: distribuição dos percentuais de Tópicos (PL)",
       x = "Tópicos",
-      y = "Percentual atribuído aos tópicos com maior valor",
+      y = "Percentual atribuído",
       fill = "Tópicos",
       caption = "Elaborado pelo autor") +
     theme_classic() +
@@ -883,7 +885,7 @@ box_topicos <- df_pl %>%
 
 box_topicos
   
-ggsave(here("Figuras/3.5.2.1Boxplot_Maior_Topico_PL.png"), box_topicos, width = 10, height = 6)
+ggsave(here("Figuras/3.5.2.1Boxplot_Maior_Topico_PL.png"), box_topicos, width = 10, height = 4)
   
 rm(box_topicos)
 
@@ -1572,7 +1574,7 @@ saveRDS(df_ols, here("Dados/df_ols.RDS"))
 
 ```{r}
 #Removendo todos os arquivos
-#rm(list = ls(all.names = TRUE))
+rm(list = ls(all.names = TRUE))
 ```
 
 Prossiga para o arquivo "4. Análise dos efeitos dos ECEs sobre a agenda em políticas climáticas"
